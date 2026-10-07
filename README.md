@@ -1,2 +1,11 @@
 # meshvale-repair
-Conservative mesh repair with explicit policies, preservation reporting, Python interfaces, and CLI workflows.
+
+Conservative mesh repair for Meshvale.
+
+**Status:** Initial project setup. Implementation and release packages are forthcoming.
+
+Planned scope: reusable repair operations, configurable policies, preservation reports, Python interfaces, and command-line workflows.
+
+Meshvale makes imperfect 3D assets usable with explicit guarantees about what was checked, changed, preserved, or lost.
+
+See the [Meshvale organization](https://github.com/Meshvale) and [coordination repository](https://github.com/Meshvale/meshvale) for the project.
