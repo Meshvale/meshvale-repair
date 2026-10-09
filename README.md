@@ -2,7 +2,7 @@
 
 Configurable inspection and repair of imperfect polygon meshes.
 
-**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal and reported in-memory verification. No stable release, file workflow or CLI/batch yet.
+**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal, reported in-memory verification and verified OBJ bundle publication. No stable release or CLI/batch yet.
 
 ## Available native operation
 
@@ -13,6 +13,8 @@ Read the [operation contract and install instructions](docs/duplicates.md) for e
 The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
 
 The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.
+
+The optional [OBJ asset workflow](docs/obj-workflow.md) imports OBJ/MTL and referenced resources through Interchange, applies that same repair/profile and publishes a verified new bundle with its report. Polygon loops, materials and opaque resources follow the adapter's explicit subset; unsupported export channels fail explicitly. A rejected or cancelled publication leaves no repaired bundle. See the [installed file example](examples/python/repair_obj_bundle.py). OBJ support does not establish glTF/GLB or broader format coverage.
 
 ## Planned capabilities
 

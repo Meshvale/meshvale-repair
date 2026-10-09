@@ -3,6 +3,7 @@
 | Dependency | Tested input | Role / notices |
 |---|---|---|
 | Meshvale Geometry | Native revision `36d36cba938ab660ad25c71c0afbb0d3f5963ff3`; Python `0.0.1.dev11+g36d36cba9` | Installed C++20 headers / owned record protocol; separately installed canonical Python Mesh and report envelope; Apache-2.0 [retained attribution](licenses/meshvale-geometry-notice.txt) |
+| Meshvale Interchange | Revision `91f1102105e0b94cf914b3994310a10cfe3e0d28`; Python `0.0.1.dev13+g91f110210` | Optional `assets` extra's separately installed OBJ/MTL adapter and verified publisher; Apache-2.0 [dependency notices](https://github.com/Meshvale/meshvale-interchange/blob/91f1102105e0b94cf914b3994310a10cfe3e0d28/THIRD_PARTY.md); its parser is not linked or vendored into Repair |
 | jsonschema | `4.26.0`, through Geometry's `reports` extra | Optional workflow reference validation; MIT, separately installed with its own COPYING and dependencies; not vendored or linked into Repair's extension |
 | nanobind | `3.1.0` | Optional extension runtime linked statically; BSD-3-Clause [notice](licenses/nanobind.txt) |
 | tsl::robin_map | Bundled with nanobind 3.1.0 | MIT [notice](licenses/robin-map.txt) |
