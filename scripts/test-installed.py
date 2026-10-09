@@ -26,6 +26,10 @@ if __name__ == "__main__":
         run(python,"-m","pip","install","--no-index",options.geometry_wheel.resolve(),options.repair_wheel.resolve(),cwd=directory)
         run(python,"-I","-m","unittest","discover","-s",root/"tests/python","-v",cwd=directory)
         run(python,"-I",root/"examples/python/remove_duplicate.py",cwd=directory)
+        run(python,"-I","-m","meshvale_repair","--help",cwd=directory)
+        run(python,"-I","-m","meshvale_repair","--version",cwd=directory)
+        console = environment/("Scripts/meshvale-repair.exe" if sys.platform == "win32" else "bin/meshvale-repair")
+        run(console,"--help",cwd=directory)
         for order in ["geometry-first","repair-first"]:
             code = ("import meshvale_geometry; import meshvale_repair" if order == "geometry-first" else
                     "import meshvale_repair; import meshvale_geometry")
@@ -40,6 +44,8 @@ if __name__ == "__main__":
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/assets","-v",cwd=directory)
             run(python,"-I",root/"examples/python/repair_obj_bundle.py",cwd=directory)
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/cli","-v",cwd=directory)
+            run(python,"-I",root/"examples/python/obj_commands.py",cwd=directory)
             import itertools
             for order in itertools.permutations(("meshvale_geometry", "meshvale_interchange", "meshvale_repair")):
                 code = "; ".join("import " + name for name in order)

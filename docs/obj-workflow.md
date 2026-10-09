@@ -3,13 +3,13 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-OBJ-WORKFLOW-001 |
-| Version | 0.1.0 |
-| Status | Development API; no release or command-line interface |
+| Version | 0.1.1 |
+| Status | Development API; command consumers are documented separately; not released |
 | Owner | Repair's OBJ asset orchestration and report delivery |
 
 `meshvale_repair.obj_workflow.repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(), cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None)` imports an owned OBJ asset, calls the [reported in-memory repair](workflow.md), and publishes an accepted/unchanged candidate using Interchange's [verified bundle facility](https://github.com/Meshvale/meshvale-interchange/blob/91f1102105e0b94cf914b3994310a10cfe3e0d28/docs/obj-files.md). No native duplicate algorithm or second exporter is implemented here. `destination` must be a new directory with an existing parent. The source is not overwritten.
 
-The frozen `ObjWorkflowResult` has owned nullable `source`/`candidate` assets, a detached JSON `report`, derived `exit_code` and nullable relative published `entry`. A rejected operation returns the source snapshot, no accepted candidate and no bundle. A successful empty request still verifies/publishes an unchanged copy. The imported asset contains one mesh; OBJ object/group membership is binding data rather than separately guessed meshes/instances. Targets name source face rows and keep/remove pairs. Invocation representation errors raise before processing; supported defects/rejections and adapter execution failures produce reports.
+The frozen `ObjWorkflowResult` has owned nullable `source`/`candidate` assets, a detached JSON `report`, derived `exit_code` and nullable relative published `entry`. A rejected operation returns the source snapshot, no accepted candidate and no bundle. A successful empty request still verifies/publishes an unchanged copy. The imported asset contains one mesh; OBJ object/group membership is binding data rather than separately guessed meshes/instances. Targets name source face rows and keep/remove pairs. Invocation representation errors, including path/native declaration text that cannot encode as UTF-8, raise before processing; supported defects/rejections and adapter execution failures produce reports.
 
 ## Profile, resources and reload
 
@@ -33,4 +33,4 @@ Use Interchange's `Cancellation` token for import/publication and the in-memory 
 
 ## Consumption
 
-Install the `assets` extra with the exact public Geometry/Interchange candidates in [pyproject.toml](../pyproject.toml); neither is a package-index release yet. Native-only Repair and its primitive Python API do not acquire Interchange. The [installed original tests](../tests/assets/test_obj_workflow.py) and [runnable example](../examples/python/repair_obj_bundle.py) prove the file interface. CLI/batch, glTF/GLB conversion and supported release packages remain subsequent work.
+Install the `assets` extra with the exact public Geometry/Interchange candidates in [pyproject.toml](../pyproject.toml); neither is a package-index release yet. Native-only Repair and its primitive Python API do not acquire Interchange. The [installed original tests](../tests/assets/test_obj_workflow.py) and [runnable example](../examples/python/repair_obj_bundle.py) prove the file interface. The [command owner](cli.md) defines single-asset/batch consumers and their shared pure invocation validation; glTF/GLB conversion and supported release packages remain subsequent work.

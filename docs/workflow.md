@@ -3,11 +3,11 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-WORKFLOW-001 |
-| Version | 0.1.1 |
+| Version | 0.1.2 |
 | Status | Development in-memory interface; not released |
 | Owner | Repair profile, verification and actual operation reports |
 
-`meshvale_repair.workflow.repair_duplicate_mesh(mesh, targets, *, input_id="source", row_local_attributes=(), cancelled=None)` runs the existing [native duplicate operation](duplicates.md) on one immutable Geometry mesh. It returns a frozen `WorkflowResult` with nullable accepted `candidate`, detached JSON `report` and derived `exit_code`. Input remains usable on every outcome. This interface processes mesh snapshots. The separate [OBJ asset workflow](obj-workflow.md) composes import and verified publication around it; CLI/batch remain subsequent interfaces.
+`meshvale_repair.workflow.repair_duplicate_mesh(mesh, targets, *, input_id="source", row_local_attributes=(), cancelled=None)` runs the existing [native duplicate operation](duplicates.md) on one immutable Geometry mesh. It returns a frozen `WorkflowResult` with nullable accepted `candidate`, detached JSON `report` and derived `exit_code`. Input remains usable on every outcome. This interface processes mesh snapshots. The separate [OBJ asset workflow](obj-workflow.md) composes import and verified publication around it; [OBJ commands](cli.md) consume that file interface.
 
 Targets and custom row-local declarations follow the [Python operation contract](python.md). Resolve iterables once. Wrong types/shapes and invalid integer representations raise the same invocation exceptions before execution; representable out-of-range targets produce a rejected operation report. `input_id` is an opaque report-schema identifier, never a path. Input SHA-256 is null: this interface does not claim a file or canonical mesh hash. The report records both representative and removal indices, their pair relationship and resolved declarations.
 
