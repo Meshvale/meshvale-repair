@@ -12,11 +12,11 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "licenses/*.txt"]
 authors = [{name = "Meshvale contributors"}]
-dependencies = ["meshvale-geometry==0.0.1.dev22+g273b68991"]
+dependencies = ["meshvale-geometry==0.0.1.dev23+g519eaf2f4"]
 
 [project.optional-dependencies]
-workflow = ["meshvale-geometry[reports]==0.0.1.dev22+g273b68991"]
-assets = ["meshvale-geometry[reports]==0.0.1.dev22+g273b68991", "meshvale-interchange==0.0.1.dev23+g61bc9641a"]
+workflow = ["meshvale-geometry[reports]==0.0.1.dev23+g519eaf2f4"]
+assets = ["meshvale-geometry[reports]==0.0.1.dev23+g519eaf2f4", "meshvale-interchange==0.0.1.dev24+gabcef4a72"]
 
 [project.scripts]
 meshvale-repair = "meshvale_repair.commands:main"
