@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <meshvale/repair/duplicates.hpp>
+#include "meshvale/repair/duplicates.h"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <type_traits>
+#include <utility>
+#include <variant>
+#include <vector>
 
 namespace meshvale::repair {
 namespace {

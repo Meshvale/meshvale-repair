@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <meshvale/geometry/python/record.hpp>
-#include <meshvale/repair/duplicates.hpp>
+#include <Python.h>
+
+#include <utility>
+#include <vector>
+
+#include <nanobind/nanobind.h>
+
+#include "meshvale/geometry/python/record.h"
+#include "meshvale/repair/duplicates.h"
 
 namespace nb = nanobind;
 namespace geo = meshvale::geometry;

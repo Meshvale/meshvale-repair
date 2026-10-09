@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 cmake_minimum_required(VERSION 3.24)
 project(MeshvaleRepair LANGUAGES CXX)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(MeshvaleGeometry 0.0.0 EXACT CONFIG REQUIRED)
 find_package(Git QUIET)
@@ -69,6 +70,10 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
+  add_library(meshvale_repair_header_checks OBJECT
+    tests/header_canonical.cpp tests/header_legacy.cpp)
+  target_link_libraries(meshvale_repair_header_checks PRIVATE meshvale::repair)
+  meshvale_warnings(meshvale_repair_header_checks)
   add_executable(meshvale_duplicate_tests tests/duplicates.cpp)
   target_link_libraries(meshvale_duplicate_tests PRIVATE meshvale::repair)
   meshvale_warnings(meshvale_duplicate_tests)

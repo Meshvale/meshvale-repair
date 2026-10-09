@@ -14,5 +14,6 @@
 
 ### Changed
 
+- New C++ callers use `meshvale/repair/duplicates.h`; the existing `.hpp` include remains an installed forwarding header with unchanged declarations and behavior. Native and installed-consumer builds compile both spellings independently with language extensions disabled.
 - Python and native evaluation now use the report-capable Geometry revision pinned in the package and operation contracts. The earlier exact-pinned Geometry development candidate is no longer the tested dependency for this branch.
 - Asset evaluation pins the verified-supplement Interchange candidate and exercises real publication under all six product import orders; the primitive API and native library keep their original dependency boundary.

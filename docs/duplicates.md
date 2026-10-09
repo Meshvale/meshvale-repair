@@ -1,6 +1,19 @@
 # Targeted exact duplicate-face removal
 
-Contract version: **0.1.0**, development API. The C++ declarations in [duplicates.hpp](../include/meshvale/repair/duplicates.hpp) own interface shapes. This document owns operation behavior.
+Contract version: **0.1.1**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
+
+## Header compatibility
+
+Use `meshvale/repair/duplicates.h` for new C++ callers. It is self-contained and
+uses a path-derived include guard. The installed `duplicates.hpp` header remains
+as a forwarding compatibility include: existing callers receive exactly the same
+declarations, types and functions. Including either spelling, repeatedly or
+together, is supported. No removal version has been scheduled for the forwarding
+header. The `.h` migration does not rename the public API or change its behavior.
+
+Native tests compile the canonical and legacy headers in independent translation
+units. The separate installed consumer compiles both spellings and calls the
+same operation through each; CMake builds use C++20 with extensions disabled.
 
 ## Request and equivalence
 

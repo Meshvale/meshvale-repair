@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-#include <meshvale/repair/duplicates.hpp>
+#include "meshvale/repair/duplicates.h"
 #include <iostream>
+#include <vector>
+
+bool CheckLegacyHeader();
 
 int main() {
+    if (!CheckLegacyHeader()) return 1;
     meshvale::geometry::Mesh input;
     input.positions = {{0,0,0},{1,0,0},{1,1,0},{0,1,0}};
     input.face_offsets = {0,4,8};
