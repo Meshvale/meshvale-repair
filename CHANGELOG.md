@@ -14,6 +14,7 @@
 
 ### Changed
 
+- Native and Python dependency evaluation now pins Geometry's pooled-editing development candidate. Repair continues to use owned dense snapshots and its existing copy-producing operation; editor mutation and Python editor bindings are separate capabilities.
 - C++ files now use the Google-based formatter with an exact-version check in development and CI; existing public API names remain unchanged.
 - New C++ callers use `meshvale/repair/duplicates.h`; the existing `.hpp` include remains an installed forwarding header with unchanged declarations and behavior. Native and installed-consumer builds compile both spellings independently with language extensions disabled.
 - Python and native evaluation now use the report-capable Geometry revision pinned in the package and operation contracts. The earlier exact-pinned Geometry development candidate is no longer the tested dependency for this branch.

@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: c298d3cd46829aed309f3152aad99101932e1ea8
+          ref: 273b6899111784bd8de5efd44361e8de32f885f0
           path: .local/geometry-source
       - name: Configure geometry dependency
         run: cmake -S .local/geometry-source -B .local/geometry-build -DCMAKE_BUILD_TYPE=Release
@@ -88,13 +88,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: c298d3cd46829aed309f3152aad99101932e1ea8
+          ref: 273b6899111784bd8de5efd44361e8de32f885f0
           fetch-depth: 0
           path: .local/geometry-source
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: d8459f802a425687108298b3167182a62dbfd8ce
+          ref: 61bc9641a7c069b8299dcfac48ca6b76381a063a
           fetch-depth: 0
           path: .local/interchange-source
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -119,6 +119,8 @@ jobs:
       - name: Build and install native Geometry headers
         run: |
           cmake -S .local/geometry-source -B .local/geometry-build -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build .local/geometry-build --config Release
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install .local/geometry-build --config Release --prefix .local/geometry-prefix
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
