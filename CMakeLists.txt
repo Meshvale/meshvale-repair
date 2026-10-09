@@ -49,6 +49,24 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/MeshvaleRepairConfig.cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MeshvaleRepair")
 install(FILES LICENSE NOTICE DESTINATION "${CMAKE_INSTALL_DATADIR}/MeshvaleRepair")
 
+option(MESHVALE_REPAIR_PYTHON "Build the optional Python duplicate interface" OFF)
+if(MESHVALE_REPAIR_PYTHON)
+  find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
+  execute_process(COMMAND "${Python_EXECUTABLE}" -c
+    "import sysconfig; print(int(bool(sysconfig.get_config_var('Py_GIL_DISABLED'))))"
+    OUTPUT_VARIABLE meshvale_python_free_threaded OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+  if(meshvale_python_free_threaded STREQUAL "1")
+    message(FATAL_ERROR "Free-threaded Python is not supported by this binding")
+  endif()
+  execute_process(COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+    OUTPUT_VARIABLE meshvale_nanobind_dir OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+  find_package(nanobind 3.1 CONFIG REQUIRED HINTS "${meshvale_nanobind_dir}")
+  nanobind_add_module(_repair NB_STATIC NB_DOMAIN meshvale_repair python/bindings.cpp)
+  target_link_libraries(_repair PRIVATE meshvale::repair)
+  meshvale_warnings(_repair)
+  install(TARGETS _repair LIBRARY DESTINATION meshvale_repair COMPONENT python)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(meshvale_duplicate_tests tests/duplicates.cpp)

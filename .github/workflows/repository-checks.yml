@@ -35,7 +35,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: 8f85480f6ac02f661508c2f4316cb8721f81ee08
+          ref: 0c7b9f12148a3fdf37d7ab27f0c06ba2656b3a36
           path: .local/geometry-source
       - name: Configure geometry dependency
         run: cmake -S .local/geometry-source -B .local/geometry-build -DCMAKE_BUILD_TYPE=Release
@@ -59,3 +59,40 @@ jobs:
         run: cmake --build .local/consumer --config Release
       - name: Test installed consumer
         run: ctest --test-dir .local/consumer -C Release --output-on-failure
+
+  python:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.10", "3.14"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: 0c7b9f12148a3fdf37d7ab27f0c06ba2656b3a36
+          fetch-depth: 0
+          path: .local/geometry-source
+      - name: Build and install native Geometry headers
+        run: |
+          cmake -S .local/geometry-source -B .local/geometry-build -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release
+          cmake --install .local/geometry-build --config Release --prefix .local/geometry-prefix
+      - name: Build source distributions and wheels
+        run: |
+          python -m pip install build==1.6.1
+          python -m build .local/geometry-source --outdir .local/geometry-wheels
+          python -m build --outdir .local/dist "--config-setting=cmake.define.CMAKE_PREFIX_PATH=${{ github.workspace }}/.local/geometry-prefix"
+      - name: Inspect Repair packages
+        shell: bash
+        run: python scripts/check-package.py .local/dist/*.whl .local/dist/*.tar.gz
+      - name: Test clean installed producer/consumer and both import orders
+        shell: bash
+        run: python scripts/test-installed.py --geometry-wheel .local/geometry-wheels/*.whl --repair-wheel .local/dist/*.whl
