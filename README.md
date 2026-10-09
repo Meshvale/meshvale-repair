@@ -2,7 +2,7 @@
 
 Configurable inspection and repair of imperfect polygon meshes.
 
-**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal. No stable release, file adapters or CLI/batch yet.
+**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal and reported in-memory verification. No stable release, file workflow or CLI/batch yet.
 
 ## Available native operation
 
@@ -11,6 +11,8 @@ Remove explicitly selected duplicate triangles, quads or n-gons while retaining 
 Read the [operation contract and install instructions](docs/duplicates.md) for exact equality, attribute policy, rejection and preservation limits. The [installed consumer example](examples/consumer/main.cpp) demonstrates the public C++ interface.
 
 The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
+
+The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.
 
 ## Planned capabilities
 
