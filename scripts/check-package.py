@@ -34,7 +34,7 @@ def inspect(path):
             assert name in roots or parts[1] in directories,name
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
-        for required in [".clang-format","include/meshvale/repair/duplicates.h","include/meshvale/repair/duplicates.hpp",
+        for required in [".clang-format","scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h","include/meshvale/repair/duplicates.hpp",
                          "tests/header_canonical.cpp","tests/header_legacy.cpp","examples/consumer/legacy.cpp",
                          "python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
