@@ -22,3 +22,40 @@ jobs:
         run: python scripts/check-portability.py
       - name: Check documentation and environment template
         run: python scripts/check-docs.py
+
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: 8f85480f6ac02f661508c2f4316cb8721f81ee08
+          path: .local/geometry-source
+      - name: Configure geometry dependency
+        run: cmake -S .local/geometry-source -B .local/geometry-build -DCMAKE_BUILD_TYPE=Release
+      - name: Build geometry dependency
+        run: cmake --build .local/geometry-build --config Release
+      - name: Test geometry dependency
+        run: ctest --test-dir .local/geometry-build -C Release --output-on-failure
+      - name: Install geometry dependency
+        run: cmake --install .local/geometry-build --config Release --prefix .local/install
+      - name: Configure repair against installed geometry
+        run: cmake -S . -B .local/build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/install"
+      - name: Build repair
+        run: cmake --build .local/build --config Release
+      - name: Test duplicate operation
+        run: ctest --test-dir .local/build -C Release --output-on-failure
+      - name: Install repair
+        run: cmake --install .local/build --config Release --prefix .local/install
+      - name: Configure installed consumer
+        run: cmake -S examples/consumer -B .local/consumer "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/install"
+      - name: Build installed consumer
+        run: cmake --build .local/consumer --config Release
+      - name: Test installed consumer
+        run: ctest --test-dir .local/consumer -C Release --output-on-failure
