@@ -92,6 +92,22 @@ jobs:
           CIBW_ENVIRONMENT_WINDOWS: >-
             MESHVALE_DEPS="$MESHVALE_DEPS" MESHVALE_PREVIEW_DIR="$MESHVALE_PREVIEW_ROOT/wheels"
             CMAKE_PREFIX_PATH="$MESHVALE_PREFIXES" VCPKG_DISABLE_METRICS=1
+      - name: Load public Geometry verification source on Linux host
+        if: runner.os == 'Linux'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: a27cae686ea4f4c6dabeebfc984f0265602e3b1d
+          path: .local/portable-dependencies/geometry
+          persist-credentials: false
+      - name: Load public Interchange verification source on Linux host
+        if: runner.os == 'Linux'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-interchange
+          ref: 84e7912cba74e6c78410f42fee75856332940c94
+          path: .local/portable-dependencies/interchange
+          persist-credentials: false
       - name: Inspect final publication contents and record exact identities
         shell: bash
         run: |
