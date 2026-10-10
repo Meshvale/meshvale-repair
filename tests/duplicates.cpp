@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "meshvale/repair/duplicates.h"
 
+#include <meshvale/geometry/position_buffer.h>
+
 #include <algorithm>
 #include <bit>
 #include <cstddef>
@@ -18,6 +20,15 @@ using namespace meshvale::repair;
 
 void require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
+}
+bool PositionBytesEqual(const PositionBuffer& left,
+                        const PositionBuffer& right) {
+  if (left.size() != right.size()) return false;
+  std::vector<std::byte> left_bytes(left.size() * 3 * sizeof(double));
+  std::vector<std::byte> right_bytes(left_bytes.size());
+  left.CopyBytesTo(left_bytes);
+  right.CopyBytesTo(right_bytes);
+  return left_bytes == right_bytes;
 }
 bool has(const DuplicateResult& result, const char* code) {
   return std::any_of(result.diagnostics.begin(), result.diagnostics.end(),
@@ -86,7 +97,8 @@ void accepted_rotation_and_preservation() {
   require(out.corner_vertices ==
               std::vector<index_t>({0, 1, 2, 1, 3, 4, 2, 5, 6, 7, 8, 9}),
           "loops changed");
-  require(out.positions == source.positions && source.face_count() == 4,
+  require(PositionBytesEqual(out.positions, source.positions) &&
+              source.face_count() == 4,
           "source/positions changed");
   require(result.face_map == std::vector<index_t>({0, 1, 2, 1}),
           "bad face provenance");
@@ -135,7 +147,7 @@ void distinctions_block_edits() {
   require(has(remove_duplicate_faces(mesh, {{1, 3}}), "repair.not_equivalent"),
           "opposite winding eligible");
   mesh = fixture();
-  mesh.positions.push_back(mesh.positions[4]);
+  mesh.positions.Append(mesh.positions.Get(4));
   mesh.corner_vertices[12] = 10;
   for (std::size_t a = 5; a < 7; ++a)
     mesh.attributes[a].offsets->push_back(mesh.attributes[a].offsets->back());
@@ -250,9 +262,9 @@ void nonmanifold_input_is_retained() {
   require(result.candidate->corner_vertices ==
               std::vector<index_t>({0, 1, 2, 1, 0, 3, 0, 1, 4, 0, 5, 6}),
           "unrelated fan or face rewritten");
-  require(
-      mesh.face_count() == 5 && result.candidate->positions == mesh.positions,
-      "nonmanifold input implicitly split or welded");
+  require(mesh.face_count() == 5 &&
+              PositionBytesEqual(result.candidate->positions, mesh.positions),
+          "nonmanifold input implicitly split or welded");
 }
 void mixed_polygon_group() {
   auto mesh = fixture();

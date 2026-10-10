@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "meshvale/repair/duplicates.h"
 
+#include <meshvale/geometry/position_buffer.h>
+
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -16,6 +18,13 @@
 namespace meshvale::repair {
 namespace {
 using namespace geometry;
+
+bool PositionsEqual(const PositionBuffer& left, const PositionBuffer& right) {
+  if (left.size() != right.size()) return false;
+  for (std::size_t row = 0; row < left.size(); ++row)
+    if (left.Get(row) != right.Get(row)) return false;
+  return true;
+}
 
 std::pair<index_t, index_t> row_span(const Attribute& a, index_t row) {
   if (a.offsets) return {(*a.offsets)[row], (*a.offsets)[row + 1]};
@@ -142,7 +151,7 @@ bool verify(const Mesh& source, const Mesh& candidate,
   if (!inspect_storage(candidate).empty() ||
       !finite_attributes(candidate).empty() ||
       candidate.face_count() != kept.size() ||
-      candidate.positions != source.positions ||
+      !PositionsEqual(candidate.positions, source.positions) ||
       candidate.attributes.size() != source.attributes.size() ||
       result.face_map.size() != source.face_count() ||
       result.corner_map.size() != source.corner_vertices.size())
