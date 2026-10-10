@@ -1,6 +1,19 @@
 # Targeted exact duplicate-face removal
 
-Contract version: **0.1.0**, development API. The C++ declarations in [duplicates.hpp](../include/meshvale/repair/duplicates.hpp) own interface shapes. This document owns operation behavior.
+Contract version: **0.1.1**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
+
+## Header compatibility
+
+Use `meshvale/repair/duplicates.h` for new C++ callers. It is self-contained and
+uses a path-derived include guard. The installed `duplicates.hpp` header remains
+as a forwarding compatibility include: existing callers receive exactly the same
+declarations, types and functions. Including either spelling, repeatedly or
+together, is supported. No removal version has been scheduled for the forwarding
+header. The `.h` migration does not rename the public API or change its behavior.
+
+Native tests compile the canonical and legacy headers in independent translation
+units. The separate installed consumer compiles both spellings and calls the
+same operation through each; CMake builds use C++20 with extensions disabled.
 
 ## Request and equivalence
 
@@ -28,7 +41,7 @@ Before acceptance, checks inspect candidate storage, authored floating values, c
 
 ## Dependency and installation
 
-Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The tested development dependency is public geometry revision `36d36cba938ab660ad25c71c0afbb0d3f5963ff3`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. There are no automatic source downloads or private dependencies in the build. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
+Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The tested development dependency is public geometry revision `c298d3cd46829aed309f3152aad99101932e1ea8`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. There are no automatic source downloads or private dependencies in the build. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
 
 Install geometry into a chosen prefix, then supply that absolute prefix through `CMAKE_PREFIX_PATH`:
 
