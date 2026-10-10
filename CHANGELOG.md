@@ -8,6 +8,8 @@
 
 ### Added
 
+- Runnable textured OBJ walkthrough comparing the reusable API, single command and batch with independent reload, resource/correspondence/receipt checks and an explicit rejected request. Original mixed-polygon inputs and generated bundles remain available for inspection.
+
 - Native targeted duplicate-face removal for indexed polygon meshes, with cyclic face/corner correspondence and whole-request rejection.
 - Preservation of all supported UV sets and variable skin influence rows; unsupported semantics block edits unless explicitly declared row-local.
 - CMake installation and a separate installed consumer.
