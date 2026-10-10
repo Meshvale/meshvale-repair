@@ -1,0 +1,36 @@
+# Reported OBJ file repair
+
+| Field | Value |
+|---|---|
+| ID | REPAIR-OBJ-WORKFLOW-001 |
+| Version | 0.1.0 |
+| Status | Development API; no release or command-line interface |
+| Owner | Repair's OBJ asset orchestration and report delivery |
+
+`meshvale_repair.obj_workflow.repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(), cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None)` imports an owned OBJ asset, calls the [reported in-memory repair](workflow.md), and publishes an accepted/unchanged candidate using Interchange's [verified bundle facility](https://github.com/Meshvale/meshvale-interchange/blob/91f1102105e0b94cf914b3994310a10cfe3e0d28/docs/obj-files.md). No native duplicate algorithm or second exporter is implemented here. `destination` must be a new directory with an existing parent. The source is not overwritten.
+
+The frozen `ObjWorkflowResult` has owned nullable `source`/`candidate` assets, a detached JSON `report`, derived `exit_code` and nullable relative published `entry`. A rejected operation returns the source snapshot, no accepted candidate and no bundle. A successful empty request still verifies/publishes an unchanged copy. The imported asset contains one mesh; OBJ object/group membership is binding data rather than separately guessed meshes/instances. Targets name source face rows and keep/remove pairs. Invocation representation errors raise before processing; supported defects/rejections and adapter execution failures produce reports.
+
+## Profile, resources and reload
+
+The in-memory preservation profile remains authoritative for mesh edits. The file profile `obj-exact-duplicate-publication`, version `1`, additionally requires candidate asset metadata/resources unchanged and native verified reload/publication evidence. Material names/library bytes, ordered library references, object/group definitions, resource paths and opaque bytes are carried through `with_mesh`; their equality is checked before export. Existing non-manifold diagnostics remain visible without being relabeled as corrected. Optional unsupported geometry/solid checks remain unsupported.
+
+All mesh channels are verified before export. The OBJ adapter's explicit subset still rejects additional UV/skin/custom channels; this is not broader format support or a change to Geometry's flexible attributes. Output has identity vertex/face/corner correspondence because this adapter preserves ordered polygon loops, with its own numerical round-trip bound and semantic binding checks. Per-channel output declarations distinguish byte-exact preservation from checked serialization conversion; remapped part-table references and floating round trips must not be described as byte-exact storage. No triangulation occurs.
+
+## Report and content hashes
+
+`input_id` remains an opaque token, not a path. `input.sha256` hashes the **owned imported asset snapshot**, not raw OBJ spelling or the entire source directory. Hash convention `meshvale.obj-snapshot/1` starts with that ASCII identifier plus NUL. Each subsequent chunk is prefixed with an unsigned 64-bit little-endian byte length. JSON chunks use ASCII escapes, sorted keys and compact separators. In order: OBJ-relative path/libraries/parts/material names JSON; material-library bytes; mesh positions/face-offset/corner-index buffers; then each ordered channel's non-buffer metadata JSON and values/offsets/presence buffers; then path-sorted resource path JSON and resource bytes. Buffer chunks start with byte 0 for absent or byte 1 followed by native scalar values encoded little endian. Metadata names/sets, missing backing bytes and ragged offsets participate. Resource bytes include referenced MTL and textures. Formatting and unreferenced source files do not participate. There is no source hash on import failure/cancellation before acquisition.
+
+The public report envelope comes from Geometry. `meshvale.repair.obj` extension version `1` records the hash convention, adapter version, relative artifact inventory and receipt path. Artifact SHA-256 values hash the exact verified serialized file bytes supplied by Interchange's callback. They cover OBJ and all referenced resources; the report excludes itself to avoid a circular hash. Output counts/maps/claims use the actual reloaded snapshot, never predicted counts alone.
+
+`report_path` is a portable bundle-relative supplemental path, normalized once from a filesystem path representation (including bytes). Absolute/rooted paths, drive names and parent traversal are invocation errors before processing. Interchange enforces the remaining portable resource-name rules and collisions. The report is encoded and validated from verified content before commit, then written/read back inside the same staged inventory. Its success declaration is a conditional publication receipt: it becomes visible only when the entire verified bundle commits. If report construction/write/readback, resource verification or publication fails, no repaired bundle is published; the returned failure report does not reuse a prepared success declaration. Colliding report/resource paths fail explicitly.
+
+## Failures and callbacks
+
+Use Interchange's `Cancellation` token for import/publication and the in-memory checkpoints. Cancellation before finalization publishes nothing. Once native publication commits, later cancellation cannot erase the publication fact. Candidate acceptance and publication outcome remain separate on export failure. Expected allocation/filesystem/report-delivery failures produce failed execution with the actual stage; unexpected internal programming errors propagate. No private coordination runtime or machine path enters emitted reports.
+
+`on_phase` forwards native preflight/staging/verification/publication notifications and its callback-failure/cleanup rules. It must not mutate the source snapshot or staging files. Optional `report_sink(report_copy)` is called once after processing to deliver an external report, including failures. The sink gets an independent copy; its ordinary exceptions are recorded in extension `report_delivery` and become report-stage execution failure, without undoing an already published bundle or changing accepted candidate/profile facts. If processing was cancelled, cancellation and exit 130 retain precedence over delivery failure. A success receipt inside a published bundle remains evidence of that bundle; a later external report-delivery failure is reflected in the returned report and exit 2. Process termination and hostile filesystem modification retain the adapter's stated limits.
+
+## Consumption
+
+Install the `assets` extra with the exact public Geometry/Interchange candidates in [pyproject.toml](../pyproject.toml); neither is a package-index release yet. Native-only Repair and its primitive Python API do not acquire Interchange. The [installed original tests](../tests/assets/test_obj_workflow.py) and [runnable example](../examples/python/repair_obj_bundle.py) prove the file interface. CLI/batch, glTF/GLB conversion and supported release packages remain subsequent work.

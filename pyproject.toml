@@ -16,6 +16,7 @@ dependencies = ["meshvale-geometry==0.0.1.dev11+g36d36cba9"]
 
 [project.optional-dependencies]
 workflow = ["meshvale-geometry[reports]==0.0.1.dev11+g36d36cba9"]
+assets = ["meshvale-geometry[reports]==0.0.1.dev11+g36d36cba9", "meshvale-interchange==0.0.1.dev13+g91f110210"]
 
 [project.urls]
 Repository = "https://github.com/Meshvale/meshvale-repair"

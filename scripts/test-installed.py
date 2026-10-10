@@ -17,6 +17,7 @@ if __name__ == "__main__":
     parser.add_argument("--geometry-wheel",required=True,type=Path)
     parser.add_argument("--repair-wheel",required=True,type=Path)
     parser.add_argument("--workflow",action="store_true",help="Install the declared validator extra and test reported operations")
+    parser.add_argument("--interchange-wheel",type=Path,help="Also install and exercise the optional asset workflow")
     options = parser.parse_args(); root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="meshvale-repair-installed-") as scratch:
         directory = Path(scratch); environment = directory/"env"
@@ -34,4 +35,16 @@ if __name__ == "__main__":
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[workflow]",cwd=directory)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/workflow","-v",cwd=directory)
             run(python,"-I",root/"examples/python/reported_duplicate.py",cwd=directory)
+        if options.interchange_wheel:
+            run(python,"-m","pip","install","--no-index",options.interchange_wheel.resolve(),cwd=directory)
+            run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/assets","-v",cwd=directory)
+            run(python,"-I",root/"examples/python/repair_obj_bundle.py",cwd=directory)
+            import itertools
+            for order in itertools.permutations(("meshvale_geometry", "meshvale_interchange", "meshvale_repair")):
+                code = "; ".join("import " + name for name in order)
+                code += "; from meshvale_repair.obj_workflow import repair_obj_file; assert meshvale_interchange.Mesh is meshvale_geometry.Mesh"
+                code += "; import runpy; runpy.run_path(" + repr(str(root/"examples/python/repair_obj_bundle.py")) + ", run_name='__main__')"
+                code += "; print('Installed three-product import order passed: " + ",".join(order) + "')"
+                run(python,"-I","-c",code,cwd=directory)
         run(python,"-m","pip","check",cwd=directory)
