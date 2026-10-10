@@ -1,6 +1,6 @@
 # Targeted exact duplicate-face removal
 
-Contract version: **0.1.1**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
+Contract version: **0.1.2**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
 
 ## Header interface
 
