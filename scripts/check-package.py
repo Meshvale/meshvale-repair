@@ -9,14 +9,26 @@ import zipfile
 def inspect(path):
     if path.suffix == ".whl":
         with zipfile.ZipFile(path) as archive:
-            names = archive.namelist()
-        for name in names:
+            members = archive.infolist()
+            names = [member.filename for member in members if not member.is_dir()]
+        for member in members:
+            name = member.filename
             parts = PurePosixPath(name).parts
             assert not PurePosixPath(name).is_absolute() and ".." not in parts, name
             assert parts[0] == "meshvale_repair" or parts[0].endswith(".dist-info"), name
+            if member.is_dir():
+                # Repair tools emit structural directories within existing namespaces.
+                assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
+                continue
             if parts[0] == "meshvale_repair":
                 assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
+            else:
+                assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
+                    ("licenses", "LICENSE"), ("licenses", "NOTICE"),
+                    ("licenses", "licenses", "nanobind.txt"),
+                    ("licenses", "licenses", "robin-map.txt"),
+                    ("licenses", "licenses", "meshvale-geometry-notice.txt")], name
         for license in ["LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt"]:
             assert any(name.endswith("/"+license) and ".dist-info/licenses/" in name for name in names), license
     else:
@@ -39,7 +51,8 @@ def inspect(path):
                          "python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
                          "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
-                         "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py"]:
+                         "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",
+                         "scripts/portable-preview.py","examples/python/obj_walkthrough.py","docs/quickstart.md"]:
             assert required in names,required
     print(f"Package content check passed: {path.name}; {len(names)} files")
 

@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Portable OBJ Repair development cohort
+
+"on":
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/portable-candidates.yml
+      - scripts/portable-preview.py
+      - scripts/check-package.py
+      - pyproject.toml
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            identifier: cp313-manylinux_x86_64
+            arch: x86_64
+          - os: windows-2022
+            identifier: cp313-win_amd64
+            arch: AMD64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    env:
+      CIBW_BUILD: ${{ matrix.identifier }}
+      CIBW_ARCHS: ${{ matrix.arch }}
+      CIBW_DEPENDENCY_VERSIONS: pinned
+      CIBW_BUILD_FRONTEND: build
+      CIBW_CONFIG_SETTINGS: cmake.version===4.3.1
+      CIBW_MANYLINUX_X86_64_IMAGE: quay.io/pypa/manylinux_2_28_x86_64@sha256:012f4a50472412f18bb2b450c1cce7158434cfae4ae878591c2748a13a30c2be
+      CIBW_BEFORE_ALL_LINUX: yum install -y zip-3.0-23.el8
+      CIBW_ENVIRONMENT_LINUX: >-
+        MESHVALE_DEPS=/tmp/meshvale-repair-preview MESHVALE_PREVIEW_DIR=/output
+        CMAKE_PREFIX_PATH=/tmp/meshvale-repair-preview/prefix:/tmp/meshvale-repair-preview/dependencies/x64-linux
+        VCPKG_DISABLE_METRICS=1
+      CIBW_BEFORE_BUILD: >-
+        python -m pip install --only-binary=:all: cmake==4.3.1 && python -m pip freeze && cmake --version &&
+        python "{package}/scripts/portable-preview.py" prepare
+      CIBW_BEFORE_TEST: python "{package}/scripts/portable-preview.py" before-test
+      CIBW_TEST_REQUIRES: jsonschema==4.26.0
+      CIBW_TEST_COMMAND: python "{package}/scripts/portable-preview.py" test
+      CIBW_REPAIR_WHEEL_COMMAND: >-
+        python "{package}/scripts/portable-preview.py" repair --wheel "{wheel}" --destination "{dest_dir}"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Install pinned packaging frontend
+        run: python -m pip install cibuildwheel==4.2.0 build==1.6.1
+      - name: Record hosted environment and Windows dependency prefixes
+        shell: bash
+        run: |
+          mkdir -p .local/preview
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          preview = (Path(os.environ['GITHUB_WORKSPACE']) / '.local/preview').as_posix()
+          dependencies = (Path(os.environ['GITHUB_WORKSPACE']) / '.local/portable-dependencies').as_posix()
+          with open(os.environ['GITHUB_ENV'], 'a', encoding='utf-8') as stream:
+              stream.write('MESHVALE_PREVIEW_ROOT=' + preview + '\n')
+              stream.write('MESHVALE_DEPS=' + dependencies + '\n')
+              stream.write('MESHVALE_PREFIXES=' + dependencies + '/prefix;' + dependencies + '/dependencies/x64-windows-static-md\n')
+          PY
+          python -m pip freeze > .local/preview/host-tools.txt
+          python -m cibuildwheel --print-build-identifiers > .local/preview/build-identifiers.txt
+          python -c "import os,platform,sys; print(platform.platform()); print(sys.version); print('Runner image:',os.environ.get('ImageOS'),os.environ.get('ImageVersion'))" > .local/preview/host.txt
+      - name: Build and inspect source distribution
+        shell: bash
+        run: |
+          python -m build --sdist --outdir .local/preview/sdist
+          python scripts/check-package.py .local/preview/sdist/*.tar.gz
+      - name: Build, inspect and test repaired source candidate
+        run: python -m cibuildwheel --output-dir .local/preview/source-wheels
+        env:
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            MESHVALE_DEPS="$MESHVALE_DEPS" MESHVALE_PREVIEW_DIR="$MESHVALE_PREVIEW_ROOT/source-wheels"
+            CMAKE_PREFIX_PATH="$MESHVALE_PREFIXES" VCPKG_DISABLE_METRICS=1
+      - name: Rebuild, inspect and test repaired candidate from source archive without Git
+        shell: bash
+        run: python -m cibuildwheel .local/preview/sdist/*.tar.gz --output-dir .local/preview/wheels
+        env:
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            MESHVALE_DEPS="$MESHVALE_DEPS" MESHVALE_PREVIEW_DIR="$MESHVALE_PREVIEW_ROOT/wheels"
+            CMAKE_PREFIX_PATH="$MESHVALE_PREFIXES" VCPKG_DISABLE_METRICS=1
+      - name: Load public Geometry verification source on Linux host
+        if: runner.os == 'Linux'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: a27cae686ea4f4c6dabeebfc984f0265602e3b1d
+          path: .local/portable-dependencies/geometry
+          persist-credentials: false
+      - name: Load public Interchange verification source on Linux host
+        if: runner.os == 'Linux'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-interchange
+          ref: 84e7912cba74e6c78410f42fee75856332940c94
+          path: .local/portable-dependencies/interchange
+          persist-credentials: false
+      - name: Inspect final publication contents and record exact identities
+        shell: bash
+        run: |
+          python scripts/check-package.py .local/preview/source-wheels/*.whl .local/preview/wheels/*.whl
+          python scripts/portable-preview.py manifest --output .local/preview
+      - name: Retain development candidates and their notices
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: repair-development-${{ matrix.identifier }}
+          path: .local/preview
+          if-no-files-found: error
+          retention-days: 14
+          include-hidden-files: true
