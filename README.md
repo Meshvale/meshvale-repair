@@ -2,7 +2,13 @@
 
 Configurable inspection and repair of imperfect polygon meshes.
 
-**Status:** Repository initialized. Geometry algorithms, executable tools, bindings, format adapters, and release packages are forthcoming; the items below describe planned capabilities.
+**Status:** Development native library with targeted exact duplicate-face removal. No stable release, file adapters, CLI/batch or Python package yet.
+
+## Available native operation
+
+Remove explicitly selected duplicate triangles, quads or n-gons while retaining representative loops, all supported UV sets, and unchanged variable joint/weight rows. Results carry face/corner correspondence; a failing target rejects the whole request. Unknown attribute semantics block edits unless explicitly declared row-local. Non-manifold raw input can remain representable and is not implicitly split or welded.
+
+Read the [operation contract and install instructions](docs/duplicates.md) for exact equality, attribute policy, rejection and preservation limits. The [installed consumer example](examples/consumer/main.cpp) demonstrates the public C++ interface.
 
 ## Planned capabilities
 
@@ -15,7 +21,7 @@ Supported formats, operation guarantees, and platform compatibility will be docu
 
 ## Development
 
-Read [ENVIRONMENT.md](ENVIRONMENT.md) for portable configuration and the current checks. There is no native build or installable package yet. [AGENTS.md](AGENTS.md) provides focused instructions for work in this repository.
+Read [ENVIRONMENT.md](ENVIRONMENT.md) for configuration and checks. CMake installs `meshvale::repair` with an installed `MeshvaleGeometry` dependency; source-tree sibling paths and private access are not required. [AGENTS.md](AGENTS.md) provides focused instructions. Consumer-facing changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Contributing
 
