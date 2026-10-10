@@ -4,6 +4,8 @@ Configurable inspection and repair of imperfect polygon meshes.
 
 **Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal, reported verification, verified OBJ bundle publication and OBJ single-asset/batch commands. No stable release yet.
 
+Start with the [textured OBJ walkthrough](docs/quickstart.md): run the same repair through the Python API, single command and batch, then inspect preserved polygon loops, UV seams, resource bytes and bundled reports.
+
 ## Available native operation
 
 Remove explicitly selected duplicate triangles, quads or n-gons while retaining representative loops, all supported UV sets, and unchanged variable joint/weight rows. Results carry face/corner correspondence; a failing target rejects the whole request. Unknown attribute semantics block edits unless explicitly declared row-local. Non-manifold raw input can remain representable and is not implicitly split or welded.
