@@ -8,6 +8,8 @@
 
 ### Added
 
+- Bounded CPython 3.13 Linux x86_64 / Windows x64 OBJ development cohort evaluation with repaired source/archive wheels, rebuilt public dependencies, installed preservation walkthrough and exact artifact/notice reports. CI artifacts do not establish a supported release matrix.
+
 - Runnable textured OBJ walkthrough comparing the reusable API, single command and batch with independent reload, resource/correspondence/receipt checks and an explicit rejected request. Original mixed-polygon inputs and generated bundles remain available for inspection.
 
 - Native targeted duplicate-face removal for indexed polygon meshes, with cyclic face/corner correspondence and whole-request rejection.
@@ -19,6 +21,8 @@
 - Installed OBJ single-asset/batch commands and reusable sequential scheduling, with whole-request validation, isolated destinations, real per-job reports, fail-fast accounting, cooperative interrupts and explicit aggregate delivery failure.
 
 ### Changed
+
+- Exact native/Python Geometry and optional Interchange dependencies now use the public source candidates recorded in the package and installation contracts.
 
 - Native and Python dependency evaluation now pins Geometry's pooled-editing development candidate. Repair continues to use owned dense snapshots and its existing copy-producing operation; editor mutation and Python editor bindings are separate capabilities.
 - C++ files now use the Google-based formatter with an exact-version check in development and CI; existing public API names remain unchanged.

@@ -41,7 +41,7 @@ Before acceptance, checks inspect candidate storage, authored floating values, c
 
 ## Dependency and installation
 
-Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The tested development dependency is public geometry revision `519eaf2f4eda24c39eaa3ace7f213e5571239fe2`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. There are no automatic source downloads or private dependencies in the build. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
+Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The evaluated development dependency is public geometry revision `a27cae686ea4f4c6dabeebfc984f0265602e3b1d`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
 
 Install geometry into a chosen prefix, then supply that absolute prefix through `CMAKE_PREFIX_PATH`:
 
