@@ -40,7 +40,7 @@ Before acceptance, checks inspect candidate storage, authored floating values, c
 
 ## Dependency and installation
 
-Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The evaluated development dependency is public geometry revision `d1b0ec5ddf37d6ff648ddd57fe8c7caefbd78832`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
+Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The evaluated development dependency is public geometry revision `5ad9642911d36c9f81f242a3012ac0e77df919e5`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
 
 Install geometry into a chosen prefix, then supply that absolute prefix through `CMAKE_PREFIX_PATH`:
 
@@ -55,3 +55,5 @@ ctest --test-dir .local/consumer -C Release --output-on-failure
 ```
 
 The installed target is `meshvale::repair`, discovered with `find_package(MeshvaleRepair CONFIG REQUIRED)`. Its geometry dependency is transitive. Exact clean `vMAJOR.MINOR.PATCH` Git tags determine release versions; no release has been published yet.
+
+The documented Geometry producer provides the compiled owned `PositionBuffer` interface. The build checks that seam because native development version `0.0.0` alone does not identify a compatible source interface, and verifies retained notices against the installed producer. Geometry keeps Eigen private: consuming this installed package requires neither Eigen headers nor a source checkout. Native installs and wheels include the producer's retained Eigen license and attribution files.

@@ -4,6 +4,52 @@ project(MeshvaleRepair LANGUAGES CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 find_package(MeshvaleGeometry 0.0.0 EXACT CONFIG REQUIRED)
+
+# Development snapshots share 0.0.0; require the owned-position producer seam.
+include(CMakePushCheckState)
+include(CheckCXXSourceCompiles)
+function(meshvale_require_geometry_positions)
+  cmake_push_check_state(RESET)
+  if(CMAKE_BUILD_TYPE)
+    set(CMAKE_TRY_COMPILE_CONFIGURATION "${CMAKE_BUILD_TYPE}")
+  else()
+    set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
+  endif()
+  unset(MESHVALE_GEOMETRY_OWNED_POSITIONS CACHE)
+  set(CMAKE_REQUIRED_LIBRARIES meshvale::geometry)
+  check_cxx_source_compiles("#include <meshvale/geometry/position_buffer.h>
+  int main() {
+    meshvale::geometry::PositionBuffer positions;
+    positions.Append({1.0, 2.0, 3.0});
+    positions.Set(0, {3.0, 2.0, 1.0});
+    return positions.Get(0)[0] == 3.0 ? 0 : 1;
+  }" MESHVALE_GEOMETRY_OWNED_POSITIONS)
+  cmake_pop_check_state()
+  if(NOT MESHVALE_GEOMETRY_OWNED_POSITIONS)
+    message(FATAL_ERROR "Geometry must provide the compiled PositionBuffer Append/Set/Get interface; use the documented producer revision")
+  endif()
+endfunction()
+meshvale_require_geometry_positions()
+
+# These notices accompany the Geometry code linked into native/Python outputs.
+get_filename_component(meshvale_geometry_notice_root "${MeshvaleGeometry_RECORD_SOURCE}" DIRECTORY)
+get_filename_component(meshvale_geometry_notice_root "${meshvale_geometry_notice_root}" DIRECTORY)
+function(meshvale_require_geometry_notice installed retained)
+  file(READ "${installed}" meshvale_installed_notice)
+  file(READ "${retained}" meshvale_retained_notice)
+  # Git checkouts and installed source archives may use different line endings.
+  string(REPLACE "\r\n" "\n" meshvale_installed_notice "${meshvale_installed_notice}")
+  string(REPLACE "\r\n" "\n" meshvale_retained_notice "${meshvale_retained_notice}")
+  if(NOT meshvale_installed_notice STREQUAL meshvale_retained_notice)
+    message(FATAL_ERROR "Installed Geometry notice differs from retained ${retained}")
+  endif()
+endfunction()
+foreach(meshvale_notice IN ITEMS eigen-mpl2.txt eigen-apache.txt eigen-notices.txt)
+  meshvale_require_geometry_notice("${meshvale_geometry_notice_root}/licenses/${meshvale_notice}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/licenses/${meshvale_notice}")
+endforeach()
+meshvale_require_geometry_notice("${meshvale_geometry_notice_root}/NOTICE"
+  "${CMAKE_CURRENT_SOURCE_DIR}/licenses/meshvale-geometry-notice.txt")
 find_package(Git QUIET)
 set(MESHVALE_REPAIR_VERSION "0.0.0")
 if(Git_FOUND)
@@ -49,6 +95,7 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/MeshvaleRepairConfig.cmake"
   "${CMAKE_CURRENT_BINARY_DIR}/MeshvaleRepairConfigVersion.cmake"
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MeshvaleRepair")
 install(FILES LICENSE NOTICE DESTINATION "${CMAKE_INSTALL_DATADIR}/MeshvaleRepair")
+install(DIRECTORY licenses/ DESTINATION "${CMAKE_INSTALL_DATADIR}/MeshvaleRepair/licenses")
 
 option(MESHVALE_REPAIR_PYTHON "Build the optional Python duplicate interface" OFF)
 if(MESHVALE_REPAIR_PYTHON)
