@@ -22,6 +22,10 @@
 
 ### Changed
 
+- The optional OBJ asset workflow now requires the matching Interchange `5ff43f07208f656a168b2a66d28da400e7b5c10f` candidate (Python `0.0.1.dev50+g5ff43f072`) built with the same owned-position Geometry producer.
+
+- Native position access uses Geometry's owned PositionBuffer interface at `920be542502652b1d16c5f90414cec6495ff62b4` (Python `0.0.1.dev57+g920be5425`), preserving canonical mesh records and scalar bits. Linked distributions retain the producer's Eigen notices; older native snapshots are rejected during configuration.
+
 - The optional binding compiles Geometry's installed record implementation through its per-extension factory and links the compiled native package, with exact matched producer requirements; mesh records and operation behavior are unchanged.
 
 - Exact native/Python Geometry and optional Interchange dependencies now use the public source candidates recorded in the package and installation contracts.

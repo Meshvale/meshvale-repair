@@ -15,10 +15,10 @@ import sys
 import tarfile
 import zipfile
 
-GEOMETRY_REVISION = "d1b0ec5ddf37d6ff648ddd57fe8c7caefbd78832"
-GEOMETRY_VERSION = "0.0.1.dev41+gd1b0ec5dd"
-INTERCHANGE_REVISION = "d9c0f8d5954d01b0238b72cc9bbeeaba8d913c22"
-INTERCHANGE_VERSION = "0.0.1.dev40+gd9c0f8d59"
+GEOMETRY_REVISION = "920be542502652b1d16c5f90414cec6495ff62b4"
+GEOMETRY_VERSION = "0.0.1.dev57+g920be5425"
+INTERCHANGE_REVISION = "5ff43f07208f656a168b2a66d28da400e7b5c10f"
+INTERCHANGE_VERSION = "0.0.1.dev50+g5ff43f072"
 PACKAGE = Path(__file__).resolve().parents[1]
 
 
@@ -53,6 +53,9 @@ def prepare():
     producer = interchange()
     producer.prepare()
     assert (root / "geometry/NOTICE").read_text().strip() == (PACKAGE / "licenses/meshvale-geometry-notice.txt").read_text().strip()
+    for notice in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt"]:
+        installed = root / "prefix/share/MeshvaleGeometry/licenses" / notice
+        assert installed.read_text() == (PACKAGE / "licenses" / notice).read_text(), notice
     run(sys.executable, "-m", "pip", "wheel", source, "--no-deps", "--verbose",
         "--config-settings=cmake.version===4.3.1", "--wheel-dir", root / "interchange-raw")
     wheel, = (root / "interchange-raw").glob("meshvale_interchange-*.whl")

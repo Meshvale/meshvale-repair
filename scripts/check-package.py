@@ -11,6 +11,7 @@ def inspect(path):
         with zipfile.ZipFile(path) as archive:
             members = archive.infolist()
             names = [member.filename for member in members if not member.is_dir()]
+            notice_contents = {name: archive.read(name) for name in names if ".dist-info/licenses/" in name}
         for member in members:
             name = member.filename
             parts = PurePosixPath(name).parts
@@ -28,9 +29,15 @@ def inspect(path):
                     ("licenses", "LICENSE"), ("licenses", "NOTICE"),
                     ("licenses", "licenses", "nanobind.txt"),
                     ("licenses", "licenses", "robin-map.txt"),
+                    ("licenses", "licenses", "eigen-mpl2.txt"),
+                    ("licenses", "licenses", "eigen-apache.txt"),
+                    ("licenses", "licenses", "eigen-notices.txt"),
                     ("licenses", "licenses", "meshvale-geometry-notice.txt")], name
-        for license in ["LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt"]:
-            assert any(name.endswith("/"+license) and ".dist-info/licenses/" in name for name in names), license
+        for license in ["eigen-mpl2.txt","eigen-apache.txt","eigen-notices.txt","LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt"]:
+            matching = [name for name in notice_contents if name.endswith("/" + license)]
+            assert len(matching) == 1, (license, matching)
+            reference = Path(__file__).resolve().parents[1] / (license if license in {"LICENSE", "NOTICE"} else "licenses/" + license)
+            assert notice_contents[matching[0]].decode().replace("\r\n", "\n") == reference.read_text(), license
     else:
         with tarfile.open(path,"r:gz") as archive:
             members = archive.getmembers()
@@ -54,6 +61,8 @@ def inspect(path):
                          "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",
                          "scripts/portable-preview.py","examples/python/obj_walkthrough.py","docs/quickstart.md"]:
             assert required in names,required
+        for license in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt", "meshvale-geometry-notice.txt"]:
+            assert "licenses/" + license in names, license
         assert not any(name.endswith(".hpp") for name in names)
     print(f"Package content check passed: {path.name}; {len(names)} files")
 
