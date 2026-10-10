@@ -15,10 +15,10 @@ import sys
 import tarfile
 import zipfile
 
-GEOMETRY_REVISION = "a27cae686ea4f4c6dabeebfc984f0265602e3b1d"
-GEOMETRY_VERSION = "0.0.1.dev35+ga27cae686"
-INTERCHANGE_REVISION = "84e7912cba74e6c78410f42fee75856332940c94"
-INTERCHANGE_VERSION = "0.0.1.dev37+g84e7912cb"
+GEOMETRY_REVISION = "d1b0ec5ddf37d6ff648ddd57fe8c7caefbd78832"
+GEOMETRY_VERSION = "0.0.1.dev41+gd1b0ec5dd"
+INTERCHANGE_REVISION = "d9c0f8d5954d01b0238b72cc9bbeeaba8d913c22"
+INTERCHANGE_VERSION = "0.0.1.dev40+gd9c0f8d59"
 PACKAGE = Path(__file__).resolve().parents[1]
 
 

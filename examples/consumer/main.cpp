@@ -4,10 +4,7 @@
 
 #include "meshvale/repair/duplicates.h"
 
-bool CheckLegacyHeader();
-
 int main() {
-  if (!CheckLegacyHeader()) return 1;
   meshvale::geometry::Mesh input;
   input.positions = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
   input.face_offsets = {0, 4, 8};

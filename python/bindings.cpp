@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <Python.h>
 #include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
 
 #include <utility>
 #include <vector>

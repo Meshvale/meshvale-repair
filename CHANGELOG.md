@@ -22,10 +22,12 @@
 
 ### Changed
 
+- The optional binding compiles Geometry's installed record implementation through its per-extension factory and links the compiled native package, with exact matched producer requirements; mesh records and operation behavior are unchanged.
+
 - Exact native/Python Geometry and optional Interchange dependencies now use the public source candidates recorded in the package and installation contracts.
 
 - Native and Python dependency evaluation now pins Geometry's pooled-editing development candidate. Repair continues to use owned dense snapshots and its existing copy-producing operation; editor mutation and Python editor bindings are separate capabilities.
 - C++ files now use the Google-based formatter with an exact-version check in development and CI; existing public API names remain unchanged.
-- New C++ callers use `meshvale/repair/duplicates.h`; the existing `.hpp` include remains an installed forwarding header with unchanged declarations and behavior. Native and installed-consumer builds compile both spellings independently with language extensions disabled.
+- C++ callers use `meshvale/repair/duplicates.h` exclusively; the `duplicates.hpp` forwarding header is removed, requiring source callers to update that include path. Declarations remain in `.h` and operation implementation in `duplicates.cpp`; the independent canonical-header and installed-consumer checks retain unchanged behavior with language extensions disabled.
 - Python and native evaluation now use the report-capable Geometry revision pinned in the package and operation contracts. The earlier exact-pinned Geometry development candidate is no longer the tested dependency for this branch.
 - Asset evaluation pins the verified-supplement Interchange candidate and exercises real publication under all six product import orders; the primitive API and native library keep their original dependency boundary.
