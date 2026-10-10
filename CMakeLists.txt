@@ -31,6 +31,35 @@ function(meshvale_require_geometry_positions)
 endfunction()
 meshvale_require_geometry_positions()
 
+# Development snapshots share 0.0.0; require the canonical scalar-buffer seam.
+function(meshvale_require_geometry_attributes)
+  cmake_push_check_state(RESET)
+  if(CMAKE_BUILD_TYPE)
+    set(CMAKE_TRY_COMPILE_CONFIGURATION "${CMAKE_BUILD_TYPE}")
+  else()
+    set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
+  endif()
+  unset(MESHVALE_GEOMETRY_OWNED_ATTRIBUTES CACHE)
+  set(CMAKE_REQUIRED_LIBRARIES meshvale::geometry)
+  check_cxx_source_compiles("#include <meshvale/geometry/attributes.h>
+  #include <type_traits>
+  #include <variant>
+  int main() {
+    using namespace meshvale::geometry;
+    static_assert(std::is_same_v<std::variant_alternative_t<0, AttributeValues>, ScalarBuffer<float>>);
+    ScalarBuffer<double> values;
+    values.push_back(1.0);
+    Attribute attribute;
+    attribute.values = values;
+    return std::get<ScalarBuffer<double>>(attribute.values).size() == values.size() ? 0 : 1;
+  }" MESHVALE_GEOMETRY_OWNED_ATTRIBUTES)
+  cmake_pop_check_state()
+  if(NOT MESHVALE_GEOMETRY_OWNED_ATTRIBUTES)
+    message(FATAL_ERROR "Geometry must provide compiled ScalarBuffer attribute owners; use the documented producer revision")
+  endif()
+endfunction()
+meshvale_require_geometry_attributes()
+
 # These notices accompany the Geometry code linked into native/Python outputs.
 get_filename_component(meshvale_geometry_notice_root "${MeshvaleGeometry_RECORD_SOURCE}" DIRECTORY)
 get_filename_component(meshvale_geometry_notice_root "${meshvale_geometry_notice_root}" DIRECTORY)

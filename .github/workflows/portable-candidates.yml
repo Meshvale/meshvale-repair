@@ -97,7 +97,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: 920be542502652b1d16c5f90414cec6495ff62b4
+          ref: ec38fabd783a578947d43856b0c7a7fd54ce8533
           path: .local/portable-dependencies/geometry
           persist-credentials: false
       - name: Load public Interchange verification source on Linux host
@@ -105,7 +105,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: 5ff43f07208f656a168b2a66d28da400e7b5c10f
+          ref: 8d5823272b576052553608dbff26685ba56b4dea
           path: .local/portable-dependencies/interchange
           persist-credentials: false
       - name: Inspect final publication contents and record exact identities

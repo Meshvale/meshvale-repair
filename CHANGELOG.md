@@ -22,6 +22,10 @@
 
 ### Changed
 
+- The OBJ asset workflow rebuilds Interchange `8d5823272b576052553608dbff26685ba56b4dea` (Python `0.0.1.dev62+g8d5823272`) against the same attribute-storage Geometry producer.
+
+- Canonical numerical attribute access now uses Geometry's Eigen-owned `ScalarBuffer<T>` alternatives, with a compiled-interface configuration check. The matched Geometry producer is `ec38fabd783a578947d43856b0c7a7fd54ce8533` (Python `0.0.1.dev69+gec38fabd7`). Native variant callers must update typed access and rebuild against the matching Geometry producer; owned Python mesh records retain their existing schema and bits.
+
 - The optional OBJ asset workflow now requires the matching Interchange `5ff43f07208f656a168b2a66d28da400e7b5c10f` candidate (Python `0.0.1.dev50+g5ff43f072`) built with the same owned-position Geometry producer.
 
 - Native position access uses Geometry's owned PositionBuffer interface at `920be542502652b1d16c5f90414cec6495ff62b4` (Python `0.0.1.dev57+g920be5425`), preserving canonical mesh records and scalar bits. Linked distributions retain the producer's Eigen notices; older native snapshots are rejected during configuration.

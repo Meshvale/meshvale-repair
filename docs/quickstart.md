@@ -21,8 +21,8 @@ Geometry and Interchange must match Repair's exact requirements in
 
 | Product | Public source revision | Python candidate |
 |---|---|---|
-| Geometry | `920be542502652b1d16c5f90414cec6495ff62b4` | `0.0.1.dev57+g920be5425` |
-| Interchange | `5ff43f07208f656a168b2a66d28da400e7b5c10f` | `0.0.1.dev50+g5ff43f072` |
+| Geometry | `ec38fabd783a578947d43856b0c7a7fd54ce8533` | `0.0.1.dev69+gec38fabd7` |
+| Interchange | `8d5823272b576052553608dbff26685ba56b4dea` | `0.0.1.dev62+g8d5823272` |
 
 Choose absolute paths for `GEOMETRY_SOURCE`, `INTERCHANGE_SOURCE`, this
 `REPAIR_SOURCE` checkout, `GEOMETRY_PREFIX`, `TINYOBJLOADER_PREFIX`,
@@ -36,9 +36,9 @@ derived, then check out the exact revisions:
 
 ```sh
 git clone https://github.com/Meshvale/meshvale-geometry.git "$GEOMETRY_SOURCE"
-git -C "$GEOMETRY_SOURCE" checkout 920be542502652b1d16c5f90414cec6495ff62b4
+git -C "$GEOMETRY_SOURCE" checkout ec38fabd783a578947d43856b0c7a7fd54ce8533
 git clone https://github.com/Meshvale/meshvale-interchange.git "$INTERCHANGE_SOURCE"
-git -C "$INTERCHANGE_SOURCE" checkout 5ff43f07208f656a168b2a66d28da400e7b5c10f
+git -C "$INTERCHANGE_SOURCE" checkout 8d5823272b576052553608dbff26685ba56b4dea
 python -m venv "$VENV"
 . "$VENV/bin/activate"
 python -m pip install jsonschema==4.26.0
@@ -53,12 +53,12 @@ cmake --install "$GEOMETRY_SOURCE/.local/native" --config Release --prefix "$GEO
 ```
 
 Interchange also needs **double-precision tinyobjloader `2.0.0rc13`**. Follow its
-[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/5ff43f07208f656a168b2a66d28da400e7b5c10f/ENVIRONMENT.md)
+[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/ENVIRONMENT.md)
 using the pinned vcpkg manifest, and set `TINYOBJLOADER_PREFIX` to the resulting
 installed target-triplet prefix. Retain the same compiler/runtime and Release
-configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/5ff43f07208f656a168b2a66d28da400e7b5c10f/THIRD_PARTY.md)
+configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/THIRD_PARTY.md)
 owns the parser revision and notices; the
-[binding build contract](https://github.com/Meshvale/meshvale-interchange/blob/5ff43f07208f656a168b2a66d28da400e7b5c10f/docs/python.md#build-installation-and-example)
+[binding build contract](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/docs/python.md#build-installation-and-example)
 owns its package requirements.
 
 Build the three local wheels, then install Repair with its asset dependencies
