@@ -1,6 +1,6 @@
 # Targeted exact duplicate-face removal
 
-Contract version: **0.1.2**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
+Contract version: **0.1.3**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
 
 ## Header interface
 
@@ -40,7 +40,7 @@ Before acceptance, checks inspect candidate storage, authored floating values, c
 
 ## Dependency and installation
 
-Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The evaluated development dependency is public geometry revision `920be542502652b1d16c5f90414cec6495ff62b4`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
+Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The evaluated development dependency is public geometry revision `ec38fabd783a578947d43856b0c7a7fd54ce8533`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
 
 Install geometry into a chosen prefix, then supply that absolute prefix through `CMAKE_PREFIX_PATH`:
 
@@ -56,4 +56,6 @@ ctest --test-dir .local/consumer -C Release --output-on-failure
 
 The installed target is `meshvale::repair`, discovered with `find_package(MeshvaleRepair CONFIG REQUIRED)`. Its geometry dependency is transitive. Exact clean `vMAJOR.MINOR.PATCH` Git tags determine release versions; no release has been published yet.
 
-The documented Geometry producer provides the compiled owned `PositionBuffer` interface. The build checks that seam because native development version `0.0.0` alone does not identify a compatible source interface, and verifies retained notices against the installed producer. Geometry keeps Eigen private: consuming this installed package requires neither Eigen headers nor a source checkout. Native installs and wheels include the producer's retained Eigen license and attribution files.
+The documented Geometry producer provides compiled owned `PositionBuffer` and typed `ScalarBuffer<T>` interfaces. The build checks both seams because native development version `0.0.0` alone does not identify a compatible source interface, and verifies retained notices against the installed producer. Geometry keeps Eigen private: consuming this installed package requires neither Eigen headers nor a source checkout. Native installs and wheels include the producer's retained Eigen license and attribution files.
+
+Canonical numerical attributes use Geometry's Eigen-owned `ScalarBuffer<T>` alternatives. Native callers that inspect `AttributeValues` must replace `std::get<std::vector<T>>` with `std::get<meshvale::geometry::ScalarBuffer<T>>`; contiguous values remain available through spans or `data()`/`size()`. Structural offsets and presence metadata keep their existing representation. Rebuild this library and all native consumers against the same Geometry producer: the changed variant is a source and binary interface migration. The canonical Python mesh record remains `meshvale.mesh/1`, with independent owned payloads and unchanged scalar bits.

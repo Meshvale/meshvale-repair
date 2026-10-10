@@ -53,7 +53,7 @@ Mesh fixture() {
   Attribute uv1 = uv;
   uv1.name = "lightmap";
   uv1.set_index = 1;
-  auto& second = std::get<std::vector<float>>(uv1.values);
+  auto& second = std::get<meshvale::geometry::ScalarBuffer<float>>(uv1.values);
   for (auto& value : second) value *= 0.5F;
   Attribute normal;
   normal.domain = AttributeDomain::corner;
@@ -125,21 +125,25 @@ void accepted_rotation_and_preservation() {
 void distinctions_block_edits() {
   for (std::size_t channel : {std::size_t{0}, std::size_t{1}}) {
     auto mesh = fixture();
-    std::get<std::vector<float>>(mesh.attributes[channel].values)[24] += 0.125F;
+    std::get<meshvale::geometry::ScalarBuffer<float>>(
+        mesh.attributes[channel].values)[24] += 0.125F;
     require(
         has(remove_duplicate_faces(mesh, {{1, 3}}), "repair.not_equivalent"),
         "UV-set difference ignored");
   }
   auto mesh = fixture();
-  std::get<std::vector<double>>(mesh.attributes[2].values)[38] = -1;
+  std::get<meshvale::geometry::ScalarBuffer<double>>(
+      mesh.attributes[2].values)[38] = -1;
   require(has(remove_duplicate_faces(mesh, {{1, 3}}), "repair.not_equivalent"),
           "normal difference ignored");
   mesh = fixture();
-  std::get<std::vector<std::uint32_t>>(mesh.attributes[3].values)[3] = 2;
+  std::get<meshvale::geometry::ScalarBuffer<std::uint32_t>>(
+      mesh.attributes[3].values)[3] = 2;
   require(has(remove_duplicate_faces(mesh, {{1, 3}}), "repair.not_equivalent"),
           "material difference ignored");
   mesh = fixture();
-  std::get<std::vector<std::int32_t>>(mesh.attributes[4].values)[3] = 99;
+  std::get<meshvale::geometry::ScalarBuffer<std::int32_t>>(
+      mesh.attributes[4].values)[3] = 99;
   require(has(remove_duplicate_faces(mesh, {{1, 3}}), "repair.not_equivalent"),
           "face label difference ignored");
   mesh = fixture();
@@ -164,14 +168,14 @@ void missingness_and_ragged_selection() {
   require(has(remove_duplicate_faces(mesh, {{1, 3}}), "repair.not_equivalent"),
           "missing equals authored");
   a.present->at(12) = 0;
-  auto& values = std::get<std::vector<float>>(a.values);
+  auto& values = std::get<meshvale::geometry::ScalarBuffer<float>>(a.values);
   values[10] = -0.0F;
   values[24] = std::numeric_limits<float>::quiet_NaN();
   auto result = remove_duplicate_faces(mesh, {{1, 3}});
   require(result.outcome == CandidateOutcome::accepted,
           "missing backing values affected equality");
-  const auto retained =
-      std::get<std::vector<float>>(result.candidate->attributes[0].values)[10];
+  const auto retained = std::get<meshvale::geometry::ScalarBuffer<float>>(
+      result.candidate->attributes[0].values)[10];
   require(std::bit_cast<std::uint32_t>(retained) ==
               std::bit_cast<std::uint32_t>(-0.0F),
           "retained signed zero changed");
@@ -188,7 +192,7 @@ void missingness_and_ragged_selection() {
   require(result.candidate->attributes.back().offsets ==
               std::optional<std::vector<index_t>>({{0, 0, 2, 3}}),
           "ragged offsets not selected");
-  require(std::get<std::vector<std::uint64_t>>(
+  require(std::get<meshvale::geometry::ScalarBuffer<std::uint64_t>>(
               result.candidate->attributes.back().values) ==
               std::vector<std::uint64_t>({42, 43, 99}),
           "ragged values not selected");
@@ -217,7 +221,8 @@ void transactional_and_invalid_requests() {
               "attribute.empty_offsets"),
           "bad ragged rows processed");
   malformed = mesh;
-  std::get<std::vector<double>>(malformed.attributes[6].values)[0] =
+  std::get<meshvale::geometry::ScalarBuffer<double>>(
+      malformed.attributes[6].values)[0] =
       std::numeric_limits<double>::infinity();
   require(has(remove_duplicate_faces(malformed, {{1, 3}}),
               "repair.nonfinite_attribute"),
@@ -237,7 +242,8 @@ void custom_policy_and_noop() {
   require(remove_duplicate_faces(mesh, {{1, 3}}, options).outcome ==
               CandidateOutcome::accepted,
           "row-local policy rejected");
-  std::get<std::vector<std::int32_t>>(mesh.attributes[4].values)[3] = 99;
+  std::get<meshvale::geometry::ScalarBuffer<std::int32_t>>(
+      mesh.attributes[4].values)[3] = 99;
   require(has(remove_duplicate_faces(mesh, {{1, 3}}, options),
               "repair.not_equivalent"),
           "policy bypassed custom equality");
