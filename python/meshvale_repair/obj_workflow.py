@@ -144,12 +144,16 @@ def _output_report(report, candidate, reloaded, files):
     return receipt
 
 
-def repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(),
-                    cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None):
-    """Publish a verified accepted duplicate repair and its receipt in one new bundle."""
+def _validate_obj_request(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(),
+                          cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None):
+    """Normalize invocation without reading files or processing a mesh."""
     targets, declarations = _request(Mesh(), targets, row_local_attributes, input_id, None)
+    for domain, name in declarations:
+        domain.encode("utf-8"); name.encode("utf-8")
     for path in (input, destination, report_path) + (() if resource_root is None else (resource_root,)):
-        if "\0" in os.fsdecode(os.fspath(path)):
+        text = os.fsdecode(os.fspath(path))
+        text.encode("utf-8")
+        if "\0" in text:
             raise ValueError("path contains NUL")
     receipt_path = Path(os.fsdecode(os.fspath(report_path)))
     receipt_name = receipt_path.as_posix()
@@ -160,6 +164,16 @@ def repair_obj_file(input, destination, targets, *, input_id="source", resource_
         raise TypeError("cancellation must be an Interchange Cancellation token")
     if on_phase is not None and not callable(on_phase) or report_sink is not None and not callable(report_sink):
         raise TypeError("callbacks must be callable or None")
+    return targets, declarations, receipt_path
+
+
+def repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(),
+                    cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None):
+    """Publish a verified accepted duplicate repair and its receipt in one new bundle."""
+    targets, declarations, receipt_path = _validate_obj_request(input, destination, targets, input_id=input_id,
+        resource_root=resource_root, row_local_attributes=row_local_attributes, cancellation=cancellation,
+        on_phase=on_phase, report_path=report_path, report_sink=report_sink)
+    receipt_name = receipt_path.as_posix()
     report = _empty_report(input_id, targets, declarations, receipt_name)
     source = candidate = None
     try:

@@ -14,6 +14,7 @@
 - Optional Python targeted duplicate removal with canonical Geometry snapshots, owned candidates, readonly correspondence maps and explicit whole-request rejection. No CLI, adapter or release yet.
 - Optional reported in-memory workflow with independent correspondence/attribute preservation predicates, visible topology limits, cooperative cancellation and versioned reports from actual native operations.
 - Optional OBJ file workflow composing public import, the existing repair/profile and verified bundle publication, with actual artifact hashes and a report inside the published bundle. Cancellation/source protection, export failures and external report-delivery failures retain explicit outcomes.
+- Installed OBJ single-asset/batch commands and reusable sequential scheduling, with whole-request validation, isolated destinations, real per-job reports, fail-fast accounting, cooperative interrupts and explicit aggregate delivery failure.
 
 ### Changed
 

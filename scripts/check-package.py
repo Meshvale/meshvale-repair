@@ -15,7 +15,7 @@ def inspect(path):
             assert not PurePosixPath(name).is_absolute() and ".." not in parts, name
             assert parts[0] == "meshvale_repair" or parts[0].endswith(".dist-info"), name
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","_version.py","workflow.py","obj_workflow.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
         for license in ["LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt"]:
             assert any(name.endswith("/"+license) and ".dist-info/licenses/" in name for name in names), license
@@ -23,7 +23,7 @@ def inspect(path):
         with tarfile.open(path,"r:gz") as archive:
             members = archive.getmembers()
         names = []
-        roots = {"CMakeLists.txt","pyproject.toml","README.md","AGENTS.md","ENVIRONMENT.md",
+        roots = {".clang-format","CMakeLists.txt","pyproject.toml","README.md","AGENTS.md","ENVIRONMENT.md",
                  "environment.example.json","LICENSE","NOTICE","THIRD_PARTY.md","CHANGELOG.md","PKG-INFO"}
         directories = {"cmake","include","src","python","docs","examples","tests","licenses","scripts"}
         for member in members:
@@ -34,9 +34,10 @@ def inspect(path):
             assert name in roots or parts[1] in directories,name
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
-        for required in ["python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
+        for required in [".clang-format","python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
-                         "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py"]:
+                         "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
+                         "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py"]:
             assert required in names,required
     print(f"Package content check passed: {path.name}; {len(names)} files")
 
