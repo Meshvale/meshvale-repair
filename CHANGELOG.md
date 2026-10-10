@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Fixed
+
+- Reported workflows independently fail input/candidate storage coverage for nonfinite authored floating channel rows. Missing backing values remain permitted and unchanged.
+
 ### Added
 
 - Native targeted duplicate-face removal for indexed polygon meshes, with cyclic face/corner correspondence and whole-request rejection.

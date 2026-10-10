@@ -18,6 +18,21 @@ fixtures = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(fixtures)
 
 
+def floating_fixture(domain, code, ragged, value=0.0, missing=False):
+    source = fixtures.fixture()
+    rows = {"vertex": 10, "face": 4, "corner": 16}[domain]
+    offsets = [0]
+    for row in range(rows):
+        offsets.append(offsets[-1] + (0 if ragged and row == 0 else 4 if ragged and row == 1 else 2))
+    values = [0.0] * offsets[-1]
+    values[offsets[1]] = value
+    present = [1] * rows
+    present[1] = 0 if missing else 1
+    source["attributes"].append(fixtures.attribute(domain, "finite-values", "color", code, values,
+        components=2, offsets=array("Q", offsets) if ragged else None, present=array("B", present)))
+    return source
+
+
 class WorkflowTests(unittest.TestCase):
     def run_workflow(self, mesh, targets, **options):
         before = fixtures.fingerprint(mesh)
@@ -104,6 +119,52 @@ class WorkflowTests(unittest.TestCase):
         result = self.run_workflow(Mesh.from_record(source), [(1, 3)])
         self.assertEqual(result.exit_code, 0)
         self.assertEqual(list(result.candidate.to_record()["attributes"][1]["offsets"]), list(range(0, 25, 2)))
+
+    def test_nonfinite_authored_channels_fail_before_kernel(self):
+        for domain in ("vertex", "face", "corner"):
+            for code in ("f", "d"):
+                for ragged in (False, True):
+                    for value in (float("nan"), float("inf"), -float("inf")):
+                        source = floating_fixture(domain, code, ragged, value)
+                        with self.subTest(domain=domain, code=code, ragged=ragged, value=value), patch(
+                                "meshvale_repair.workflow.remove_duplicate_faces") as kernel:
+                            result = self.run_workflow(Mesh.from_record(source), [])
+                            kernel.assert_not_called()
+                            self.assertEqual(result.exit_code, 2)
+                            self.assertEqual(result.report["execution"]["stage"], "inspect")
+                            self.assertEqual(result.report["profile"]["outcome"], "failed")
+                            self.assertEqual(next(c for c in result.report["coverage"] if c["id"] == "input.storage")["finding"], "failed")
+                            diagnostic = next(d for d in result.report["diagnostics"] if d["code"] == "repair.nonfinite_attribute")
+                            self.assertEqual(diagnostic["data"], {"native_subject": "finite-values", "native_element": 1})
+
+    def test_nonfinite_candidate_channels_fail_independent_storage_check(self):
+        for code in ("f", "d"):
+            for ragged in (False, True):
+                mesh = Mesh.from_record(floating_fixture("vertex", code, ragged))
+                original = remove_duplicate_faces(mesh, [])
+                record = floating_fixture("vertex", code, ragged, float("nan"))
+                faulty = replace(original, candidate=Mesh.from_record(record))
+                with self.subTest(code=code, ragged=ragged), patch(
+                        "meshvale_repair.workflow.remove_duplicate_faces", return_value=faulty):
+                    result = self.run_workflow(mesh, [])
+                    self.assertIsNone(result.candidate)
+                    self.assertEqual(result.exit_code, 1)
+                    self.assertEqual(result.report["profile"]["outcome"], "failed")
+                    self.assertEqual(next(c for c in result.report["coverage"] if c["id"] == "candidate.storage")["finding"], "failed")
+                    diagnostic = next(d for d in result.report["diagnostics"] if d["code"] == "repair.nonfinite_attribute")
+                    self.assertEqual(diagnostic["scope"]["snapshot"], "candidate")
+
+    def test_nonfinite_missing_backing_channels_remain_byte_exact(self):
+        for domain in ("vertex", "face", "corner"):
+            for code in ("f", "d"):
+                for ragged in (False, True):
+                    source = floating_fixture(domain, code, ragged, float("nan"), missing=True)
+                    mesh = Mesh.from_record(source)
+                    with self.subTest(domain=domain, code=code, ragged=ragged):
+                        result = self.run_workflow(mesh, [])
+                        self.assertEqual(result.exit_code, 0)
+                        self.assertEqual(result.report["profile"]["outcome"], "passed")
+                        self.assertEqual(fixtures.fingerprint(result.candidate), fixtures.fingerprint(mesh))
 
     def test_faulty_candidate_maps_geometry_metadata_and_channels_rejected(self):
         mesh = Mesh.from_record(fixtures.fixture())

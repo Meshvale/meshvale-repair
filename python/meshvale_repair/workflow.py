@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Actual duplicate operations with independent preservation predicates and reports."""
 from dataclasses import dataclass
+import math
 import re
 from meshvale_geometry import Mesh
 from meshvale_reports import exit_code, profile_outcome
@@ -80,8 +81,28 @@ def _diagnostics(report, rows, snapshot, severity):
     return ids
 
 
+def _finite_attributes(record):
+    diagnostics = []
+    for channel in record["attributes"]:
+        if channel["scalar_type"] not in ("float32", "float64"):
+            continue
+        values, offsets, present = (channel[key] for key in ("values", "offsets", "present"))
+        rows = len(offsets) - 1 if offsets is not None else len(values) // channel["components"]
+        for row in range(rows):
+            if present is not None and not present[row]:
+                continue
+            start, end = (row * channel["components"], (row + 1) * channel["components"]) if offsets is None else offsets[row:row+2]
+            if any(not math.isfinite(value) for value in values[start:end]):
+                diagnostics.append({"code": "repair.nonfinite_attribute", "subject": channel["name"], "element": row})
+    return diagnostics
+
+
 def _inspect(report, mesh, role):
     storage = mesh.inspect_storage()
+    if not storage:
+        # Row access is safe only after structural inspection. Missing backing
+        # payload remains raw data; only authored floating rows must be finite.
+        storage.extend(_finite_attributes(mesh.to_record()))
     ids = _diagnostics(report, storage, role, "error")
     _check(report, role + ".storage", role, finding="failed" if storage else "passed", diagnostics=ids)
     topology = mesh.inspect_topology()
