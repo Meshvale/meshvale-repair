@@ -22,6 +22,8 @@
 
 ### Changed
 
+- The optional binding compiles Geometry's installed record implementation through its per-extension factory and links the compiled native package, with exact matched producer requirements; mesh records and operation behavior are unchanged.
+
 - Exact native/Python Geometry and optional Interchange dependencies now use the public source candidates recorded in the package and installation contracts.
 
 - Native and Python dependency evaluation now pins Geometry's pooled-editing development candidate. Repair continues to use owned dense snapshots and its existing copy-producing operation; editor mutation and Python editor bindings are separate capabilities.

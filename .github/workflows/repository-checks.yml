@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: a27cae686ea4f4c6dabeebfc984f0265602e3b1d
+          ref: d1b0ec5ddf37d6ff648ddd57fe8c7caefbd78832
           path: .local/geometry-source
       - name: Configure geometry dependency
         run: cmake -S .local/geometry-source -B .local/geometry-build -DCMAKE_BUILD_TYPE=Release
@@ -88,13 +88,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: a27cae686ea4f4c6dabeebfc984f0265602e3b1d
+          ref: d1b0ec5ddf37d6ff648ddd57fe8c7caefbd78832
           fetch-depth: 0
           path: .local/geometry-source
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: 84e7912cba74e6c78410f42fee75856332940c94
+          ref: d9c0f8d5954d01b0238b72cc9bbeeaba8d913c22
           fetch-depth: 0
           path: .local/interchange-source
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
