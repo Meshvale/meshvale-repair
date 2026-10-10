@@ -15,7 +15,7 @@ def inspect(path):
             assert not PurePosixPath(name).is_absolute() and ".." not in parts, name
             assert parts[0] == "meshvale_repair" or parts[0].endswith(".dist-info"), name
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","_version.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","_version.py","workflow.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
         for license in ["LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt"]:
             assert any(name.endswith("/"+license) and ".dist-info/licenses/" in name for name in names), license
@@ -34,7 +34,8 @@ def inspect(path):
             assert name in roots or parts[1] in directories,name
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
-        for required in ["python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp"]:
+        for required in ["python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
+                         "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py"]:
             assert required in names,required
     print(f"Package content check passed: {path.name}; {len(names)} files")
 
