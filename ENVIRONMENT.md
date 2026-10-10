@@ -10,6 +10,8 @@ Follow [the operation contract](docs/duplicates.md#dependency-and-installation) 
 
 The current checks need Git and Python 3.10 or newer, with no third-party Python packages:
 
+Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml), an installed native Geometry prefix and ordinary GIL-enabled CPython. See [Python packaging and ownership requirements](docs/python.md). Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.
+
 ```sh
 python scripts/check-portability.py
 python scripts/check-docs.py

@@ -2,13 +2,15 @@
 
 Configurable inspection and repair of imperfect polygon meshes.
 
-**Status:** Development native library with targeted exact duplicate-face removal. No stable release, file adapters, CLI/batch or Python package yet.
+**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal. No stable release, file adapters or CLI/batch yet.
 
 ## Available native operation
 
 Remove explicitly selected duplicate triangles, quads or n-gons while retaining representative loops, all supported UV sets, and unchanged variable joint/weight rows. Results carry face/corner correspondence; a failing target rejects the whole request. Unknown attribute semantics block edits unless explicitly declared row-local. Non-manifold raw input can remain representable and is not implicitly split or welded.
 
 Read the [operation contract and install instructions](docs/duplicates.md) for exact equality, attribute policy, rejection and preservation limits. The [installed consumer example](examples/consumer/main.cpp) demonstrates the public C++ interface.
+
+The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
 
 ## Planned capabilities
 

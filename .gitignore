@@ -13,3 +13,5 @@
 /build/
 __pycache__/
 *.pyc
+/python/meshvale_repair/_version.py
+/dist/
