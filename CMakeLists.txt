@@ -71,7 +71,7 @@ endif()
 include(CTest)
 if(BUILD_TESTING)
   add_library(meshvale_repair_header_checks OBJECT
-    tests/header_canonical.cpp tests/header_legacy.cpp)
+    tests/header_canonical.cpp)
   target_link_libraries(meshvale_repair_header_checks PRIVATE meshvale::repair)
   meshvale_warnings(meshvale_repair_header_checks)
   add_executable(meshvale_duplicate_tests tests/duplicates.cpp)

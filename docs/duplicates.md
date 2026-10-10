@@ -2,18 +2,17 @@
 
 Contract version: **0.1.1**, development API. The C++ declarations in [duplicates.h](../include/meshvale/repair/duplicates.h) own interface shapes. This document owns operation behavior.
 
-## Header compatibility
+## Header interface
 
-Use `meshvale/repair/duplicates.h` for new C++ callers. It is self-contained and
-uses a path-derived include guard. The installed `duplicates.hpp` header remains
-as a forwarding compatibility include: existing callers receive exactly the same
-declarations, types and functions. Including either spelling, repeatedly or
-together, is supported. No removal version has been scheduled for the forwarding
-header. The `.h` migration does not rename the public API or change its behavior.
+Use `meshvale/repair/duplicates.h`, the self-contained C++20 interface with a
+path-derived include guard. The former `duplicates.hpp` forwarding header has
+been removed; existing source callers must update their include path. Public
+types, functions and operation behavior retain their contracts. Non-template
+operation implementation is compiled from `src/duplicates.cpp`.
 
-Native tests compile the canonical and legacy headers in independent translation
-units. The separate installed consumer compiles both spellings and calls the
-same operation through each; CMake builds use C++20 with extensions disabled.
+Native tests compile the canonical header independently and repeatedly. The
+separate installed consumer calls the real operation through the installed `.h`
+interface and target; CMake builds use C++20 with extensions disabled.
 
 ## Request and equivalence
 

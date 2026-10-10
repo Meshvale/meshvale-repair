@@ -3,7 +3,6 @@
 // clang-format off
 #include "meshvale/repair/duplicates.h"
 #include "meshvale/repair/duplicates.h"
-#include "meshvale/repair/duplicates.hpp"
 // clang-format on
 
 meshvale::repair::DuplicateResult TestCanonicalHeader() {

@@ -46,14 +46,15 @@ def inspect(path):
             assert name in roots or parts[1] in directories,name
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
-        for required in [".clang-format","scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h","include/meshvale/repair/duplicates.hpp",
-                         "tests/header_canonical.cpp","tests/header_legacy.cpp","examples/consumer/legacy.cpp",
+        for required in [".clang-format","scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h",
+                         "tests/header_canonical.cpp","examples/consumer/main.cpp",
                          "python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
                          "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
                          "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",
                          "scripts/portable-preview.py","examples/python/obj_walkthrough.py","docs/quickstart.md"]:
             assert required in names,required
+        assert not any(name.endswith(".hpp") for name in names)
     print(f"Package content check passed: {path.name}; {len(names)} files")
 
 
