@@ -162,7 +162,15 @@ jobs:
           cmake -S .local/geometry-source -B .local/geometry-build @options
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build geometry dependency
-        run: cmake --build .local/geometry-build --config ${{ matrix.build_type }} --parallel 2
+        run: |
+          if ('${{ matrix.profile_id }}' -eq 'windows-msvc-asan-qualified') {
+            New-Item -ItemType Directory -Force .local/windows-startup | Out-Null
+            cmake --build .local/geometry-build --config ${{ matrix.build_type }} --parallel 2 --verbose 2>&1 | Tee-Object .local/windows-startup/build.log
+            $buildExit = $LASTEXITCODE
+            @{ exit_code = $buildExit; configuration = '${{ matrix.build_type }}' } | ConvertTo-Json | Set-Content .local/windows-startup/build-result.json
+            exit $buildExit
+          }
+          cmake --build .local/geometry-build --config ${{ matrix.build_type }} --parallel 2
       - name: Check actual geometry test inventory
         if: matrix.module == 'ON'
         run: |
@@ -170,8 +178,44 @@ jobs:
           if ('${{ matrix.compiler_version }}') { $options += @('--compiler-version', '${{ matrix.compiler_version }}') }
           python .local/geometry-source/scripts/check-native-tests.py @options
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Capture bounded Windows sanitizer process diagnostics
+        id: windows-startup
+        if: matrix.profile_id == 'windows-msvc-asan-qualified'
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          $configuration = '${{ matrix.build_type }}'
+          $ctest = (Get-Command ctest -ErrorAction Stop).Source
+          $inventoryText = & $ctest --test-dir .local/geometry-build -C $configuration --show-only=json-v1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $inventoryText | Set-Content .local/windows-startup/inventory.json
+          $inventory = ($inventoryText -join "`n") | ConvertFrom-Json
+          $compilerRecord = @(Get-ChildItem .local/geometry-build/CMakeFiles/*/CMakeCXXCompiler.cmake)
+          if ($compilerRecord.Count -ne 1) { throw 'Expected one configured compiler record' }
+          $compilerText = Get-Content -LiteralPath $compilerRecord[0].FullName -Raw
+          $compilerMatch = [regex]::Match($compilerText, 'set\(CMAKE_CXX_COMPILER "([^"]+)"\)')
+          if (-not $compilerMatch.Success) { throw 'Configured compiler path is missing' }
+          $compilerDirectory = Split-Path -Parent $compilerMatch.Groups[1].Value
+          $runtimes = @(Get-ChildItem -LiteralPath $compilerDirectory -Filter '*asan*.dll' -File)
+          if ($runtimes.Count -eq 0) { throw 'No sanitizer runtime found beside the configured compiler' }
+          $diagnosticNames = @('checked_attribute_numerics', 'charged_materialization', 'materialization_semantics')
+          $deadlineSeconds = 20
+          $failed = $false
+          foreach ($testName in $diagnosticNames) {
+            $test = @($inventory.tests | Where-Object name -eq $testName)
+            if ($test.Count -ne 1 -or -not $test[0].command) { throw "Missing configured test command: $testName" }
+            $pdb = [System.IO.Path]::ChangeExtension($test[0].command[0], '.pdb')
+            $options = @('--ctest', $ctest, '--build-dir', '.local/geometry-build', '--configuration', $configuration, '--test-name', $testName, '--output', ".local/windows-startup/$testName", '--timeout-seconds', $deadlineSeconds, '--pdb', $pdb)
+            foreach ($runtime in $runtimes) { $options += @('--runtime-dll', $runtime.FullName) }
+            python scripts/diagnose-windows-startup.py @options
+            if ($LASTEXITCODE -ne 0) { $failed = $true }
+          }
+          if ($failed) { exit 1 }
       - name: Test geometry dependency
         run: ctest --test-dir .local/geometry-build -C ${{ matrix.build_type }} --output-on-failure
+      - name: Require successful Windows sanitizer diagnostics
+        if: always() && steps.windows-startup.outcome == 'failure'
+        run: exit 1
       - name: Install geometry dependency
         run: cmake --install .local/geometry-build --config ${{ matrix.build_type }} --prefix .local/install
       - name: Configure repair against installed geometry
@@ -227,6 +271,12 @@ jobs:
         with:
           name: repair-native-${{ matrix.profile_id }}
           path: |
+            .local/windows-startup
+            .local/geometry-build/**/*.tlog
+            .local/geometry-build/**/*.rsp
+            .local/geometry-build/**/*.vcxproj
+            .local/geometry-build/**/*.props
+            .local/geometry-build/**/*.targets
             .local/geometry-build/CMakeCache.txt
             .local/geometry-build/CMakeFiles/*/CMakeCXXCompiler.cmake
             .local/geometry-build/compile_commands.json

@@ -27,4 +27,18 @@ checker and configuration. This verifies formatting, not API naming or semantic
 compliance. Existing public names remain unchanged pending a separate
 compatibility migration.
 
+## Windows sanitizer diagnostics
+
+The Windows ASan workflow retains verbose producer build records and replays
+the three affected Geometry tests through [the bounded process controller](scripts/diagnose-windows-startup.py)
+before the complete CTest gate. Its 20-second diagnostic deadline records the
+configured command, owned child process, output, executable/symbol/runtime
+identities and timeout cleanup. A replay failure remains fatal; these extra
+observations never replace the required test inventory or full test execution.
+The controller preserves the existing PATH, supplies an explicit environment
+allowlist, and suppresses interactive Windows failure dialogs only while
+launching its diagnostic child. It restores the controller's previous policy.
+It captures module/thread metadata, without claiming stack or wait-chain
+diagnosis. These records do not establish the cause of a blank test timeout.
+
 Public files use repository-relative links, public URLs, tool names, and symbolic environment values. Run these checks before committing or publishing. The portability check scans working files and staged content for machine paths and private local files; it does not scan all secrets or determine whether a document should be public. Review public content and package contents separately.

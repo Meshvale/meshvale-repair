@@ -54,7 +54,8 @@ def inspect(path):
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
         for required in [".clang-format","scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h",
-                         "scripts/check-native-tests.py", "include/meshvale/repair/materialized_duplicates.h",
+                         "scripts/check-native-tests.py", "scripts/diagnose-windows-startup.py",
+                         "include/meshvale/repair/materialized_duplicates.h",
                          "src/materialized_duplicates.cpp", "src/materialized_duplicate_allocation.cpp",
                          "src/materialized_duplicate_allocation.h", "src/materialized_duplicate_workers.cpp",
                          "src/materialized_duplicate_workers.h", "src/materialized_duplicate_test_internal.h",
