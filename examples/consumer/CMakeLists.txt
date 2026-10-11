@@ -12,3 +12,27 @@ else()
 endif()
 enable_testing()
 add_test(NAME installed_repair_consumer COMMAND meshvale_repair_consumer)
+if(TARGET meshvale::materialized_duplicates)
+  set(MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE "qualified" CACHE STRING
+    "Numerical producer profile exercised by the charged repair consumer")
+  set_property(CACHE MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE PROPERTY
+    STRINGS qualified unsupported)
+  if(NOT MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "qualified"
+      AND NOT MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "unsupported")
+    message(FATAL_ERROR "MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE must be qualified or unsupported")
+  endif()
+  add_executable(meshvale_materialized_duplicate_consumer materialized_duplicates.cpp)
+  target_link_libraries(meshvale_materialized_duplicate_consumer PRIVATE meshvale::materialized_duplicates)
+  if(MSVC)
+    target_compile_options(meshvale_materialized_duplicate_consumer PRIVATE /W4 /WX /fp:strict)
+  else()
+    target_compile_options(meshvale_materialized_duplicate_consumer PRIVATE
+      -Wall -Wextra -Wpedantic -Werror -fno-fast-math -ffp-contract=off)
+  endif()
+  if(MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "qualified")
+    add_test(NAME installed_materialized_duplicates COMMAND meshvale_materialized_duplicate_consumer)
+  else()
+    add_test(NAME installed_materialized_duplicates_unsupported
+      COMMAND meshvale_materialized_duplicate_consumer --empty-source)
+  endif()
+endif()

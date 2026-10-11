@@ -30,6 +30,7 @@ minimum-version = "1.1"
 wheel.packages = ["python/meshvale_repair"]
 install.components = ["python"]
 cmake.define.MESHVALE_REPAIR_PYTHON = true
+cmake.define.MESHVALE_REPAIR_MATERIALIZED_DUPLICATES = false
 cmake.define.BUILD_TESTING = false
 sdist.include = [".clang-format", "CMakeLists.txt", "pyproject.toml", "README.md", "AGENTS.md", "ENVIRONMENT.md", "environment.example.json", "LICENSE", "NOTICE", "THIRD_PARTY.md", "CHANGELOG.md", "cmake/**", "include/**", "src/**", "python/bindings.cpp", "python/meshvale_repair/*.py", "docs/**", "examples/**", "tests/**", "licenses/*.txt", "scripts/*.py"]
 sdist.inclusion-mode = "explicit"

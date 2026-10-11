@@ -6,7 +6,7 @@ Copy [environment.example.json](environment.example.json) to `.local/environment
 
 `workspace_root` is the optional local checkout/workspace location. `vcpkg_root` is an optional existing vcpkg installation. Compiler, generator, triplet, and corpus fields remain unset until used. Relative build paths resolve from this repository. Native code uses C++20, CMake 3.24+ and an installed `MeshvaleGeometry` development package. No vcpkg third-party dependency is required by this initial operation.
 
-Follow [the operation contract](docs/duplicates.md#dependency-and-installation) for the tested geometry revision and native build/install/consumer commands. Supply installed prefixes explicitly through `CMAKE_PREFIX_PATH`; this template does not change the build environment automatically. Native tests treat warnings as errors. CI evaluates Windows, Linux and macOS runners; those checks do not establish a Python wheel or stable ABI matrix.
+Follow [the charged native build instructions](docs/materialized_duplicates.md#dependency-build-and-test-selection) for the default-ON module, its Geometry producer and explicit test profile. The [legacy operation instructions](docs/duplicates.md#dependency-and-installation) select the module OFF for the earlier Geometry producer. Supply installed prefixes explicitly through `CMAKE_PREFIX_PATH`; this template does not change the build environment automatically. Native tests treat warnings as errors. CI evaluates Windows, Linux and macOS runners; configured checks do not establish a supported release matrix.
 
 Documentation and portability checks need Git and Python 3.10 or newer, with no third-party Python packages:
 
@@ -26,5 +26,24 @@ CI installs this exact formatter version; the source distribution retains its
 checker and configuration. This verifies formatting, not API naming or semantic
 compliance. Existing public names remain unchanged pending a separate
 compatibility migration.
+
+## Windows sanitizer diagnostics
+
+The Windows ASan workflow retains verbose producer build records and replays
+the three affected Geometry tests through [the bounded process controller](scripts/diagnose-windows-startup.py)
+before the complete CTest gate. Its 20-second diagnostic deadline records the
+configured command, owned child process, output, executable/symbol/runtime
+identities and timeout cleanup. A replay failure remains fatal; these extra
+observations never replace the required test inventory or full test execution.
+Before those tests, a Windows ASan setup step requires the configured compiler's
+release sanitizer runtime and adds its directory to the following steps' PATH.
+The retained receipts record the runtime path/hash and verify that directory
+membership after the next step starts. They do not dump the full environment or
+establish that this resolves a particular hosted failure.
+The controller preserves the resulting PATH, supplies an explicit environment
+allowlist, and suppresses interactive Windows failure dialogs only while
+launching its diagnostic child. It restores the controller's previous policy.
+It captures module/thread metadata, without claiming stack or wait-chain
+diagnosis. These records do not establish the cause of a blank test timeout.
 
 Public files use repository-relative links, public URLs, tool names, and symbolic environment values. Run these checks before committing or publishing. The portability check scans working files and staged content for machine paths and private local files; it does not scan all secrets or determine whether a document should be public. Review public content and package contents separately.

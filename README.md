@@ -12,6 +12,8 @@ Remove explicitly selected duplicate triangles, quads or n-gons while retaining 
 
 Read the [operation contract and install instructions](docs/duplicates.md) for exact equality, attribute policy, rejection and preservation limits. The [installed consumer example](examples/consumer/main.cpp) demonstrates the public C++ interface.
 
+The development [charged native interface](docs/materialized_duplicates.md) applies the same targeted operation directly to immutable Geometry owners, shares their execution budget, and returns an immutable candidate with complete correspondence. Its default-ON native target requires the documented newer Geometry producer. The [installed example](examples/consumer/materialized_duplicates.cpp) exercises that interface. Complete request/profile qualification is pending; the Python and OBJ workflows continue to use their existing operation and dependency cohort.
+
 The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
 
 The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.

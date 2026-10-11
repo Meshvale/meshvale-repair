@@ -40,12 +40,13 @@ Before acceptance, checks inspect candidate storage, authored floating values, c
 
 ## Dependency and installation
 
-Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The evaluated development dependency is public geometry revision `ec38fabd783a578947d43856b0c7a7fd54ce8533`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. CI installs that exact revision before building this repository. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements; native operation behavior above is unchanged.
+Use C++20, CMake 3.24+ and an installed `MeshvaleGeometry` package. The legacy-only development dependency is public geometry revision `ec38fabd783a578947d43856b0c7a7fd54ce8533`; native packages identify untagged snapshots as `0.0.0`, which is not a compatibility promise. Select `MESHVALE_REPAIR_MATERIALIZED_DUPLICATES=OFF` when using this producer. The default-ON [charged native module](materialized_duplicates.md#dependency-build-and-test-selection) requires its newer documented Geometry producer. The native CMake build does not download dependencies or require private sources. The optional [Python interface](python.md) owns its separate package/buffer requirements and continues to build the legacy operation with the charged module disabled.
 
 Install geometry into a chosen prefix, then supply that absolute prefix through `CMAKE_PREFIX_PATH`:
 
 ```sh
-cmake -S . -B .local/build -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$GEOMETRY_PREFIX"
+cmake -S . -B .local/build -DCMAKE_BUILD_TYPE=Release \
+  -DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=OFF -DCMAKE_PREFIX_PATH="$GEOMETRY_PREFIX"
 cmake --build .local/build --config Release
 ctest --test-dir .local/build -C Release --output-on-failure
 cmake --install .local/build --config Release --prefix "$REPAIR_PREFIX"
