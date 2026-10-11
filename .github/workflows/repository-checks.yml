@@ -54,6 +54,7 @@ jobs:
             materialization_profile: qualified
             compile_flags: /EHsc /fsanitize=address /Zi
             link_flags: /INCREMENTAL:NO
+            asan_options: alloc_dealloc_mismatch=1
             allocation_probe: enabled
             module: "ON"
             geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
@@ -78,6 +79,7 @@ jobs:
             materialization_profile: qualified
             compile_flags: -fsanitize=address,undefined -fno-omit-frame-pointer
             link_flags: -fsanitize=address,undefined
+            asan_options: detect_leaks=1:halt_on_error=1
             allocation_probe: enabled
             module: "ON"
             geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
@@ -136,7 +138,7 @@ jobs:
         shell: pwsh
     env:
       CMAKE_BUILD_PARALLEL_LEVEL: "2"
-      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      ASAN_OPTIONS: ${{ matrix.asan_options }}
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
       TSAN_OPTIONS: halt_on_error=1
     steps:

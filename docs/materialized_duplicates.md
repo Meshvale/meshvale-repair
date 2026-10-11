@@ -246,6 +246,10 @@ counts as well as serial/parallel result equivalence. Qualified numerical
 profiles and unsupported-profile behavior remain Geometry-owned. Preliminary
 native/semantic checks do not establish this complete qualification.
 
+Windows hosted ASan qualification remains pending after an observed test timeout.
+The workflow now selects platform-specific ASan runtime options; that recipe
+correction has not yet established that the timeout is resolved.
+
 ## Dependency, build and test selection
 
 Use C++20, CMake 3.24+ and an installed Geometry development package built from
