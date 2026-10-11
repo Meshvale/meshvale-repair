@@ -28,41 +28,218 @@ jobs:
         run: python scripts/check-cpp-format.py
 
   native:
+    name: Native ${{ matrix.profile_id }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - profile_id: windows-msvc-qualified
+            os: windows-latest
+            compiler_id: MSVC
+            compiler_version: ""
+            compiler_option: ""
+            build_type: Release
+            materialization_profile: qualified
+            compile_flags: /EHsc
+            link_flags: ""
+            allocation_probe: enabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: windows-msvc-asan-qualified
+            os: windows-latest
+            compiler_id: MSVC
+            compiler_version: ""
+            compiler_option: ""
+            build_type: RelWithDebInfo
+            materialization_profile: qualified
+            compile_flags: /EHsc /fsanitize=address /Zi
+            link_flags: /INCREMENTAL:NO
+            allocation_probe: enabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: linux-clang-qualified
+            os: ubuntu-24.04
+            compiler_id: Clang
+            compiler_version: "18.1.3"
+            compiler_option: -DCMAKE_CXX_COMPILER=clang++-18
+            build_type: Debug
+            materialization_profile: qualified
+            compile_flags: ""
+            link_flags: ""
+            allocation_probe: enabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: linux-clang-asan-ubsan-qualified
+            os: ubuntu-24.04
+            compiler_id: Clang
+            compiler_version: "18.1.3"
+            compiler_option: -DCMAKE_CXX_COMPILER=clang++-18
+            build_type: Debug
+            materialization_profile: qualified
+            compile_flags: -fsanitize=address,undefined -fno-omit-frame-pointer
+            link_flags: -fsanitize=address,undefined
+            allocation_probe: enabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: linux-clang-tsan-real-workers
+            os: ubuntu-24.04
+            compiler_id: Clang
+            compiler_version: "18.1.3"
+            compiler_option: -DCMAKE_CXX_COMPILER=clang++-18
+            build_type: Debug
+            materialization_profile: qualified
+            compile_flags: -fsanitize=thread -O1 -g -fno-omit-frame-pointer
+            link_flags: -fsanitize=thread
+            allocation_probe: disabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: linux-gcc-unsupported
+            os: ubuntu-24.04
+            compiler_id: GNU
+            compiler_version: ""
+            compiler_option: -DCMAKE_CXX_COMPILER=g++
+            build_type: Release
+            materialization_profile: unsupported
+            compile_flags: ""
+            link_flags: ""
+            allocation_probe: enabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: macos-appleclang-unsupported
+            os: macos-latest
+            compiler_id: AppleClang
+            compiler_version: ""
+            compiler_option: -DCMAKE_CXX_COMPILER=clang++
+            build_type: Release
+            materialization_profile: unsupported
+            compile_flags: ""
+            link_flags: ""
+            allocation_probe: enabled
+            module: "ON"
+            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+          - profile_id: windows-msvc-legacy-off
+            os: windows-latest
+            compiler_id: MSVC
+            compiler_version: ""
+            compiler_option: ""
+            build_type: Release
+            materialization_profile: "off"
+            compile_flags: /EHsc
+            link_flags: ""
+            allocation_probe: enabled
+            module: "OFF"
+            geometry_revision: ec38fabd783a578947d43856b0c7a7fd54ce8533
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      TSAN_OPTIONS: halt_on_error=1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-geometry
-          ref: ec38fabd783a578947d43856b0c7a7fd54ce8533
+          ref: ${{ matrix.geometry_revision }}
           path: .local/geometry-source
       - name: Configure geometry dependency
-        run: cmake -S .local/geometry-source -B .local/geometry-build -DCMAKE_BUILD_TYPE=Release
+        run: |
+          $options = @('-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}', '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_DISABLE_FIND_PACKAGE_Eigen3=ON', '-DCMAKE_CXX_FLAGS=${{ matrix.compile_flags }}', '-DCMAKE_EXE_LINKER_FLAGS=${{ matrix.link_flags }}', '-DCMAKE_SHARED_LINKER_FLAGS=${{ matrix.link_flags }}')
+          if ('${{ matrix.compiler_option }}') { $options += '${{ matrix.compiler_option }}' }
+          if ('${{ matrix.module }}' -eq 'ON') {
+            $options += '-DMESHVALE_GEOMETRY_MATERIALIZATION_TEST_PROFILE=${{ matrix.materialization_profile }}'
+            $options += '-DMESHVALE_GEOMETRY_ALLOCATION_PROBE=${{ matrix.allocation_probe == 'enabled' && 'ON' || 'OFF' }}'
+          }
+          cmake -S .local/geometry-source -B .local/geometry-build @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build geometry dependency
-        run: cmake --build .local/geometry-build --config Release
+        run: cmake --build .local/geometry-build --config ${{ matrix.build_type }} --parallel 2
+      - name: Check actual geometry test inventory
+        if: matrix.module == 'ON'
+        run: |
+          $options = @('--build-dir', '.local/geometry-build', '--configuration', '${{ matrix.build_type }}', '--materialization-profile', '${{ matrix.materialization_profile }}', '--allocation-probe', '${{ matrix.allocation_probe }}', '--compiler-id', '${{ matrix.compiler_id }}')
+          if ('${{ matrix.compiler_version }}') { $options += @('--compiler-version', '${{ matrix.compiler_version }}') }
+          python .local/geometry-source/scripts/check-native-tests.py @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test geometry dependency
-        run: ctest --test-dir .local/geometry-build -C Release --output-on-failure
+        run: ctest --test-dir .local/geometry-build -C ${{ matrix.build_type }} --output-on-failure
       - name: Install geometry dependency
-        run: cmake --install .local/geometry-build --config Release --prefix .local/install
+        run: cmake --install .local/geometry-build --config ${{ matrix.build_type }} --prefix .local/install
       - name: Configure repair against installed geometry
-        run: cmake -S . -B .local/build -DCMAKE_BUILD_TYPE=Release "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/install"
+        run: |
+          $options = @('-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}', '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_CXX_FLAGS=${{ matrix.compile_flags }}', '-DCMAKE_EXE_LINKER_FLAGS=${{ matrix.link_flags }}', '-DCMAKE_SHARED_LINKER_FLAGS=${{ matrix.link_flags }}', '-DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=${{ matrix.module }}', '-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/install')
+          if ('${{ matrix.compiler_option }}') { $options += '${{ matrix.compiler_option }}' }
+          if ('${{ matrix.module }}' -eq 'ON') { $options += '-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=${{ matrix.materialization_profile }}' }
+          cmake -S . -B .local/build @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build repair
-        run: cmake --build .local/build --config Release
+        run: cmake --build .local/build --config ${{ matrix.build_type }} --parallel 2
+      - name: Check actual repair test inventory
+        run: |
+          $options = @('--build-dir', '.local/build', '--configuration', '${{ matrix.build_type }}', '--materialization-profile', '${{ matrix.materialization_profile }}', '--compiler-id', '${{ matrix.compiler_id }}')
+          if ('${{ matrix.compiler_version }}') { $options += @('--compiler-version', '${{ matrix.compiler_version }}') }
+          python scripts/check-native-tests.py @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test duplicate operation
-        run: ctest --test-dir .local/build -C Release --output-on-failure
+        run: ctest --test-dir .local/build -C ${{ matrix.build_type }} --output-on-failure
       - name: Install repair
-        run: cmake --install .local/build --config Release --prefix .local/install
+        run: cmake --install .local/build --config ${{ matrix.build_type }} --prefix .local/install
+      - name: Relocate installed packages
+        run: |
+          $workspace = (Resolve-Path -LiteralPath $env:GITHUB_WORKSPACE).Path
+          $localRoot = [System.IO.Path]::GetFullPath((Join-Path $workspace '.local')) + [System.IO.Path]::DirectorySeparatorChar
+          $source = (Resolve-Path -LiteralPath .local/install).Path
+          $destination = [System.IO.Path]::GetFullPath((Join-Path $workspace '.local/relocated-install'))
+          foreach ($path in @($source, $destination)) {
+            if (-not $path.StartsWith($localRoot, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'Install relocation must stay in the workspace local directory' }
+          }
+          if (Test-Path -LiteralPath $destination) { throw 'Relocation destination already exists' }
+          Move-Item -LiteralPath $source -Destination $destination -ErrorAction Stop
       - name: Configure installed consumer
-        run: cmake -S examples/consumer -B .local/consumer "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/install"
+        run: |
+          $options = @('-DCMAKE_BUILD_TYPE=${{ matrix.build_type }}', '-DCMAKE_EXPORT_COMPILE_COMMANDS=ON', '-DCMAKE_CXX_FLAGS=${{ matrix.compile_flags }}', '-DCMAKE_EXE_LINKER_FLAGS=${{ matrix.link_flags }}', '-DCMAKE_SHARED_LINKER_FLAGS=${{ matrix.link_flags }}', '-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/relocated-install')
+          if ('${{ matrix.compiler_option }}') { $options += '${{ matrix.compiler_option }}' }
+          if ('${{ matrix.module }}' -eq 'ON') { $options += '-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=${{ matrix.materialization_profile }}' }
+          cmake -S examples/consumer -B .local/consumer @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build installed consumer
-        run: cmake --build .local/consumer --config Release
+        run: cmake --build .local/consumer --config ${{ matrix.build_type }} --parallel 2
+      - name: Check actual relocated consumer inventory
+        run: |
+          $options = @('--build-dir', '.local/build', '--installed-build-dir', '.local/consumer', '--configuration', '${{ matrix.build_type }}', '--materialization-profile', '${{ matrix.materialization_profile }}', '--compiler-id', '${{ matrix.compiler_id }}')
+          if ('${{ matrix.compiler_version }}') { $options += @('--compiler-version', '${{ matrix.compiler_version }}') }
+          python scripts/check-native-tests.py @options
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test installed consumer
-        run: ctest --test-dir .local/consumer -C Release --output-on-failure
+        run: ctest --test-dir .local/consumer -C ${{ matrix.build_type }} --output-on-failure
+      - name: Retain native qualification records
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: repair-native-${{ matrix.profile_id }}
+          path: |
+            .local/geometry-build/CMakeCache.txt
+            .local/geometry-build/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/geometry-build/compile_commands.json
+            .local/geometry-build/Testing
+            .local/build/CMakeCache.txt
+            .local/build/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/build/compile_commands.json
+            .local/build/Testing
+            .local/consumer/CMakeCache.txt
+            .local/consumer/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/consumer/compile_commands.json
+            .local/consumer/Testing
+            .local/relocated-install
+          include-hidden-files: true
+          retention-days: 14
 
   python:
     strategy:

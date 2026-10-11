@@ -3,19 +3,29 @@
 | Field | Value |
 |---|---|
 | ID | MESHVALE-MATERIALIZED-DUPLICATES-001 |
-| Version | 0.1.1 |
-| Status | Declaration-only proposal; runtime, installed target and qualification pending |
+| Version | 0.1.3 |
+| Status | Implemented development candidate; complete request/profile/sanitizer and installed qualification pending |
 | Owner | Repair |
 
-The proposed
+The development candidate's
 [`materialized_duplicates.h`](../include/meshvale/repair/materialized_duplicates.h)
 interface applies targeted exact duplicate removal directly to immutable
 Geometry storage. The existing [duplicate contract](duplicates.md#request-and-equivalence)
 owns equality and attribute eligibility. This document owns charged execution,
 immutable result ownership and the new interface's failure ordering. It does not
-change `remove_duplicate_faces` or claim a callable implementation.
+change `remove_duplicate_faces`. Native integration and independent semantic
+checks have passed; the complete qualification below remains pending.
 
 ## Input and operation
+
+The native build option `MESHVALE_REPAIR_MATERIALIZED_DUPLICATES` defaults to
+`ON`. It requires the compiled Geometry context-sharing interface and exports
+the `meshvale::materialized_duplicates` target with this header. Explicit `OFF`
+builds and installs only the legacy Repair target and header; it does not
+silently substitute the legacy operation. Optional Python builds explicitly
+select `OFF` until a charged binding is available, retaining their separately
+owned dependency cohort. An `ON` build with an incompatible Geometry producer
+fails configuration instead of falling back.
 
 `RemoveMaterializedDuplicateFaces` accepts a `MaterializedMesh`, a borrowed span
 of the existing `DuplicateTarget` records, borrowed row-local declarations,
@@ -26,7 +36,7 @@ in another representation.
 
 The source owns the execution ledger. A prerequisite additive Geometry
 `MaterializedMesh::ShareExecutionContext() noexcept` returns a strong context
-copy without allocating or exposing a raw identity. The proposed operation uses
+copy without allocating or exposing a raw identity. This operation uses
 that context and a fresh per-call stop token; it takes no substitute caller
 context. The original source context and earlier stop source may already have
 been destroyed. Cancellation of an earlier capture does not cancel this call.
@@ -87,11 +97,16 @@ equality/duplicate checks and independent candidate/correspondence verification
 partition readable work using the supplied
 byte thresholds, partition size, cancellation block and job limit. A large
 single target can partition its rotation candidates; the result still selects
-the first matching rotation. Ordered fixed-width planning is a serial one-pass
-O(record count) phase that assigns source ordinals and checked prefix ranges
-needed for deterministic reductions and dependent map writes. It copies neither
-numerical payloads nor name/semantic/metadata bytes. Count caps do not imply that
-records are small; this phase checks cancellation in bounded record blocks.
+the first matching rotation. Fixed-width prefix/range assignment over already
+derived records is a serial one-pass O(record count) phase needed for
+deterministic reductions and dependent map writes. Independent verification
+reconstructs representative ordinals with O(target count log target count)
+sorting and O(face count log target count) lookups, and visits attribute and
+corner-row descriptors to derive readable work. These ordered planning steps
+copy neither numerical payloads nor name/semantic/metadata bytes. Count caps do
+not imply that records are small; planning checks cancellation in bounded record
+blocks. The linear prefix-assignment claim does not describe the entire
+operation or its cyclic comparisons.
 Substantial name/semantic/metadata byte scanning, equality and descriptor-byte
 verification use byte-aware workers and bounded checkpoints, rather than long
 uninterruptible serial `string_view` comparisons. Numeric payload comparison
@@ -106,6 +121,15 @@ Execution fields report actual phase work, caller jobs and launched/joined
 workers; planned jobs are not proof of a launch. No throughput claim follows
 from partitioning. Meshvale's callable records, handles and scratch are charged;
 opaque OS thread/CRT internals retain the execution contract's exclusions.
+The correspondence field records Repair's substantial map fill after selection,
+separately from Geometry's selection execution and independent verification.
+The `directed_verification` field independently records original-to-candidate
+cyclic equality and map verification, while `verification` records retained-byte
+checks. Directed verification plans source faces in order with bounded
+checkpoints, then partitions rotation candidates by their actual readable
+representative scalar and index bytes. A few long ragged rows therefore cannot
+be treated as only a few face-record bytes. The first matching rotation and
+source-order failure reduction remain deterministic.
 
 ## Aggregate requested-block cap
 
@@ -184,7 +208,7 @@ checked declaration-name byte admission; declaration shape; complete Geometry
 source inspection; authored floating finiteness
 in source attribute/row order; unknown semantic policy in attribute order for
 nonempty edits; target shape in request order; removed representatives in request
-order; exact comparisons in request order; selection; candidate inspection;
+order; exact comparisons in request order; selection; correspondence; candidate inspection;
 independent verification; final publication checkpoint. Within target shape,
 range precedes self-target and repeated removal. One failure rejects the whole
 request. A successful source inspection with issues is
@@ -219,5 +243,61 @@ missing backing payloads, signed zero, all seven canonical scalar types,
 secondary channels, ragged rows and exact all-element maps. Substantial comparison
 and verification cases must demonstrate positive actual launches and joined
 counts as well as serial/parallel result equivalence. Qualified numerical
-profiles and unsupported-profile behavior remain Geometry-owned. No such
-qualification is established by this declaration-only draft.
+profiles and unsupported-profile behavior remain Geometry-owned. Preliminary
+native/semantic checks do not establish this complete qualification.
+
+## Dependency, build and test selection
+
+Use C++20, CMake 3.24+ and an installed Geometry development package built from
+public revision `1a364acb0cba4fbf8cd9cccde5c04a1fa4428536`. Repair checks the
+compiled `ShareExecutionContext()` seam because the untagged native version
+`0.0.0` alone cannot establish compatibility. Rebuild linked native consumers
+with the matching producer. Geometry owns the
+[numerical profile and refusal contract](https://github.com/Meshvale/meshvale-geometry/blob/1a364acb0cba4fbf8cd9cccde5c04a1fa4428536/docs/materialization.md).
+Repair needs no Eigen headers or Geometry private headers.
+
+Install that Geometry producer first, then build against its installed prefix:
+
+```sh
+cmake -S . -B .local/build -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="$GEOMETRY_PREFIX" \
+  -DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON \
+  -DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified
+cmake --build .local/build --config Release --parallel 2
+python scripts/check-native-tests.py --build-dir .local/build \
+  --configuration Release --materialization-profile qualified --compiler-id MSVC
+ctest --test-dir .local/build -C Release --output-on-failure
+cmake --install .local/build --config Release --prefix "$REPAIR_PREFIX"
+cmake -S examples/consumer -B .local/consumer -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_PREFIX_PATH="$REPAIR_PREFIX;$GEOMETRY_PREFIX" \
+  -DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified
+cmake --build .local/consumer --config Release --parallel 2
+python scripts/check-native-tests.py --build-dir .local/build \
+  --installed-build-dir .local/consumer --configuration Release \
+  --materialization-profile qualified --compiler-id MSVC
+ctest --test-dir .local/consumer -C Release --output-on-failure
+```
+
+These commands illustrate the Windows MSVC qualified producer. For another
+Geometry-qualified compiler/runtime/build configuration, use that matching
+configuration for both products and consumers and set the checker's compiler
+identity accordingly. Sanitizer builds require matching instrumented dependencies
+and consumers. The checker verifies configuration, compiler identity and exact
+test registration; it does not establish production numerical admission or run
+the suites itself.
+
+`qualified` registers four native suites and two installed consumers. On a
+genuinely unsupported Geometry numerical profile, explicitly select `unsupported`
+for both Repair and its consumer. That selection registers three native suites
+and two installed consumers, exercising empty structural storage and invalid
+target rollback. Geometry's own tests establish its nonempty numerical refusal.
+Selecting this fixture on a qualified compiler establishes only the structural
+path; it does not turn that compiler into an unsupported profile. Neither test
+selection enables production allocation admission. Invalid selection values
+fail configuration. Legacy-only OFF builds register one native suite and one
+installed consumer; inspect them with `--materialization-profile off`.
+
+The installed package exports `meshvale::materialized_duplicates` and
+`meshvale::repair` through `find_package(MeshvaleRepair CONFIG REQUIRED)`.
+The charged target has transitive public Geometry editing/materialization and
+thread dependencies. An OFF install omits the charged target and header.

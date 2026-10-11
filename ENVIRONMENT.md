@@ -6,7 +6,7 @@ Copy [environment.example.json](environment.example.json) to `.local/environment
 
 `workspace_root` is the optional local checkout/workspace location. `vcpkg_root` is an optional existing vcpkg installation. Compiler, generator, triplet, and corpus fields remain unset until used. Relative build paths resolve from this repository. Native code uses C++20, CMake 3.24+ and an installed `MeshvaleGeometry` development package. No vcpkg third-party dependency is required by this initial operation.
 
-Follow [the operation contract](docs/duplicates.md#dependency-and-installation) for the tested geometry revision and native build/install/consumer commands. Supply installed prefixes explicitly through `CMAKE_PREFIX_PATH`; this template does not change the build environment automatically. Native tests treat warnings as errors. CI evaluates Windows, Linux and macOS runners; those checks do not establish a Python wheel or stable ABI matrix.
+Follow [the charged native build instructions](docs/materialized_duplicates.md#dependency-build-and-test-selection) for the default-ON module, its Geometry producer and explicit test profile. The [legacy operation instructions](docs/duplicates.md#dependency-and-installation) select the module OFF for the earlier Geometry producer. Supply installed prefixes explicitly through `CMAKE_PREFIX_PATH`; this template does not change the build environment automatically. Native tests treat warnings as errors. CI evaluates Windows, Linux and macOS runners; configured checks do not establish a supported release matrix.
 
 Documentation and portability checks need Git and Python 3.10 or newer, with no third-party Python packages:
 

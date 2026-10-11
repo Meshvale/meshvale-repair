@@ -8,6 +8,8 @@
 
 ### Added
 
+- Development native `meshvale::materialized_duplicates` interface for direct immutable Geometry repair, shared execution accounting, joined workers, independently verified candidates and complete face/corner maps. Complete original-request/profile qualification remains pending; Python and asset commands do not expose this interface yet.
+
 - Bounded CPython 3.13 Linux x86_64 / Windows x64 OBJ development cohort evaluation with repaired source/archive wheels, rebuilt public dependencies, installed preservation walkthrough and exact artifact/notice reports. CI artifacts do not establish a supported release matrix.
 
 - Runnable textured OBJ walkthrough comparing the reusable API, single command and batch with independent reload, resource/correspondence/receipt checks and an explicit rejected request. Original mixed-polygon inputs and generated bundles remain available for inspection.
@@ -21,6 +23,8 @@
 - Installed OBJ single-asset/batch commands and reusable sequential scheduling, with whole-request validation, isolated destinations, real per-job reports, fail-fast accounting, cooperative interrupts and explicit aggregate delivery failure.
 
 ### Changed
+
+- Native builds enable the charged module by default and require Geometry `1a364acb0cba4fbf8cd9cccde5c04a1fa4428536`. Select `MESHVALE_REPAIR_MATERIALIZED_DUPLICATES=OFF` for legacy-only builds. Python packaging explicitly selects OFF and retains its existing exact dependency cohort.
 
 - The OBJ asset workflow rebuilds Interchange `8d5823272b576052553608dbff26685ba56b4dea` (Python `0.0.1.dev62+g8d5823272`) against the same attribute-storage Geometry producer.
 
