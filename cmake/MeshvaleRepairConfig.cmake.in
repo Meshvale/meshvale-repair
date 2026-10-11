@@ -2,5 +2,8 @@
 @PACKAGE_INIT@
 include(CMakeFindDependencyMacro)
 find_dependency(MeshvaleGeometry 0.0.0 EXACT CONFIG)
+if(@MESHVALE_REPAIR_MATERIALIZED_DUPLICATES@)
+  find_dependency(Threads)
+endif()
 include("${CMAKE_CURRENT_LIST_DIR}/MeshvaleRepairTargets.cmake")
 check_required_components(MeshvaleRepair)

@@ -2,6 +2,8 @@
 cmake_minimum_required(VERSION 3.24)
 project(MeshvaleRepair LANGUAGES CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
+option(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES
+  "Build direct charged repair over immutable Geometry owners" ON)
 
 find_package(MeshvaleGeometry 0.0.0 EXACT CONFIG REQUIRED)
 
@@ -60,6 +62,44 @@ function(meshvale_require_geometry_attributes)
 endfunction()
 meshvale_require_geometry_attributes()
 
+# Downstream charged operations must derive the source's actual shared ledger.
+function(meshvale_require_materialized_context)
+  if(NOT TARGET meshvale::materialization)
+    message(FATAL_ERROR "Geometry must provide meshvale::materialization and the compiled ShareExecutionContext member")
+  endif()
+  cmake_push_check_state(RESET)
+  if(CMAKE_BUILD_TYPE)
+    set(CMAKE_TRY_COMPILE_CONFIGURATION "${CMAKE_BUILD_TYPE}")
+  else()
+    set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
+  endif()
+  unset(MESHVALE_GEOMETRY_MATERIALIZED_CONTEXT CACHE)
+  set(CMAKE_REQUIRED_LIBRARIES meshvale::materialization)
+  check_cxx_source_compiles("#include <meshvale/geometry/editable_mesh.h>
+  #include <meshvale/geometry/execution.h>
+  #include <meshvale/geometry/materialization.h>
+  int main() {
+    using namespace meshvale::geometry;
+    ExecutionContext context;
+    MeshMaterializationInput input;
+    MeshMaterializationLimits limits;
+    MeshMaterializationWorkPolicy work;
+    auto captured = MaterializeMesh(input, limits, work, context);
+    if (captured.mesh) {
+      auto shared = captured.mesh->ShareExecutionContext();
+      return SharesExecutionBudget(context, shared) ? 0 : 1;
+    }
+    return 0;
+  }" MESHVALE_GEOMETRY_MATERIALIZED_CONTEXT)
+  cmake_pop_check_state()
+  if(NOT MESHVALE_GEOMETRY_MATERIALIZED_CONTEXT)
+    message(FATAL_ERROR "Geometry must provide the compiled MaterializedMesh::ShareExecutionContext interface; use the documented producer revision")
+  endif()
+endfunction()
+if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
+  meshvale_require_materialized_context()
+endif()
+
 # These notices accompany the Geometry code linked into native/Python outputs.
 get_filename_component(meshvale_geometry_notice_root "${MeshvaleGeometry_RECORD_SOURCE}" DIRECTORY)
 get_filename_component(meshvale_geometry_notice_root "${meshvale_geometry_notice_root}" DIRECTORY)
@@ -106,12 +146,45 @@ function(meshvale_warnings target)
   endif()
 endfunction()
 meshvale_warnings(meshvale_repair)
+function(meshvale_strict_floating_point target)
+  if(MSVC)
+    target_compile_options(${target} PRIVATE /fp:strict)
+  else()
+    target_compile_options(${target} PRIVATE -fno-fast-math -ffp-contract=off)
+  endif()
+endfunction()
+
+if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
+add_library(meshvale_repair_materialized_duplicates STATIC
+  src/materialized_duplicate_allocation.cpp
+  src/materialized_duplicate_workers.cpp
+  src/materialized_duplicates.cpp)
+add_library(meshvale::materialized_duplicates ALIAS meshvale_repair_materialized_duplicates)
+set_target_properties(meshvale_repair_materialized_duplicates PROPERTIES
+  EXPORT_NAME materialized_duplicates POSITION_INDEPENDENT_CODE ON)
+target_compile_features(meshvale_repair_materialized_duplicates PUBLIC cxx_std_20)
+find_package(Threads REQUIRED)
+target_link_libraries(meshvale_repair_materialized_duplicates PUBLIC
+  meshvale::materialization meshvale::editing Threads::Threads)
+target_include_directories(meshvale_repair_materialized_duplicates PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+meshvale_warnings(meshvale_repair_materialized_duplicates)
+meshvale_strict_floating_point(meshvale_repair_materialized_duplicates)
+endif()
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 install(TARGETS meshvale_repair EXPORT MeshvaleRepairTargets
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
-install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}")
+install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
+  PATTERN "materialized_duplicates.h" EXCLUDE)
+if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
+  install(TARGETS meshvale_repair_materialized_duplicates EXPORT MeshvaleRepairTargets
+    ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+  install(FILES include/meshvale/repair/materialized_duplicates.h
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/meshvale/repair")
+endif()
 install(EXPORT MeshvaleRepairTargets NAMESPACE meshvale::
   DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/MeshvaleRepair")
 configure_package_config_file(cmake/MeshvaleRepairConfig.cmake.in
@@ -147,12 +220,66 @@ endif()
 
 include(CTest)
 if(BUILD_TESTING)
-  add_library(meshvale_repair_header_checks OBJECT
-    tests/header_canonical.cpp)
+  add_library(meshvale_repair_header_checks OBJECT tests/header_canonical.cpp)
   target_link_libraries(meshvale_repair_header_checks PRIVATE meshvale::repair)
   meshvale_warnings(meshvale_repair_header_checks)
   add_executable(meshvale_duplicate_tests tests/duplicates.cpp)
   target_link_libraries(meshvale_duplicate_tests PRIVATE meshvale::repair)
   meshvale_warnings(meshvale_duplicate_tests)
   add_test(NAME targeted_duplicates COMMAND meshvale_duplicate_tests)
+  if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
+  set(MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE "qualified" CACHE STRING
+    "Numerical producer profile exercised by charged repair tests")
+  set_property(CACHE MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE PROPERTY
+    STRINGS qualified unsupported)
+  if(NOT MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "qualified"
+      AND NOT MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "unsupported")
+    message(FATAL_ERROR "MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE must be qualified or unsupported")
+  endif()
+  foreach(meshvale_materialized_header IN ITEMS
+      materialized_duplicate_allocation materialized_duplicate_workers
+      materialized_duplicate_test_internal)
+    set(meshvale_materialized_probe "${CMAKE_CURRENT_BINARY_DIR}/${meshvale_materialized_header}_h.cpp")
+    file(WRITE "${meshvale_materialized_probe}"
+      "#include \"${meshvale_materialized_header}.h\"\n#include \"${meshvale_materialized_header}.h\"\n")
+    target_sources(meshvale_repair_materialized_duplicates PRIVATE "${meshvale_materialized_probe}")
+  endforeach()
+  target_include_directories(meshvale_repair_materialized_duplicates PRIVATE src)
+  target_sources(meshvale_repair_header_checks PRIVATE tests/header_materialized_duplicates.cpp)
+  add_executable(meshvale_materialized_duplicate_request_tests
+    tests/materialized_duplicate_requests.cpp)
+  target_include_directories(meshvale_materialized_duplicate_request_tests PRIVATE src)
+  target_link_libraries(meshvale_materialized_duplicate_request_tests PRIVATE
+    meshvale::materialized_duplicates)
+  meshvale_warnings(meshvale_materialized_duplicate_request_tests)
+  meshvale_strict_floating_point(meshvale_materialized_duplicate_request_tests)
+  add_test(NAME materialized_duplicate_requests COMMAND meshvale_materialized_duplicate_request_tests)
+  if(MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "qualified")
+  add_executable(meshvale_materialized_duplicate_tests tests/materialized_duplicates.cpp)
+  target_include_directories(meshvale_materialized_duplicate_tests PRIVATE src)
+  target_link_libraries(meshvale_materialized_duplicate_tests PRIVATE meshvale::materialized_duplicates)
+  meshvale_warnings(meshvale_materialized_duplicate_tests)
+  meshvale_strict_floating_point(meshvale_materialized_duplicate_tests)
+  add_test(NAME materialized_duplicates COMMAND meshvale_materialized_duplicate_tests)
+  add_executable(meshvale_materialized_duplicate_semantic_tests
+    tests/materialized_duplicate_semantics/fixture_support.cpp
+    tests/materialized_duplicate_semantics/equality.cpp
+    tests/materialized_duplicate_semantics/attributes.cpp
+    tests/materialized_duplicate_semantics/correspondence.cpp
+    tests/materialized_duplicate_semantics/lifetimes.cpp
+    tests/materialized_duplicate_semantics/main.cpp)
+  target_link_libraries(meshvale_materialized_duplicate_semantic_tests PRIVATE
+    meshvale::materialized_duplicates)
+  meshvale_warnings(meshvale_materialized_duplicate_semantic_tests)
+  meshvale_strict_floating_point(meshvale_materialized_duplicate_semantic_tests)
+  add_test(NAME materialized_duplicate_semantics COMMAND meshvale_materialized_duplicate_semantic_tests)
+  else()
+    add_executable(meshvale_materialized_duplicate_unsupported_tests
+      tests/materialized_duplicates_unsupported.cpp)
+    target_link_libraries(meshvale_materialized_duplicate_unsupported_tests PRIVATE meshvale::materialized_duplicates)
+    meshvale_warnings(meshvale_materialized_duplicate_unsupported_tests)
+    meshvale_strict_floating_point(meshvale_materialized_duplicate_unsupported_tests)
+    add_test(NAME materialized_duplicates_unsupported COMMAND meshvale_materialized_duplicate_unsupported_tests)
+  endif()
+  endif()
 endif()
