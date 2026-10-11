@@ -246,9 +246,12 @@ counts as well as serial/parallel result equivalence. Qualified numerical
 profiles and unsupported-profile behavior remain Geometry-owned. Preliminary
 native/semantic checks do not establish this complete qualification.
 
-Windows hosted ASan qualification remains pending after an observed test timeout.
-The workflow now selects platform-specific ASan runtime options; that recipe
-correction has not yet established that the timeout is resolved.
+Windows hosted ASan qualification remains pending after observed test timeouts.
+Its workflow row uses Geometry revision
+`48298b24be7c132816fb5580d22d58bde61558d0`, which adds stop-aware test watcher
+cleanup, flushed phase diagnostics and bounded test times. Platform-specific
+ASan runtime options remain selected. These diagnostic changes do not establish
+that the hosted timeout is resolved; other rows retain the producer below.
 
 ## Dependency, build and test selection
 

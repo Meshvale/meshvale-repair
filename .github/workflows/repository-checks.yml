@@ -57,7 +57,7 @@ jobs:
             asan_options: alloc_dealloc_mismatch=1
             allocation_probe: enabled
             module: "ON"
-            geometry_revision: 1a364acb0cba4fbf8cd9cccde5c04a1fa4428536
+            geometry_revision: 48298b24be7c132816fb5580d22d58bde61558d0
           - profile_id: linux-clang-qualified
             os: ubuntu-24.04
             compiler_id: Clang
