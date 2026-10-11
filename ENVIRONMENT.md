@@ -35,7 +35,12 @@ before the complete CTest gate. Its 20-second diagnostic deadline records the
 configured command, owned child process, output, executable/symbol/runtime
 identities and timeout cleanup. A replay failure remains fatal; these extra
 observations never replace the required test inventory or full test execution.
-The controller preserves the existing PATH, supplies an explicit environment
+Before those tests, a Windows ASan setup step requires the configured compiler's
+release sanitizer runtime and adds its directory to the following steps' PATH.
+The retained receipts record the runtime path/hash and verify that directory
+membership after the next step starts. They do not dump the full environment or
+establish that this resolves a particular hosted failure.
+The controller preserves the resulting PATH, supplies an explicit environment
 allowlist, and suppresses interactive Windows failure dialogs only while
 launching its diagnostic child. It restores the controller's previous policy.
 It captures module/thread metadata, without claiming stack or wait-chain

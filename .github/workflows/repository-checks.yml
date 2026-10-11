@@ -178,6 +178,28 @@ jobs:
           if ('${{ matrix.compiler_version }}') { $options += @('--compiler-version', '${{ matrix.compiler_version }}') }
           python .local/geometry-source/scripts/check-native-tests.py @options
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Expose configured Windows sanitizer runtime
+        if: matrix.profile_id == 'windows-msvc-asan-qualified'
+        run: |
+          New-Item -ItemType Directory -Force .local/windows-startup | Out-Null
+          $compilerRecords = @(Get-ChildItem .local/geometry-build/CMakeFiles/*/CMakeCXXCompiler.cmake)
+          if ($compilerRecords.Count -ne 1) { throw 'Expected one configured compiler record' }
+          $compilerRecord = $compilerRecords[0]
+          $compilerText = Get-Content -LiteralPath $compilerRecord.FullName -Raw
+          $compilerMatch = [regex]::Match($compilerText, 'set\(CMAKE_CXX_COMPILER "([^"]+)"\)')
+          if (-not $compilerMatch.Success) { throw 'Configured compiler path is missing' }
+          $runtimeDirectory = [System.IO.Path]::GetFullPath((Split-Path -Parent $compilerMatch.Groups[1].Value))
+          $runtimeName = 'clang_rt.asan_dynamic-x86_64.dll'
+          $runtime = Get-Item -LiteralPath (Join-Path $runtimeDirectory $runtimeName) -ErrorAction Stop
+          if ($runtime.PSIsContainer) { throw 'Configured release sanitizer runtime must be a file' }
+          $receipt = @{
+            runtime_directory = $runtimeDirectory
+            runtime_path = $runtime.FullName
+            runtime_sha256 = (Get-FileHash -LiteralPath $runtime.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            compiler_record_sha256 = (Get-FileHash -LiteralPath $compilerRecord.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          }
+          $receipt | ConvertTo-Json | Set-Content .local/windows-startup/runtime-path.json
+          $runtimeDirectory | Out-File -LiteralPath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Capture bounded Windows sanitizer process diagnostics
         id: windows-startup
         if: matrix.profile_id == 'windows-msvc-asan-qualified'
@@ -185,6 +207,22 @@ jobs:
         timeout-minutes: 3
         run: |
           $configuration = '${{ matrix.build_type }}'
+          $runtimeReceipt = Get-Content .local/windows-startup/runtime-path.json -Raw | ConvertFrom-Json
+          $runtimeDirectory = [System.IO.Path]::TrimEndingDirectorySeparator($runtimeReceipt.runtime_directory)
+          $runtimePresent = $false
+          foreach ($entry in ($env:PATH -split [System.IO.Path]::PathSeparator)) {
+            if ([string]::IsNullOrWhiteSpace($entry)) { continue }
+            $entryDirectory = [System.IO.Path]::TrimEndingDirectorySeparator([System.IO.Path]::GetFullPath($entry.Trim('"')))
+            if ([System.StringComparer]::OrdinalIgnoreCase.Equals($entryDirectory, $runtimeDirectory)) { $runtimePresent = $true }
+          }
+          $currentRuntimeHash = (Get-FileHash -LiteralPath $runtimeReceipt.runtime_path -Algorithm SHA256).Hash.ToLowerInvariant()
+          @{
+            runtime_directory = $runtimeDirectory
+            runtime_path = $runtimeReceipt.runtime_path
+            runtime_sha256 = $currentRuntimeHash
+            directory_present_in_path = $runtimePresent
+          } | ConvertTo-Json | Set-Content .local/windows-startup/runtime-path-membership.json
+          if (-not $runtimePresent -or $currentRuntimeHash -ne $runtimeReceipt.runtime_sha256) { throw 'Configured sanitizer runtime PATH admission failed' }
           $ctest = (Get-Command ctest -ErrorAction Stop).Source
           $inventoryText = & $ctest --test-dir .local/geometry-build -C $configuration --show-only=json-v1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
