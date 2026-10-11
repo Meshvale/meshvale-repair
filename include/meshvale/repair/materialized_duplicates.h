@@ -48,6 +48,7 @@ enum class MaterializedDuplicateStage {
   kTargets,
   kComparison,
   kSelection,
+  kCorrespondence,
   kCandidateInspection,
   kVerification,
   kPublication
@@ -106,8 +107,10 @@ struct MaterializedDuplicateExecution {
   geometry::MaterializationExecutionStats eligibility;
   geometry::MaterializationExecutionStats comparison;
   geometry::MaterializationExecutionStats selection;
+  geometry::MaterializationExecutionStats correspondence;
   geometry::MaterializationExecutionStats candidate_inspection;
   geometry::MaterializationExecutionStats verification;
+  geometry::MaterializationExecutionStats directed_verification;
 };
 struct MaterializedDuplicateRequestedBytes {
   std::uint64_t repair = 0;
@@ -117,8 +120,9 @@ struct MaterializedDuplicateRequestedBytes {
   std::uint64_t total = 0;
 };
 
-// Declaration-only candidate: no callable implementation or installed target
-// is provided yet. Copy-only immutable owners share blocks and charges.
+// Implemented development candidate; complete profile, requested-block,
+// sanitizer and installed qualification remain pending. Copy-only immutable
+// owners share blocks and charges.
 class MaterializedDuplicateRepair {
  public:
   MaterializedDuplicateRepair(const MaterializedDuplicateRepair&) noexcept;
