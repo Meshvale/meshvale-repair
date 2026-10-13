@@ -12,6 +12,8 @@ DISABLED_PROFILE = "off"
 PROFILES = (QUALIFIED_PROFILE, UNSUPPORTED_PROFILE, DISABLED_PROFILE)
 PROFILE_CACHE_KEY = "MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE"
 MODULE_CACHE_KEY = "MESHVALE_REPAIR_MATERIALIZED_DUPLICATES"
+WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_GLTF_WORKFLOW"
+INSTALLED_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_GLTF_WORKFLOW"
 TRUE_CACHE_VALUES = frozenset({"ON", "TRUE", "YES", "1"})
 FALSE_CACHE_VALUES = frozenset({"OFF", "FALSE", "NO", "0"})
 COMMON_TESTS = frozenset({"targeted_duplicates"})
@@ -68,7 +70,7 @@ def validate_configuration(cache, configuration):
         raise ValueError("requested configuration differs from single-config build type")
 
 
-def validate_cache(cache, profile, configuration, installed=False):
+def validate_cache(cache, profile, configuration, installed=False, workflow=False):
     validate_configuration(cache, configuration)
     if not installed:
         if not cache_bool(cache, "BUILD_TESTING"):
@@ -78,6 +80,9 @@ def validate_cache(cache, profile, configuration, installed=False):
     if profile != DISABLED_PROFILE:
         if cache_value(cache, PROFILE_CACHE_KEY, "STRING") != profile:
             raise ValueError("requested profile differs from configured test profile")
+    workflow_key = INSTALLED_WORKFLOW_CACHE_KEY if installed else WORKFLOW_CACHE_KEY
+    if cache_bool(cache, workflow_key) != workflow:
+        raise ValueError("workflow selection differs between the requested and configured inventory")
 
 
 def validate_compiler(build_dir, expected_id, expected_version):
@@ -93,10 +98,20 @@ def validate_compiler(build_dir, expected_id, expected_version):
         raise ValueError("configured C++ compiler version differs from declared cohort")
 
 
-def expected_inventory(profile, installed=False):
+def expected_inventory(profile, installed=False, workflow=False):
     common = COMMON_INSTALLED_TESTS if installed else COMMON_TESTS
     specific = PROFILE_INSTALLED_TESTS if installed else PROFILE_TESTS
-    return common | specific[profile]
+    expected = common | specific[profile]
+    if workflow:
+        if installed:
+            name = ("installed_gltf_workflow" if profile == QUALIFIED_PROFILE else
+                    "installed_gltf_workflow_unsupported")
+            expected |= frozenset({name})
+        elif profile == QUALIFIED_PROFILE:
+            expected |= frozenset({"gltf_workflow", "gltf_workflow_requests"})
+        else:
+            expected |= frozenset({"gltf_workflow_unsupported"})
+    return expected
 
 
 def validate_inventory(build_dir, configuration, expected, ctest):
@@ -117,24 +132,30 @@ def main():
     parser.add_argument("--compiler-id", choices=("MSVC", "Clang", "GNU", "AppleClang"), required=True)
     parser.add_argument("--compiler-version")
     parser.add_argument("--materialization-profile", choices=PROFILES, required=True)
+    parser.add_argument("--gltf-workflow", choices=("ON", "OFF"),
+                        help="Defaults to the native configured workflow option")
     parser.add_argument("--ctest", default="ctest")
     args = parser.parse_args()
     try:
         checked = []
+        native_cache = cache_entries(args.build_dir / "CMakeCache.txt")
+        workflow = (cache_bool(native_cache, WORKFLOW_CACHE_KEY)
+                    if args.gltf_workflow is None else args.gltf_workflow == "ON")
         for build_dir, installed in ((args.build_dir, False), (args.installed_build_dir, True)):
             if build_dir is None:
                 continue
             validate_cache(cache_entries(build_dir / "CMakeCache.txt"),
-                           args.materialization_profile, args.configuration, installed)
+                           args.materialization_profile, args.configuration, installed, workflow)
             validate_compiler(build_dir, args.compiler_id, args.compiler_version)
             checked.append(("installed" if installed else "native", validate_inventory(
                 build_dir, args.configuration,
-                expected_inventory(args.materialization_profile, installed), args.ctest)))
+                expected_inventory(args.materialization_profile, installed, workflow), args.ctest)))
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.error(str(error))
     for label, names in checked:
         print(f"{label}: verified {len(names)} test entries; "
-              f"{args.materialization_profile}; {args.configuration}; {names}")
+              f"{args.materialization_profile}; workflow {'ON' if workflow else 'OFF'}; "
+              f"{args.configuration}; {names}")
 
 
 if __name__ == "__main__":

@@ -8,6 +8,16 @@ Copy [environment.example.json](environment.example.json) to `.local/environment
 
 Follow [the charged native build instructions](docs/materialized_duplicates.md#dependency-build-and-test-selection) for the default-ON module, its Geometry producer and explicit test profile. The [legacy operation instructions](docs/duplicates.md#dependency-and-installation) select the module OFF for the earlier Geometry producer. Supply installed prefixes explicitly through `CMAKE_PREFIX_PATH`; this template does not change the build environment automatically. Native tests treat warnings as errors. CI evaluates Windows, Linux and macOS runners; configured checks do not establish a supported release matrix.
 
+The opt-in [native glTF workflow](docs/gltf-workflow.md) additionally requires an
+installed Interchange workflow-support target. The dedicated
+[qualification workflow](.github/workflows/gltf-workflow.yml) pins public
+dependency revisions and matches compiler/sanitizer flags across their builds.
+[Its helper](scripts/gltf-workflow-ci.py) checks native inventories, actual report
+fixtures, a production source-package build and relocated installed consumers.
+Run its declared profile from a fresh checkout with the dependency paths and
+tooling described in the helper. Configured jobs remain development checks;
+their presence does not establish a supported release matrix.
+
 Documentation and portability checks need Git and Python 3.10 or newer, with no third-party Python packages:
 
 Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml), an installed native Geometry prefix and ordinary GIL-enabled CPython. See [Python packaging and ownership requirements](docs/python.md). Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.
