@@ -8,6 +8,8 @@
 
 ### Added
 
+- Optional native [`meshvale::gltf_workflow`](docs/gltf-workflow.md) for supplied-memory glTF duplicate repair, checked writing, independent reload/preservation inspection and owned report/1 output. It retains accepted candidate facts across later failures and uses explicit stage/aggregate request caps. Native qualification remains pending; filesystem publication, GLB workflow composition, Python bindings, commands and stable releases remain separate work.
+
 - Development native `meshvale::materialized_duplicates` interface for direct immutable Geometry repair, shared execution accounting, joined workers, independently verified candidates and complete face/corner maps. Complete original-request/profile qualification remains pending; Python and asset commands do not expose this interface yet.
 
 - Bounded CPython 3.13 Linux x86_64 / Windows x64 OBJ development cohort evaluation with repaired source/archive wheels, rebuilt public dependencies, installed preservation walkthrough and exact artifact/notice reports. CI artifacts do not establish a supported release matrix.
