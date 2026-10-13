@@ -175,10 +175,12 @@ endif()
 
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+include(cmake/GltfWorkflow.cmake)
 install(TARGETS meshvale_repair EXPORT MeshvaleRepairTargets
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
-  PATTERN "materialized_duplicates.h" EXCLUDE)
+  PATTERN "materialized_duplicates.h" EXCLUDE
+  PATTERN "gltf_workflow.h" EXCLUDE)
 if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
   install(TARGETS meshvale_repair_materialized_duplicates EXPORT MeshvaleRepairTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
@@ -282,4 +284,5 @@ if(BUILD_TESTING)
     add_test(NAME materialized_duplicates_unsupported COMMAND meshvale_materialized_duplicate_unsupported_tests)
   endif()
   endif()
+  meshvale_add_gltf_workflow_tests()
 endif()
