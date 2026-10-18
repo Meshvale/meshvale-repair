@@ -22,8 +22,19 @@
 #include "materialized_duplicate_workers.h"
 
 namespace meshvale::repair::gltf_workflow_detail {
+SourceBaselineBinding::SourceBaselineBinding(
+    interchange::GltfResourceKind kind, std::uint64_t index,
+    const allocation::AllocationContext& allocation)
+    : kind(kind),
+      index(index),
+      bytes(allocation::Allocator<std::byte>(allocation)) {}
 WorkflowState::WorkflowState(const allocation::AllocationContext& allocator)
     : allocation(allocator),
+      baseline_json(allocation::Allocator<std::byte>(allocator)),
+      baseline_bindings(
+          allocation::Allocator<SourceBaselineBinding>(allocator)),
+      baseline_views(
+          allocation::Allocator<interchange::SuppliedGltfResource>(allocator)),
       report(allocation::Allocator<std::byte>(allocator)) {
   for (std::size_t i = 0; i < coverage.size(); ++i) {
     coverage[i].check = static_cast<GltfWorkflowCheck>(i);
@@ -35,7 +46,8 @@ WorkflowState::WorkflowState(const allocation::AllocationContext& allocator)
 GltfWorkflowRequestedBytes WorkflowState::Bytes() const noexcept {
   GltfWorkflowRequestedBytes bytes;
   bytes.workflow = allocation.OperationActiveBytes();
-  if (read) bytes.read = read->NewRequestedBytes().value_or(0);
+  if (read && !retained_read)
+    bytes.read = read->NewRequestedBytes().value_or(0);
   if (extraction) bytes.extraction = extraction->NewRequestedBytes();
   if (source) bytes.materialization = source->NewRequestedBytes();
   if (repair) bytes.repair = repair->NewRequestedBytes().total;
@@ -181,11 +193,11 @@ void ValidateByteWork(const T& x) {
   Positive(x.max_jobs);
 }
 void Validate(const GltfDuplicateWorkflowLimits& x,
-              const GltfDuplicateWorkflowWorkPolicy& w) {
+              const GltfDuplicateWorkflowWorkPolicy& w, bool retained = false) {
   for (auto n : {x.max_new_requested_bytes, x.max_input_id_bytes,
                  x.max_reload_bindings, x.max_report_bytes})
     Positive(n);
-  Validate(x.read);
+  if (!retained) Validate(x.read);
   Validate(x.extraction);
   Validate(x.reload);
   Validate(x.reload_extraction);
@@ -282,7 +294,8 @@ bool ValidUtf8(std::string_view value) {
   return true;
 }
 void ValidateRequest(const GltfDuplicateWorkflowRequest& r,
-                     const GltfDuplicateWorkflowLimits& l) {
+                     const GltfDuplicateWorkflowLimits& l,
+                     bool retained = false) {
   if (!r.primitive_ordinal)
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
          Code::kPrimitiveSelection);
@@ -300,7 +313,7 @@ void ValidateRequest(const GltfDuplicateWorkflowRequest& r,
       (r.extraction.values != ic::GltfValueRequest::kRaw &&
        r.extraction.values != ic::GltfValueRequest::kRawAndNormalized))
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration, Code::kExtract);
-  if (r.json.size() > l.read.source.max_json_bytes ||
+  if ((!retained && r.json.size() > l.read.source.max_json_bytes) ||
       r.targets.size() > l.repair.max_targets ||
       r.repair.row_local_attributes.size() >
           l.repair.max_row_local_declarations)
@@ -314,12 +327,13 @@ void ValidateRequest(const GltfDuplicateWorkflowRequest& r,
     Fail(Status::kLimitExceeded, Stage::kConfiguration, Code::kCountLimit);
   // Buffers and images each obey the reader's table-row bound. Avoid an
   // overflowing doubled limit while bounding the entire borrowed inventory.
-  if (r.resources.size() > l.read.source.max_table_rows &&
+  if (!retained && r.resources.size() > l.read.source.max_table_rows &&
       r.resources.size() - l.read.source.max_table_rows >
           l.read.source.max_table_rows)
     Fail(Status::kLimitExceeded, Stage::kConfiguration, Code::kCountLimit);
   std::uint64_t resource_bytes = 0, name_bytes = 0;
   for (const auto& resource : r.resources) {
+    if (retained) break;
     if (resource.bytes.size() > l.read.source.max_resource_bytes ||
         resource.bytes.size() >
             l.read.source.max_owned_source_resource_bytes - resource_bytes)
@@ -552,7 +566,7 @@ void RunStages(detail::WorkflowState& s,
                const geometry::ExecutionContext& context, std::stop_token stop,
                const detail::WorkflowTestOptions& options) {
   s.outcomes.stage = Stage::kRead;
-  {
+  if (!s.retained_read) {
     DelegateAllowance allowance(s);
     auto effective = limits.read;
     effective.max_new_requested_bytes =
@@ -786,18 +800,91 @@ void RunStages(detail::WorkflowState& s,
 }
 }  // namespace
 
-GltfDuplicateWorkflowResult
-gltf_workflow_detail::RunGltfDuplicateWorkflowForTest(
+namespace gltf_workflow_detail {
+namespace {
+struct BaselineCopy {
+  std::span<const std::byte> input;
+  std::span<std::byte> output;
+  std::stop_token stop;
+  std::size_t block;
+};
+void CopyBaseline(void* opaque, std::size_t begin, std::size_t end) {
+  auto& copy = *static_cast<BaselineCopy*>(opaque);
+  while (begin < end) {
+    if (copy.stop.stop_requested())
+      throw allocation::AdmissionFailure(allocation::AdmissionCode::kCanceled);
+    const auto count = std::min(copy.block, end - begin);
+    std::copy_n(copy.input.begin() + static_cast<std::ptrdiff_t>(begin), count,
+                copy.output.begin() + static_cast<std::ptrdiff_t>(begin));
+    begin += count;
+  }
+}
+void PrepareBaseline(WorkflowState& state, Vector<std::byte>& output,
+                     std::span<const std::byte> input,
+                     const GltfDuplicateWorkflowWorkPolicy& work,
+                     const geometry::ExecutionContext& context,
+                     std::stop_token stop, const WorkflowTestOptions& options) {
+  output.resize(input.size());
+  BaselineCopy copy{
+      input, output, stop,
+      static_cast<std::size_t>(work.verification.cancellation_block_bytes)};
+  geometry::MeshMaterializationWorkPolicy policy{
+      work.verification.parallel_min_bytes, work.verification.partition_bytes,
+      work.verification.cancellation_block_bytes, work.verification.max_jobs};
+  geometry::MaterializationExecutionStats stats;
+  const auto account = [&] {
+    auto& total = state.execution.source_protection;
+    total.planned_jobs += stats.planned_jobs;
+    total.launched_workers += stats.launched_workers;
+    total.joined_workers += stats.joined_workers;
+    total.caller_jobs += stats.caller_jobs;
+  };
+  try {
+    allocation::RunRange(context, state.allocation, policy, input.size(),
+                         sizeof(std::byte), CopyBaseline, &copy, stop, stats,
+                         options.source_worker_backend, &stats);
+  } catch (...) {
+    account();
+    throw;
+  }
+  account();
+}
+void ValidateRetained(const RetainedSourceInitialization& retained) {
+  Positive(retained.max_protection_bytes);
+  Positive(retained.max_binding_records);
+  auto remaining = retained.max_protection_bytes;
+  if (retained.source.OriginalJson().size() > remaining)
+    Fail(Status::kLimitExceeded, Stage::kConfiguration, Code::kCountLimit);
+  remaining -= retained.source.OriginalJson().size();
+  std::uint64_t count = 0;
+  for (const auto& resource : retained.source.Resources()) {
+    if (resource.origin != ic::GltfResourceOrigin::kCallerBinding) continue;
+    if (count >= retained.max_binding_records ||
+        resource.bytes.size() > remaining)
+      Fail(Status::kLimitExceeded, Stage::kConfiguration, Code::kCountLimit);
+    ++count;
+    remaining -= resource.bytes.size();
+  }
+  if (count > std::numeric_limits<std::size_t>::max() /
+                  sizeof(SourceBaselineBinding) ||
+      count > std::numeric_limits<std::size_t>::max() /
+                  sizeof(ic::SuppliedGltfResource))
+    Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
+         Code::kConfigurationExtent);
+}
+GltfDuplicateWorkflowResult RunWorkflow(
     const GltfDuplicateWorkflowRequest& request,
     const GltfDuplicateWorkflowLimits& limits,
     const GltfDuplicateWorkflowWorkPolicy& work,
     const geometry::ExecutionContext& context, std::stop_token stop,
-    const WorkflowTestOptions& options) {
+    const WorkflowTestOptions& options,
+    const RetainedSourceInitialization* retained) {
   GltfDuplicateWorkflowResult result;
   std::shared_ptr<detail::WorkflowState> state;
   try {
-    Validate(limits, work);
-    ValidateRequest(request, limits);
+    Validate(limits, work, retained != nullptr);
+    ValidateRequest(request, limits, retained != nullptr);
+    if (retained) ValidateRetained(*retained);
     auto allocator =
         allocation::AllocationContext(context, stop, options.allocation_backend)
             .WithRequestLimit(
@@ -805,7 +892,32 @@ gltf_workflow_detail::RunGltfDuplicateWorkflowForTest(
     state = std::allocate_shared<detail::WorkflowState>(
         allocation::Allocator<detail::WorkflowState>(allocator), allocator);
     try {
-      RunStages(*state, request, limits, work, context, stop, options);
+      auto stage_request = request;
+      if (retained) {
+        state->retained_read = true;
+        state->read = retained->source;
+        PrepareBaseline(*state, state->baseline_json,
+                        retained->source.OriginalJson(), work, context, stop,
+                        options);
+        std::size_t count = 0;
+        for (const auto& resource : retained->source.Resources())
+          count += resource.origin == ic::GltfResourceOrigin::kCallerBinding;
+        state->baseline_bindings.reserve(count);
+        state->baseline_views.reserve(count);
+        for (const auto& resource : retained->source.Resources()) {
+          if (resource.origin != ic::GltfResourceOrigin::kCallerBinding)
+            continue;
+          auto& binding = state->baseline_bindings.emplace_back(
+              resource.kind, resource.table_index, state->allocation);
+          PrepareBaseline(*state, binding.bytes, resource.bytes, work, context,
+                          stop, options);
+          state->baseline_views.push_back(
+              {binding.kind, binding.index, binding.bytes});
+        }
+        stage_request.json = state->baseline_json;
+        stage_request.resources = state->baseline_views;
+      }
+      RunStages(*state, stage_request, limits, work, context, stop, options);
       result.status = Status::kSuccess;
     } catch (const ExpectedFailure& failure) {
       result.status = failure.status;
@@ -868,6 +980,46 @@ gltf_workflow_detail::RunGltfDuplicateWorkflowForTest(
   }
   return result;
 }
+}  // namespace
+bool IsWorkflowReportUtf8(std::string_view value) noexcept {
+  return ValidUtf8(value);
+}
+std::optional<GltfDuplicateWorkflowResult> ValidateRetainedWorkflow(
+    const RetainedSourceInitialization& retained,
+    const GltfDuplicateWorkflowRequest& request,
+    const GltfDuplicateWorkflowLimits& limits,
+    const GltfDuplicateWorkflowWorkPolicy& work) {
+  try {
+    Validate(limits, work, true);
+    ValidateRequest(request, limits, true);
+    ValidateRetained(retained);
+    return std::nullopt;
+  } catch (const ExpectedFailure& failure) {
+    GltfDuplicateWorkflowResult result;
+    result.status = failure.status;
+    result.diagnostic = failure.diagnostic;
+    result.outcomes.stage = failure.diagnostic.stage;
+    return result;
+  }
+}
+GltfDuplicateWorkflowResult RunGltfDuplicateWorkflowForTest(
+    const GltfDuplicateWorkflowRequest& request,
+    const GltfDuplicateWorkflowLimits& limits,
+    const GltfDuplicateWorkflowWorkPolicy& work,
+    const geometry::ExecutionContext& context, std::stop_token stop,
+    const WorkflowTestOptions& options) {
+  return RunWorkflow(request, limits, work, context, stop, options, nullptr);
+}
+GltfDuplicateWorkflowResult RunRetainedGltfDuplicateWorkflow(
+    const RetainedSourceInitialization& retained,
+    const GltfDuplicateWorkflowRequest& request,
+    const GltfDuplicateWorkflowLimits& limits,
+    const GltfDuplicateWorkflowWorkPolicy& work,
+    const geometry::ExecutionContext& context, std::stop_token stop,
+    const WorkflowTestOptions& options) {
+  return RunWorkflow(request, limits, work, context, stop, options, &retained);
+}
+}  // namespace gltf_workflow_detail
 GltfDuplicateWorkflowResult RunGltfDuplicateWorkflow(
     const GltfDuplicateWorkflowRequest& request,
     const GltfDuplicateWorkflowLimits& limits,

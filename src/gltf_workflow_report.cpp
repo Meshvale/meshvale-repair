@@ -14,6 +14,7 @@
 #include <variant>
 
 #include "gltf_workflow_internal.h"
+#include "gltf_workflow_report_internal.h"
 #include "gltf_workflow_test_internal.h"
 #include "materialized_duplicate_workers.h"
 
@@ -65,80 +66,7 @@ constexpr std::string_view kSolidReason =
     "This profile supplies no closure, manifoldness or intersection predicate.";
 // A nonallocating streaming sink is used for both exact extent planning and
 // emission; it preserves canonical integer tokens and escapes caller strings.
-class Sink {
- public:
-  explicit Sink(std::span<std::byte> output = {}, std::stop_token stop = {})
-      : output_(output), stop_(stop) {}
-  void Raw(std::string_view value) {
-    if (stop_.stop_requested())
-      throw allocation::AdmissionFailure(allocation::AdmissionCode::kCanceled);
-    if (value.size() > std::numeric_limits<std::size_t>::max() - size_)
-      throw ReportExtentFailure{};
-    if (!output_.empty()) {
-      if (value.size() > output_.size() - size_) throw ReportExtentFailure{};
-      std::transform(
-          value.begin(), value.end(),
-          output_.begin() + static_cast<std::ptrdiff_t>(size_), [](char c) {
-            return static_cast<std::byte>(static_cast<unsigned char>(c));
-          });
-    }
-    size_ += value.size();
-  }
-  void String(std::string_view value) {
-    Raw("\"");
-    for (unsigned char c : value) {
-      if (c == '"')
-        Raw("\\\"");
-      else if (c == '\\')
-        Raw("\\\\");
-      else if (c < kJsonControlCharacterEnd) {
-        std::array<char, kJsonUnicodeEscapeBytes> escape{
-            '\\',
-            'u',
-            '0',
-            '0',
-            kHexDigits[c >> kHexDigitBits],
-            kHexDigits[c & kHexDigitMask]};
-        Raw({escape.data(), escape.size()});
-      } else {
-        const char byte = static_cast<char>(c);
-        Raw({&byte, 1});
-      }
-    }
-    Raw("\"");
-  }
-  void Integer(std::uint64_t value) {
-    std::array<char, kIntegerTokenBytes> token;
-    auto result =
-        std::to_chars(token.data(), token.data() + token.size(), value);
-    Raw({token.data(), static_cast<std::size_t>(result.ptr - token.data())});
-  }
-  void Boolean(bool value) { Raw(value ? "true" : "false"); }
-  template <class T>
-  void OptionalInteger(const std::optional<T>& value) {
-    if (value)
-      Integer(static_cast<std::uint64_t>(*value));
-    else
-      Raw("null");
-  }
-  template <class T>
-  void Integers(std::span<const T> values) {
-    Raw("[");
-    bool comma = false;
-    for (auto value : values) {
-      if (comma) Raw(",");
-      comma = true;
-      Integer(value);
-    }
-    Raw("]");
-  }
-  std::size_t size() const { return size_; }
-
- private:
-  std::span<std::byte> output_;
-  std::stop_token stop_;
-  std::size_t size_ = 0;
-};
+using Sink = ReportSink;
 std::string_view CandidateName(const WorkflowState& s) {
   constexpr std::string_view kNotAttempted = "not-attempted";
   constexpr std::string_view kAccepted = "accepted";
@@ -652,8 +580,104 @@ void PhaseStats(Sink& out, const WorkflowState& s) {
   // Report copying is appended after workers have actually joined.
   out.Raw(kReportCopyFields);
 }
+void FileCoverage(Sink& out, std::string_view id, const GltfWorkflowCoverage& c,
+                  bool candidate) {
+  constexpr std::string_view kId = "{\"id\":";
+  constexpr std::string_view kCheck = ",\"check\":";
+  constexpr std::string_view kScope = ",\"version\":\"1\",\"scope\":";
+  constexpr std::string_view kStatus = ",\"status\":";
+  constexpr std::string_view kFinding = ",\"finding\":";
+  constexpr std::string_view kReason = ",\"reason\":";
+  constexpr std::string_view kDiagnostics = ",\"diagnostics\":[]}";
+  constexpr std::array<std::string_view, 4> kStates{"performed", "skipped",
+                                                    "unsupported", "failed"};
+  constexpr std::string_view kPassed = "passed", kFailed = "failed";
+  out.Raw(kId);
+  out.String(id);
+  out.Raw(kCheck);
+  out.String(id);
+  out.Raw(kScope);
+  Scope(out, candidate ? kCandidateSnapshotId : "", id);
+  out.Raw(kStatus);
+  out.String(kStates[static_cast<std::size_t>(c.state)]);
+  out.Raw(kFinding);
+  if (c.passed)
+    out.String(*c.passed ? kPassed : kFailed);
+  else
+    out.Raw("null");
+  out.Raw(kReason);
+  if (c.state == GltfWorkflowCoverageState::kPerformed)
+    out.Raw("null");
+  else
+    out.String(kBlockedReason);
+  out.Raw(kDiagnostics);
+}
+void FileMaps(Sink& out) {
+  constexpr std::array<std::string_view, 3> kIds{
+      "export-vertices", "export-faces", "export-corners"};
+  constexpr std::array<std::string_view, 3> kDomains{kVertexDomain, kFaceDomain,
+                                                     kCornerDomain};
+  constexpr std::string_view kId = ",{\"id\":";
+  constexpr std::string_view kScopes =
+      ",\"from\":{\"snapshot\":\"candidate\",\"mesh\":\"selected\"},\"to\":{"
+      "\"snapshot\":\"output\",\"mesh\":\"selected\"},\"domain\":";
+  constexpr std::string_view kIdentity =
+      ",\"kind\":\"identity\",\"entries\":null}";
+  for (std::size_t i = 0; i < kIds.size(); ++i) {
+    out.Raw(kId);
+    out.String(kIds[i]);
+    out.Raw(kScopes);
+    out.String(kDomains[i]);
+    out.Raw(kIdentity);
+  }
+}
+void FilePublication(Sink& out, const FileReportProjection& file) {
+  constexpr std::string_view kRequested = ",\"publication\":{\"requested\":";
+  constexpr std::string_view kOutcome = ",\"outcome\":";
+  constexpr std::string_view kSnapshot = ",\"snapshot\":";
+  constexpr std::string_view kArtifacts = ",\"artifacts\":[";
+  constexpr std::string_view kId = "{\"id\":";
+  constexpr std::string_view kSha256 = ",\"sha256\":";
+  constexpr std::string_view kVerified = "],\"verified\":";
+  constexpr std::string_view kReason = ",\"reason\":";
+  constexpr std::string_view kExtension =
+      "},\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"1\",\"native_"
+      "stage\":";
+  constexpr std::array<std::string_view, 5> kOutcomes{
+      "not-requested", "not-attempted", "failed", "cancelled", "published"};
+  constexpr std::string_view kOutput = "output";
+  const bool published = file.publication == FileReportPublication::kPublished;
+  out.Raw(kRequested);
+  out.Boolean(file.requested);
+  out.Raw(kOutcome);
+  out.String(kOutcomes[static_cast<std::size_t>(file.publication)]);
+  out.Raw(kSnapshot);
+  if (published)
+    out.String(kOutput);
+  else
+    out.Raw("null");
+  out.Raw(kArtifacts);
+  if (published)
+    for (std::size_t i = 0; i < file.artifacts.size(); ++i) {
+      if (i) out.Raw(",");
+      out.Raw(kId);
+      out.String(file.artifacts[i].id);
+      out.Raw(kSha256);
+      out.String(file.artifacts[i].sha256);
+      out.Raw("}");
+    }
+  out.Raw(kVerified);
+  out.Boolean(published);
+  out.Raw(kReason);
+  if (!file.requested || published)
+    out.Raw("null");
+  else
+    out.String(kFailureReason);
+  out.Raw(kExtension);
+}
 void Prefix(Sink& out, const WorkflowState& s,
-            const GltfDuplicateWorkflowRequest& r) {
+            const GltfDuplicateWorkflowRequest& r,
+            const FileReportProjection* file = nullptr) {
   constexpr std::string_view kCompletedExecution = "completed";
   constexpr std::string_view kCancelledExecution = "cancelled";
   constexpr std::string_view kFailedOutcome = "failed";
@@ -770,7 +794,20 @@ void Prefix(Sink& out, const WorkflowState& s,
   out.String(MESHVALE_REPAIR_VERSION);
   out.Raw(kInputIdFields);
   out.String(r.input_id);
-  out.Raw(kSha256OperationKindNameVersionOptionsExtractionFields);
+  if (file) {
+    constexpr std::string_view kSha256Fields = ",\"sha256\":";
+    constexpr std::string_view kOperationFields =
+        "},\"operation\":{\"kind\":\"repair\",\"name\":\"remove-duplicate-"
+        "faces\","
+        "\"version\":\"1\",\"options\":{\"extraction\":";
+    out.Raw(kSha256Fields);
+    if (file->input_sha256.empty())
+      out.Raw("null");
+    else
+      out.String(file->input_sha256);
+    out.Raw(kOperationFields);
+  } else
+    out.Raw(kSha256OperationKindNameVersionOptionsExtractionFields);
   ExtractionPolicy(out, r.extraction);
   out.Raw(kRowLocalAttributesFields);
   bool comma = false;
@@ -797,13 +834,20 @@ void Prefix(Sink& out, const WorkflowState& s,
     }
   out.Raw(kExecutionOutcomeFields);
   const bool completed =
-      s.outcomes.execution == GltfWorkflowExecutionOutcome::kCompleted;
+      (file ? file->outcomes.execution : s.outcomes.execution) ==
+      GltfWorkflowExecutionOutcome::kCompleted;
   out.String(completed ? kCompletedExecution
-             : s.outcomes.execution == GltfWorkflowExecutionOutcome::kCanceled
+             : (file ? file->outcomes.execution : s.outcomes.execution) ==
+                     GltfWorkflowExecutionOutcome::kCanceled
                  ? kCancelledExecution
                  : kFailedOutcome);
   out.Raw(kStageFields);
-  out.String(ReportStage(s));
+  if (file && file->core_stage != FileReportCoreStage::kMemory) {
+    constexpr std::array<std::string_view, 4> kCoreStages{"", "report",
+                                                          "export", "complete"};
+    out.String(kCoreStages[static_cast<std::size_t>(file->core_stage)]);
+  } else
+    out.String(ReportStage(s));
   out.Raw(kReasonFields);
   if (completed)
     out.Raw("null");
@@ -816,18 +860,34 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.String(kCandidateSnapshotId);
   else
     out.Raw("null");
-  out.Raw(kProfileNameVersionRequiredChecksFields);
+  if (file) {
+    constexpr std::string_view kFileProfileFields =
+        "},\"profile\":{\"name\":\"gltf-static-duplicate-publication\","
+        "\"version\":\"1\",\"required_checks\":[";
+    out.Raw(kFileProfileFields);
+  } else
+    out.Raw(kProfileNameVersionRequiredChecksFields);
   for (std::size_t i = 0; i < kRequiredCheckCount; ++i) {
     if (i) out.Raw(",");
     out.String(kCheckNames[i]);
   }
+  if (file) {
+    constexpr std::string_view kStagedChecks =
+        ",\"staged-selected-primitive\",\"staged-physical-members\"";
+    out.Raw(kStagedChecks);
+  }
   out.Raw(kOutcomeFields);
-  out.String(ProfileName(s.outcomes.profile));
+  out.String(ProfileName(file ? file->outcomes.profile : s.outcomes.profile));
   out.Raw(kSnapshotsFields);
   if (s.source) Snapshot(out, kInputSnapshotId, s.source->Mesh());
   if (s.repair) {
     out.Raw(",");
     Snapshot(out, kCandidateSnapshotId, s.repair->Candidate());
+  }
+  if (file && file->output) {
+    constexpr std::string_view kOutputSnapshotId = "output";
+    if (s.source || s.repair) out.Raw(",");
+    Snapshot(out, kOutputSnapshotId, file->output->Candidate().Source());
   }
   out.Raw(kDiagnosticsFields);
   if (s.diagnostic.code != GltfWorkflowDiagnosticCode::kNone) {
@@ -891,6 +951,16 @@ void Prefix(Sink& out, const WorkflowState& s,
                      : kBlockedReason);
     out.Raw(kValueDiagnosticsFields);
   }
+  if (file) {
+    constexpr std::string_view kStagedPrimitive = "staged-selected-primitive";
+    constexpr std::string_view kPhysicalMembers = "staged-physical-members";
+    out.Raw(",");
+    FileCoverage(out, kStagedPrimitive, file->staged_primitive,
+                 s.repair.has_value());
+    out.Raw(",");
+    FileCoverage(out, kPhysicalMembers, file->physical_members,
+                 s.repair.has_value());
+  }
   out.Raw(kMapsFields);
   if (s.repair) {
     const bool identity = s.repair->Outcome() == CandidateOutcome::unchanged;
@@ -900,9 +970,13 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.Raw(",");
     Map(out, kCornerMapId, kCornerDomain, identity, s.repair->CornerMap());
   }
+  if (file && file->output) FileMaps(out);
   out.Raw(kPreservationFields);
   Preservation(out, s);
-  out.Raw(kPublicationRequestedOutcomeSnapshotNativeStageFields);
+  if (file)
+    FilePublication(out, *file);
+  else
+    out.Raw(kPublicationRequestedOutcomeSnapshotNativeStageFields);
   out.String(kStageNames[static_cast<std::size_t>(s.outcomes.stage)]);
   out.Raw(kRequestedPrimitiveOrdinalFields);
   out.OptionalInteger(r.primitive_ordinal);
@@ -1028,6 +1102,220 @@ void CopyBytes(void* opaque, std::size_t begin, std::size_t end) {
   }
 }
 }  // namespace
+ReportSink::ReportSink(std::span<std::byte> output, std::stop_token stop)
+    : output_(output), stop_(stop) {}
+void ReportSink::Raw(std::string_view value) {
+  if (stop_.stop_requested())
+    throw allocation::AdmissionFailure(allocation::AdmissionCode::kCanceled);
+  if (value.size() > std::numeric_limits<std::size_t>::max() - size_)
+    throw ReportExtentFailure{};
+  if (!output_.empty()) {
+    if (value.size() > output_.size() - size_) throw ReportExtentFailure{};
+    std::transform(
+        value.begin(), value.end(),
+        output_.begin() + static_cast<std::ptrdiff_t>(size_), [](char c) {
+          return static_cast<std::byte>(static_cast<unsigned char>(c));
+        });
+  }
+  size_ += value.size();
+}
+void ReportSink::String(std::string_view value) {
+  Raw("\"");
+  for (unsigned char c : value) {
+    if (c == '"')
+      Raw("\\\"");
+    else if (c == '\\')
+      Raw("\\\\");
+    else if (c < kJsonControlCharacterEnd) {
+      std::array<char, kJsonUnicodeEscapeBytes> escape{
+          '\\',
+          'u',
+          '0',
+          '0',
+          kHexDigits[c >> kHexDigitBits],
+          kHexDigits[c & kHexDigitMask]};
+      Raw({escape.data(), escape.size()});
+    } else {
+      const char byte = static_cast<char>(c);
+      Raw({&byte, 1});
+    }
+  }
+  Raw("\"");
+}
+void ReportSink::Integer(std::uint64_t value) {
+  std::array<char, kIntegerTokenBytes> token;
+  auto result = std::to_chars(token.data(), token.data() + token.size(), value);
+  Raw({token.data(), static_cast<std::size_t>(result.ptr - token.data())});
+}
+void ReportSink::SignedInteger(std::int64_t value) {
+  constexpr std::size_t kSignedIntegerTokenBytes =
+      std::numeric_limits<std::int64_t>::digits10 + 2;
+  std::array<char, kSignedIntegerTokenBytes> token;
+  auto result = std::to_chars(token.data(), token.data() + token.size(), value);
+  Raw({token.data(), static_cast<std::size_t>(result.ptr - token.data())});
+}
+void ReportSink::Boolean(bool value) { Raw(value ? "true" : "false"); }
+std::size_t ReportSink::size() const noexcept { return size_; }
+void EmitFileWorkflowReportPrefix(ReportSink& out, const WorkflowState& state,
+                                  const GltfDuplicateWorkflowRequest& request,
+                                  const FileReportProjection& file) {
+  constexpr std::string_view kFileExtension =
+      "}},\"meshvale.repair.gltf.file\":{\"version\":\"1\",\"native_stage_"
+      "ordinal\":";
+  constexpr std::string_view kCode = ",\"code_ordinal\":";
+  constexpr std::string_view kStatus = ",\"status_ordinal\":";
+  constexpr std::string_view kFormat = ",\"source_format\":";
+  constexpr std::string_view kConvention = ",\"input_hash_convention\":";
+  constexpr std::string_view kReportPath = ",\"report_path\":";
+  constexpr std::string_view kArtifactPaths = ",\"artifact_paths\":[";
+  constexpr std::string_view kArtifactId = "{\"id\":";
+  constexpr std::string_view kPath = ",\"path\":";
+  constexpr std::string_view kRetainedFiles =
+      "],\"retained_source_requested_bytes\":{\"files\":";
+  constexpr std::string_view kReader = ",\"capped_reader\":";
+  constexpr std::string_view kContainer = ",\"container_counter\":";
+  constexpr std::string_view kWrapper =
+      "},\"wrapper_pre_report_requested_bytes\":";
+  constexpr std::string_view kMemory =
+      ",\"memory_requested_bytes\":{\"workflow\":";
+  constexpr std::string_view kRead = ",\"read\":";
+  constexpr std::string_view kTotal = ",\"total\":";
+  constexpr std::string_view kPublisher = "},\"publisher_diagnostic\":";
+  constexpr std::string_view kPublisherStatus = "{\"status_ordinal\":";
+  constexpr std::string_view kPublisherStage = ",\"stage_ordinal\":";
+  constexpr std::string_view kFile = ",\"file_index\":";
+  constexpr std::string_view kByte = ",\"byte_offset\":";
+  constexpr std::string_view kResourceKind = ",\"resource_kind_ordinal\":";
+  constexpr std::string_view kResource = ",\"resource_index\":";
+  constexpr std::string_view kSystem = ",\"system_error\":";
+  constexpr std::string_view kSystemValue = "{\"value\":";
+  constexpr std::string_view kCategory = ",\"category\":";
+  constexpr std::string_view kGltf = ",\"gltf_diagnostic\":";
+  constexpr std::string_view kInspectionStatus =
+      ",\"inspection_status_ordinal\":";
+  constexpr std::string_view kInspection = ",\"inspection_diagnostic\":";
+  constexpr std::string_view kCleanup = ",\"cleanup_ordinal\":";
+  constexpr std::string_view kCleanupError = ",\"cleanup_error\":";
+  constexpr std::string_view kHashing = ",\"hashing\":";
+  constexpr std::string_view kReportCopy = ",\"report_copy\":";
+  constexpr std::string_view kJsonFormat = "gltf-json", kGlbFormat = "glb";
+  constexpr std::string_view kInputHashConvention =
+      "meshvale.gltf-file-snapshot/1";
+  constexpr std::string_view kUnavailable = "unavailable",
+                             kNotApplicable = "not-applicable";
+  const auto error = [&](const std::optional<FileReportSystemError>& e) {
+    if (!e) {
+      out.Raw("null");
+      return;
+    }
+    out.Raw(kSystemValue);
+    out.SignedInteger(e->value);
+    out.Raw(kCategory);
+    out.String(e->category);
+    out.Raw("}");
+  };
+  Prefix(out, state, request, &file);
+  Stats(out, state.execution.report_copy);
+  out.Raw(kFileExtension);
+  out.Integer(file.native_stage);
+  out.Raw(kCode);
+  out.Integer(file.native_code);
+  out.Raw(kStatus);
+  out.Integer(static_cast<std::uint64_t>(file.status));
+  out.Raw(kFormat);
+  out.String(file.format == FileReportFormat::kJson ? kJsonFormat : kGlbFormat);
+  out.Raw(kConvention);
+  if (file.input_sha256.empty())
+    out.Raw("null");
+  else
+    out.String(kInputHashConvention);
+  out.Raw(kReportPath);
+  if (file.report_path.empty())
+    out.Raw("null");
+  else
+    out.String(file.report_path);
+  out.Raw(kArtifactPaths);
+  for (std::size_t i = 0; i < file.artifacts.size(); ++i) {
+    if (i) out.Raw(",");
+    out.Raw(kArtifactId);
+    out.String(file.artifacts[i].id);
+    out.Raw(kPath);
+    out.String(file.artifacts[i].path);
+    out.Raw("}");
+  }
+  out.Raw(kRetainedFiles);
+  out.Integer(file.retained_files);
+  out.Raw(kReader);
+  out.OptionalInteger(file.retained_reader);
+  out.Raw(kContainer);
+  out.String(file.container_counter_unavailable ? kUnavailable
+                                                : kNotApplicable);
+  out.Raw(kWrapper);
+  out.Integer(file.wrapper_pre_report_bytes);
+  out.Raw(kMemory);
+  out.Integer(file.memory.workflow);
+  out.Raw(kRead);
+  out.Integer(file.memory.read);
+  out.Raw(kTotal);
+  out.Integer(file.memory.total);
+  out.Raw(kPublisher);
+  if (file.publisher) {
+    const auto& p = *file.publisher;
+    out.Raw(kPublisherStatus);
+    out.Integer(p.status);
+    out.Raw(kPublisherStage);
+    out.Integer(p.stage);
+    out.Raw(kCode);
+    out.Integer(p.code);
+    out.Raw(kFile);
+    out.OptionalInteger(p.file);
+    out.Raw(kByte);
+    out.OptionalInteger(p.byte);
+    out.Raw(kResourceKind);
+    out.OptionalInteger(p.resource_kind);
+    out.Raw(kResource);
+    out.OptionalInteger(p.resource);
+    out.Raw(kSystem);
+    error(p.system_error);
+    out.Raw(kGltf);
+    if (p.gltf)
+      DiagnosticReceipt(out, *p.gltf);
+    else
+      out.Raw("null");
+    out.Raw(kInspectionStatus);
+    out.OptionalInteger(p.inspection_status);
+    out.Raw(kInspection);
+    if (p.inspection)
+      DiagnosticReceipt(out, *p.inspection);
+    else
+      out.Raw("null");
+    out.Raw("}");
+  } else
+    out.Raw("null");
+  out.Raw(kCleanup);
+  out.OptionalInteger(file.cleanup);
+  out.Raw(kCleanupError);
+  error(file.cleanup_error);
+  out.Raw(kHashing);
+  Stats(out, file.hashing);
+  out.Raw(kReportCopy);
+}
+void EmitFileWorkflowReportTail(ReportSink& out,
+                                const FileReportProjection& file) {
+  Stats(out, file.report_copy);
+  out.Raw("}}}");
+}
+void EmitWorkflowReport(ReportSink& out, const WorkflowState& state,
+                        const GltfDuplicateWorkflowRequest& request,
+                        const FileReportProjection* file) {
+  if (file) {
+    EmitFileWorkflowReportPrefix(out, state, request, *file);
+    EmitFileWorkflowReportTail(out, *file);
+  } else {
+    Prefix(out, state, request);
+    Tail(out, state);
+  }
+}
 void SerializeReport(WorkflowState& state,
                      const GltfDuplicateWorkflowRequest& request,
                      const GltfDuplicateWorkflowLimits& limits,
