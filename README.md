@@ -16,6 +16,16 @@ The development [charged native interface](docs/materialized_duplicates.md) appl
 
 The optional [supplied-memory glTF workflow](docs/gltf-workflow.md) composes public read, extraction, charged repair, checked writing, independent reload/preservation inspection and owned report/1 output. Its [installed native example](examples/consumer/gltf_workflow.cpp) retains verified output and correspondence after the caller buffer and execution context are destroyed. Initial Windows native development checks cover this seam; complete qualification remains pending. Filesystem publication, GLB workflow composition, Python bindings and commands are separate work.
 
+The optional [retained-file glTF workflow](docs/gltf-file-workflow.md) uses an
+already captured file asset and the same repair engine. It can publish a new
+JSON glTF bundle with a report that records SHA-256 hashes of the retained
+source and staged artifacts. Publication verifies the report and all staged
+bytes before committing the destination. The [installed native example](examples/consumer/gltf_file_workflow.cpp)
+demonstrates capture, source-file removal, repair, publication and reopening.
+This development interface is under qualification. Its pinned Interchange
+dependency admits JSON publication; requested GLB publication returns the
+dependency's unsupported result. Python bindings and commands remain forthcoming.
+
 The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
 
 The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.

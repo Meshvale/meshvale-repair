@@ -14,6 +14,8 @@ PROFILE_CACHE_KEY = "MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE"
 MODULE_CACHE_KEY = "MESHVALE_REPAIR_MATERIALIZED_DUPLICATES"
 WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_GLTF_WORKFLOW"
 INSTALLED_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_GLTF_WORKFLOW"
+FILE_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_GLTF_FILE_WORKFLOW"
+INSTALLED_FILE_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_GLTF_FILE_WORKFLOW"
 TRUE_CACHE_VALUES = frozenset({"ON", "TRUE", "YES", "1"})
 FALSE_CACHE_VALUES = frozenset({"OFF", "FALSE", "NO", "0"})
 COMMON_TESTS = frozenset({"targeted_duplicates"})
@@ -70,7 +72,8 @@ def validate_configuration(cache, configuration):
         raise ValueError("requested configuration differs from single-config build type")
 
 
-def validate_cache(cache, profile, configuration, installed=False, workflow=False):
+def validate_cache(cache, profile, configuration, installed=False, workflow=False,
+                   file_workflow=False):
     validate_configuration(cache, configuration)
     if not installed:
         if not cache_bool(cache, "BUILD_TESTING"):
@@ -83,6 +86,9 @@ def validate_cache(cache, profile, configuration, installed=False, workflow=Fals
     workflow_key = INSTALLED_WORKFLOW_CACHE_KEY if installed else WORKFLOW_CACHE_KEY
     if cache_bool(cache, workflow_key) != workflow:
         raise ValueError("workflow selection differs between the requested and configured inventory")
+    file_workflow_key = INSTALLED_FILE_WORKFLOW_CACHE_KEY if installed else FILE_WORKFLOW_CACHE_KEY
+    if cache_bool(cache, file_workflow_key) != file_workflow:
+        raise ValueError("file workflow selection differs between the requested and configured inventory")
 
 
 def validate_compiler(build_dir, expected_id, expected_version):
@@ -98,7 +104,7 @@ def validate_compiler(build_dir, expected_id, expected_version):
         raise ValueError("configured C++ compiler version differs from declared cohort")
 
 
-def expected_inventory(profile, installed=False, workflow=False):
+def expected_inventory(profile, installed=False, workflow=False, file_workflow=False):
     common = COMMON_INSTALLED_TESTS if installed else COMMON_TESTS
     specific = PROFILE_INSTALLED_TESTS if installed else PROFILE_TESTS
     expected = common | specific[profile]
@@ -111,6 +117,15 @@ def expected_inventory(profile, installed=False, workflow=False):
             expected |= frozenset({"gltf_workflow", "gltf_workflow_requests"})
         else:
             expected |= frozenset({"gltf_workflow_unsupported"})
+    if file_workflow and not installed:
+        expected |= frozenset({"gltf_file_sha256"})
+        expected |= (frozenset({"gltf_file_workflow_semantics", "gltf_file_workflow_requests"})
+                     if profile == QUALIFIED_PROFILE else
+                     frozenset({"gltf_file_workflow_unsupported"}))
+    elif file_workflow:
+        expected |= (frozenset({"installed_gltf_file_workflow"})
+                     if profile == QUALIFIED_PROFILE else
+                     frozenset({"installed_gltf_file_workflow_unsupported"}))
     return expected
 
 
@@ -134,6 +149,8 @@ def main():
     parser.add_argument("--materialization-profile", choices=PROFILES, required=True)
     parser.add_argument("--gltf-workflow", choices=("ON", "OFF"),
                         help="Defaults to the native configured workflow option")
+    parser.add_argument("--gltf-file-workflow", choices=("ON", "OFF"),
+                        help="Defaults to the native configured file workflow option")
     parser.add_argument("--ctest", default="ctest")
     args = parser.parse_args()
     try:
@@ -141,20 +158,25 @@ def main():
         native_cache = cache_entries(args.build_dir / "CMakeCache.txt")
         workflow = (cache_bool(native_cache, WORKFLOW_CACHE_KEY)
                     if args.gltf_workflow is None else args.gltf_workflow == "ON")
+        file_workflow = (cache_bool(native_cache, FILE_WORKFLOW_CACHE_KEY)
+                         if args.gltf_file_workflow is None else args.gltf_file_workflow == "ON")
         for build_dir, installed in ((args.build_dir, False), (args.installed_build_dir, True)):
             if build_dir is None:
                 continue
             validate_cache(cache_entries(build_dir / "CMakeCache.txt"),
-                           args.materialization_profile, args.configuration, installed, workflow)
+                           args.materialization_profile, args.configuration, installed, workflow,
+                           file_workflow)
             validate_compiler(build_dir, args.compiler_id, args.compiler_version)
             checked.append(("installed" if installed else "native", validate_inventory(
                 build_dir, args.configuration,
-                expected_inventory(args.materialization_profile, installed, workflow), args.ctest)))
+                expected_inventory(args.materialization_profile, installed, workflow, file_workflow),
+                args.ctest)))
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.error(str(error))
     for label, names in checked:
         print(f"{label}: verified {len(names)} test entries; "
               f"{args.materialization_profile}; workflow {'ON' if workflow else 'OFF'}; "
+              f"file workflow {'ON' if file_workflow else 'OFF'}; "
               f"{args.configuration}; {names}")
 
 
