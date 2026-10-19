@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <algorithm>
 #include <array>
-#include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <cstdlib>
 #include <exception>
 #include <iostream>
 #include <limits>
@@ -15,77 +13,13 @@
 #include <type_traits>
 
 #include "../src/gltf_file_sha256_internal.h"
-
-#if defined(_WIN32)
-#include <malloc.h>
-#endif
-
+#include "gltf_file_sha256_allocation.h"
 #include "hash_prefix_answers.h"
 #include "hash_vectors.h"
 
 namespace {
-std::atomic<std::size_t> allocation_calls{0};
-std::atomic<bool> disallow_allocation{false};
-std::atomic<void*> allocation_control_pointer{nullptr};
-void CountAllocation() {
-  ++allocation_calls;
-  if (disallow_allocation.load()) throw std::bad_alloc();
-}
-}  // namespace
-// Test-executable-only original new observer. No production hook or allocator.
-void* operator new(std::size_t bytes) {
-  CountAllocation();
-  if (auto* pointer = std::malloc(std::max<std::size_t>(bytes, 1)))
-    return pointer;
-  throw std::bad_alloc();
-}
-void* operator new[](std::size_t bytes) { return ::operator new(bytes); }
-void operator delete(void* pointer) noexcept { std::free(pointer); }
-void operator delete[](void* pointer) noexcept { std::free(pointer); }
-void operator delete(void* pointer, std::size_t) noexcept {
-  std::free(pointer);
-}
-void operator delete[](void* pointer, std::size_t) noexcept {
-  std::free(pointer);
-}
-void* operator new(std::size_t bytes, std::align_val_t alignment) {
-  CountAllocation();
-  const auto size = std::max<std::size_t>(bytes, 1);
-  const auto align = static_cast<std::size_t>(alignment);
-#if defined(_WIN32)
-  if (auto* pointer = _aligned_malloc(size, align)) return pointer;
-#else
-  if (size > std::numeric_limits<std::size_t>::max() - (align - 1))
-    throw std::bad_alloc();
-  const auto padded = (size + align - 1) / align * align;
-  if (auto* pointer = std::aligned_alloc(align, padded)) return pointer;
-#endif
-  throw std::bad_alloc();
-}
-void* operator new[](std::size_t bytes, std::align_val_t alignment) {
-  return ::operator new(bytes, alignment);
-}
-void operator delete(void* pointer, std::align_val_t) noexcept {
-#if defined(_WIN32)
-  _aligned_free(pointer);
-#else
-  std::free(pointer);
-#endif
-}
-void operator delete[](void* pointer, std::align_val_t alignment) noexcept {
-  ::operator delete(pointer, alignment);
-}
-void operator delete(void* pointer, std::size_t,
-                     std::align_val_t alignment) noexcept {
-  ::operator delete(pointer, alignment);
-}
-void operator delete[](void* pointer, std::size_t,
-                       std::align_val_t alignment) noexcept {
-  ::operator delete(pointer, alignment);
-}
-
-namespace {
 namespace hash = meshvale::repair::gltf_file_detail;
+namespace allocation = meshvale::repair::test_sha256_allocation;
 constexpr std::size_t kChunkCeiling = 65;
 constexpr std::size_t kExpectedHexCharacters = 64;
 void Require(bool value, const char* message) {
@@ -93,33 +27,26 @@ void Require(bool value, const char* message) {
 }
 void ObserveOriginalAllocationRefusal() {
   constexpr std::size_t kAlignedControlBytes = 64;
-  struct alignas(kAlignedControlBytes) AlignedControl {
-    std::array<std::byte, kAlignedControlBytes> value{};
-  };
-  const auto before = allocation_calls.load();
-  disallow_allocation = true;
+  const auto before = allocation::AllocationCalls();
+  allocation::SetAllocationDisallowed(true);
   bool ordinary_refused = false;
   bool aligned_refused = false;
   try {
-    auto* pointer = new std::byte{};
-    // An observable escape keeps the control allocation from being elided.
-    allocation_control_pointer.store(pointer);
-    delete pointer;
-    allocation_control_pointer.store(nullptr);
+    auto* pointer = ::operator new(1);
+    ::operator delete(pointer);
   } catch (const std::bad_alloc&) {
     ordinary_refused = true;
   }
   try {
-    auto* pointer = new AlignedControl;
-    allocation_control_pointer.store(pointer);
-    delete pointer;
-    allocation_control_pointer.store(nullptr);
+    auto* pointer = ::operator new(kAlignedControlBytes,
+                                   std::align_val_t{kAlignedControlBytes});
+    ::operator delete(pointer, std::align_val_t{kAlignedControlBytes});
   } catch (const std::bad_alloc&) {
     aligned_refused = true;
   }
-  disallow_allocation = false;
+  allocation::SetAllocationDisallowed(false);
   Require(ordinary_refused && aligned_refused &&
-              allocation_calls.load() == before + 2,
+              allocation::AllocationCalls() == before + 2,
           "original observer refuses actual ordinary and aligned new calls");
 }
 void CheckDigest(const hash::Sha256& stream, std::string_view expected) {
@@ -290,17 +217,17 @@ int main() {
   static_assert(noexcept(hash::Sha256{}.Update({})));
   try {
     ObserveOriginalAllocationRefusal();
-    const auto before = allocation_calls.load();
-    disallow_allocation = true;
+    const auto before = allocation::AllocationCalls();
+    allocation::SetAllocationDisallowed(true);
     KnownAnswersAndSplits();
     SnapshotsAndCopies();
     EveryPaddingPositionAndContinuation();
     LengthAdmission();
     HexEndianAndMillionBytes();
     PhysicalFramingAndArtifacts();
-    disallow_allocation = false;
+    allocation::SetAllocationDisallowed(false);
     Require(
-        allocation_calls.load() == before,
+        allocation::AllocationCalls() == before,
         "all actual update/digest/hex/length/framing calls allocate nothing");
     std::cout << "SHA256 literal/Python vectors, all splits, strides1..65, "
                  "snapshots, endian/framing/artifacts, million bytes and "
@@ -308,7 +235,7 @@ int main() {
               << sizeof(hash::Sha256) << '\n';
     return 0;
   } catch (const std::exception& error) {
-    disallow_allocation = false;
+    allocation::SetAllocationDisallowed(false);
     std::cerr << error.what() << '\n';
     return 1;
   }

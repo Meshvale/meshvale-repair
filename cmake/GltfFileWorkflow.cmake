@@ -64,7 +64,8 @@ install(FILES include/meshvale/repair/gltf_file_workflow.h
 function(meshvale_add_gltf_file_workflow_tests)
   target_sources(meshvale_repair_header_checks PRIVATE tests/header_gltf_file_workflow.cpp)
   target_link_libraries(meshvale_repair_header_checks PRIVATE meshvale::gltf_file_workflow)
-  add_executable(meshvale_gltf_file_sha256_tests tests/gltf_file_sha256.cpp)
+  add_executable(meshvale_gltf_file_sha256_tests
+    tests/gltf_file_sha256.cpp tests/gltf_file_sha256_allocation.cpp)
   target_link_libraries(meshvale_gltf_file_sha256_tests PRIVATE meshvale::gltf_file_workflow)
   meshvale_warnings(meshvale_gltf_file_sha256_tests)
   meshvale_strict_floating_point(meshvale_gltf_file_sha256_tests)

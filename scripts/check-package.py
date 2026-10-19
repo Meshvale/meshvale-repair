@@ -65,6 +65,7 @@ def inspect(path):
                          "src/gltf_file_workflow_report.cpp",
                          "src/gltf_file_sha256_internal.h", "src/gltf_file_sha256_internal.cpp",
                          "tests/header_gltf_file_workflow.cpp", "tests/gltf_file_sha256.cpp",
+                         "tests/gltf_file_sha256_allocation.cpp", "tests/gltf_file_sha256_allocation.h",
                          "tests/hash_vectors.h", "tests/hash_prefix_answers.h",
                          "tests/gltf_file_workflow.cpp", "tests/gltf_file_workflow_requests.cpp",
                          "tests/gltf_file_workflow_fixture.h", "scripts/check-gltf-file-reports.py",
