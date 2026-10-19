@@ -26,6 +26,7 @@
 namespace {
 std::atomic<std::size_t> allocation_calls{0};
 std::atomic<bool> disallow_allocation{false};
+std::atomic<void*> allocation_control_pointer{nullptr};
 void CountAllocation() {
   ++allocation_calls;
   if (disallow_allocation.load()) throw std::bad_alloc();
@@ -92,20 +93,27 @@ void Require(bool value, const char* message) {
 }
 void ObserveOriginalAllocationRefusal() {
   constexpr std::size_t kAlignedControlBytes = 64;
+  struct alignas(kAlignedControlBytes) AlignedControl {
+    std::array<std::byte, kAlignedControlBytes> value{};
+  };
   const auto before = allocation_calls.load();
   disallow_allocation = true;
   bool ordinary_refused = false;
   bool aligned_refused = false;
   try {
-    auto* pointer = ::operator new(1);
-    ::operator delete(pointer);
+    auto* pointer = new std::byte{};
+    // An observable escape keeps the control allocation from being elided.
+    allocation_control_pointer.store(pointer);
+    delete pointer;
+    allocation_control_pointer.store(nullptr);
   } catch (const std::bad_alloc&) {
     ordinary_refused = true;
   }
   try {
-    auto* pointer = ::operator new(kAlignedControlBytes,
-                                   std::align_val_t{kAlignedControlBytes});
-    ::operator delete(pointer, std::align_val_t{kAlignedControlBytes});
+    auto* pointer = new AlignedControl;
+    allocation_control_pointer.store(pointer);
+    delete pointer;
+    allocation_control_pointer.store(nullptr);
   } catch (const std::bad_alloc&) {
     aligned_refused = true;
   }

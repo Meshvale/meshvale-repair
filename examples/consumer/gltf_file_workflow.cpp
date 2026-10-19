@@ -249,9 +249,11 @@ int main(int argc, char** argv) {
       Write(input / kEntryPath, std::as_bytes(std::span(kJson)));
       Write(input / "mesh.bin", bytes);
       const geo::ExecutionContext context({kWorkers, 1, kLedgerBytes});
+      ic::GltfFileReadOptions source_options;
+      source_options.resource_root = input;
       auto captured =
-          ic::ReadGltfFileAsset(input / kEntryPath, {input}, FileReadLimits(),
-                                FileReadWork(), context);
+          ic::ReadGltfFileAsset(input / kEntryPath, source_options,
+                                FileReadLimits(), FileReadWork(), context);
       Require(captured.asset.has_value(), "Capture owned source files");
       const auto source = *captured.asset;
       captured.asset.reset();
