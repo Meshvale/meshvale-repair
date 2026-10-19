@@ -28,7 +28,7 @@ void Require(bool value, const char* message) {
 void ObserveOriginalAllocationRefusal() {
   constexpr std::size_t kAlignedControlBytes = 64;
   const auto before = allocation::AllocationCalls();
-  allocation::SetAllocationDisallowed(true);
+  allocation::SetOriginalAllocationDisallowed(true);
   bool ordinary_refused = false;
   bool aligned_refused = false;
   try {
@@ -44,10 +44,21 @@ void ObserveOriginalAllocationRefusal() {
   } catch (const std::bad_alloc&) {
     aligned_refused = true;
   }
-  allocation::SetAllocationDisallowed(false);
+  allocation::SetOriginalAllocationDisallowed(false);
   Require(ordinary_refused && aligned_refused &&
               allocation::AllocationCalls() == before + 2,
           "original observer refuses actual ordinary and aligned new calls");
+}
+void ObserveSanitizerAllocations() {
+  constexpr std::size_t kAlignedControlBytes = 64;
+  const auto before = allocation::AllocationCalls();
+  auto* ordinary = ::operator new(1);
+  ::operator delete(ordinary);
+  auto* aligned = ::operator new(kAlignedControlBytes,
+                                 std::align_val_t{kAlignedControlBytes});
+  ::operator delete(aligned, std::align_val_t{kAlignedControlBytes});
+  Require(allocation::AllocationCalls() == before + 2,
+          "sanitizer hook observes actual ordinary and aligned allocations");
 }
 void CheckDigest(const hash::Sha256& stream, std::string_view expected) {
   const auto digest = stream.Digest();
@@ -215,27 +226,41 @@ int main() {
   static_assert(std::is_nothrow_copy_constructible_v<hash::Sha256>);
   static_assert(noexcept(hash::Sha256{}.Digest()));
   static_assert(noexcept(hash::Sha256{}.Update({})));
+  const auto kind = allocation::Kind();
+  const bool original = kind == allocation::ObserverKind::kOriginalNewRefusal;
   try {
-    ObserveOriginalAllocationRefusal();
+    Require(allocation::Initialize(), "allocation observer initialization");
+    if (original)
+      ObserveOriginalAllocationRefusal();
+    else
+      ObserveSanitizerAllocations();
     const auto before = allocation::AllocationCalls();
-    allocation::SetAllocationDisallowed(true);
+    if (original) allocation::SetOriginalAllocationDisallowed(true);
     KnownAnswersAndSplits();
     SnapshotsAndCopies();
     EveryPaddingPositionAndContinuation();
     LengthAdmission();
     HexEndianAndMillionBytes();
     PhysicalFramingAndArtifacts();
-    allocation::SetAllocationDisallowed(false);
-    Require(
-        allocation::AllocationCalls() == before,
-        "all actual update/digest/hex/length/framing calls allocate nothing");
+    const auto after = allocation::AllocationCalls();
+    if (original) allocation::SetOriginalAllocationDisallowed(false);
+    Require(after == before,
+            "actual update/digest/hex/length/framing calls have zero observed "
+            "allocation delta");
+    if (!original) ObserveSanitizerAllocations();
     std::cout << "SHA256 literal/Python vectors, all splits, strides1..65, "
                  "snapshots, endian/framing/artifacts, million bytes and "
-                 "u64 admission passed; zero new requests; state_bytes="
+                 "u64 admission passed; "
+              << (original
+                      ? "original observer: zero new requests and actual "
+                        "ordinary/aligned refusal; state_bytes="
+                      : "TSan hook: zero observed intercepted allocations and "
+                        "ordinary/aligned controls before/after; no refusal "
+                        "claim; state_bytes=")
               << sizeof(hash::Sha256) << '\n';
     return 0;
   } catch (const std::exception& error) {
-    allocation::SetAllocationDisallowed(false);
+    if (original) allocation::SetOriginalAllocationDisallowed(false);
     std::cerr << error.what() << '\n';
     return 1;
   }

@@ -5,9 +5,14 @@
 #include <cstddef>
 
 namespace meshvale::repair::test_sha256_allocation {
-// Test-executable-only original new observer. Definitions stay in a separate
-// translation unit so allocation controls do not expose replacement bodies.
+// Test-executable-only observers. TSan owns its allocation operators and only
+// reports intercepted allocations; the original observer also refuses new.
+enum class ObserverKind { kOriginalNewRefusal, kSanitizerMallocHook };
+[[nodiscard]] ObserverKind Kind() noexcept;
+// Call exactly once on the main thread before test work or any user threads.
+[[nodiscard]] bool Initialize() noexcept;
 [[nodiscard]] std::size_t AllocationCalls() noexcept;
-void SetAllocationDisallowed(bool disallowed) noexcept;
+// Only original mode supports refusal. Any call in hook mode terminates.
+void SetOriginalAllocationDisallowed(bool disallowed) noexcept;
 }  // namespace meshvale::repair::test_sha256_allocation
 #endif  // MESHVALE_REPAIR_TESTS_GLTF_FILE_SHA256_ALLOCATION_H_

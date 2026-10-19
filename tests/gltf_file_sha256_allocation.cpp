@@ -5,21 +5,48 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdlib>
+#include <exception>
 #include <limits>
 #include <new>
 
-#if defined(_WIN32)
+#if defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define MESHVALE_REPAIR_TEST_TSAN 1
+#endif
+#endif
+#if defined(__SANITIZE_THREAD__) && !defined(MESHVALE_REPAIR_TEST_TSAN)
+#define MESHVALE_REPAIR_TEST_TSAN 1
+#endif
+#ifndef MESHVALE_REPAIR_TEST_TSAN
+#define MESHVALE_REPAIR_TEST_TSAN 0
+#endif
+
+#if MESHVALE_REPAIR_TEST_TSAN
+#include <sanitizer/allocator_interface.h>
+#elif defined(_WIN32)
 #include <malloc.h>
 #endif
 
 namespace {
+#if MESHVALE_REPAIR_TEST_TSAN
+static_assert(std::atomic<std::size_t>::is_always_lock_free);
+constinit std::atomic<std::size_t> allocation_calls{0};
+// Count every delivered callback without allocations, exceptions or filters.
+void SANITIZER_CDECL CountSanitizerAllocation(const volatile void*,
+                                              std::size_t) noexcept {
+  allocation_calls.fetch_add(1, std::memory_order_relaxed);
+}
+void SANITIZER_CDECL ObserveSanitizerFree(const volatile void*) noexcept {}
+#else
 std::atomic<std::size_t> allocation_calls{0};
 std::atomic<bool> disallow_allocation{false};
 void CountAllocation() {
   ++allocation_calls;
   if (disallow_allocation.load()) throw std::bad_alloc();
 }
+#endif
 }  // namespace
+#if !MESHVALE_REPAIR_TEST_TSAN
 // Test-executable-only original new observer. No production hook or allocator.
 void* operator new(std::size_t bytes) {
   CountAllocation();
@@ -72,9 +99,36 @@ void operator delete[](void* pointer, std::size_t,
   ::operator delete(pointer, alignment);
 }
 
+#endif
 namespace meshvale::repair::test_sha256_allocation {
-std::size_t AllocationCalls() noexcept { return allocation_calls.load(); }
-void SetAllocationDisallowed(bool disallowed) noexcept {
+ObserverKind Kind() noexcept {
+#if MESHVALE_REPAIR_TEST_TSAN
+  return ObserverKind::kSanitizerMallocHook;
+#else
+  return ObserverKind::kOriginalNewRefusal;
+#endif
+}
+bool Initialize() noexcept {
+#if MESHVALE_REPAIR_TEST_TSAN
+  return __sanitizer_install_malloc_and_free_hooks(CountSanitizerAllocation,
+                                                   ObserveSanitizerFree) != 0;
+#else
+  return true;
+#endif
+}
+std::size_t AllocationCalls() noexcept {
+#if MESHVALE_REPAIR_TEST_TSAN
+  return allocation_calls.load(std::memory_order_relaxed);
+#else
+  return allocation_calls.load();
+#endif
+}
+void SetOriginalAllocationDisallowed(bool disallowed) noexcept {
+#if MESHVALE_REPAIR_TEST_TSAN
+  (void)disallowed;
+  std::terminate();
+#else
   disallow_allocation = disallowed;
+#endif
 }
 }  // namespace meshvale::repair::test_sha256_allocation
