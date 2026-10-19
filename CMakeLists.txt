@@ -204,6 +204,11 @@ install(FILES LICENSE NOTICE DESTINATION "${CMAKE_INSTALL_DATADIR}/MeshvaleRepai
 install(DIRECTORY licenses/ DESTINATION "${CMAKE_INSTALL_DATADIR}/MeshvaleRepair/licenses")
 
 option(MESHVALE_REPAIR_PYTHON "Build the optional Python duplicate interface" OFF)
+option(MESHVALE_REPAIR_GLTF_BINDING_TESTS
+  "Build the isolated Windows CPython 3.13 glTF return observer" OFF)
+if(MESHVALE_REPAIR_GLTF_BINDING_TESTS AND NOT MESHVALE_REPAIR_PYTHON)
+  message(FATAL_ERROR "The glTF binding observer requires MESHVALE_REPAIR_PYTHON=ON")
+endif()
 if(MESHVALE_REPAIR_PYTHON)
   find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)
   execute_process(COMMAND "${Python_EXECUTABLE}" -c
@@ -218,8 +223,34 @@ if(MESHVALE_REPAIR_PYTHON)
   nanobind_add_module(_repair NB_STATIC NB_DOMAIN meshvale_repair python/bindings.cpp)
   meshvale_geometry_add_python_record(meshvale_repair_record DOMAIN meshvale_repair)
   target_link_libraries(_repair PRIVATE meshvale_repair_record meshvale::repair)
+  if(TARGET meshvale::gltf_file_workflow)
+    target_sources(_repair PRIVATE python/gltf_bindings.cpp python/gltf_presets.cpp)
+    target_link_libraries(_repair PRIVATE meshvale::gltf_file_workflow)
+    target_compile_definitions(_repair PRIVATE MESHVALE_REPAIR_GLTF_PYTHON=1)
+    meshvale_strict_floating_point(_repair)
+  endif()
   meshvale_warnings(_repair)
   install(TARGETS _repair LIBRARY DESTINATION meshvale_repair COMPONENT python)
+  if(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
+    if(NOT TARGET meshvale::gltf_file_workflow OR NOT WIN32 OR NOT MSVC
+        OR NOT CMAKE_BUILD_TYPE STREQUAL "Release"
+        OR NOT Python_VERSION_MAJOR EQUAL 3 OR NOT Python_VERSION_MINOR EQUAL 13)
+      message(FATAL_ERROR "The isolated binding observer requires the file workflow and Windows MSVC Release CPython 3.13")
+    endif()
+    nanobind_add_module(_repair_gltf_return_test NB_STATIC NB_DOMAIN meshvale_repair
+      python/gltf_bindings.cpp python/gltf_presets.cpp
+      tests/python_native/gltf_binding_module.cpp
+      tests/python_native/gltf_binding_observer.cpp
+      tests/python_native/gltf_binding_allocation.cpp)
+    target_include_directories(_repair_gltf_return_test PRIVATE
+      python src tests/python_native)
+    target_link_libraries(_repair_gltf_return_test PRIVATE meshvale::gltf_file_workflow)
+    target_compile_definitions(_repair_gltf_return_test PRIVATE
+      MESHVALE_REPAIR_GLTF_BINDING_TESTS=1)
+    meshvale_warnings(_repair_gltf_return_test)
+    meshvale_strict_floating_point(_repair_gltf_return_test)
+    # This own-process test module is never installed into a product wheel.
+  endif()
 endif()
 
 include(CTest)

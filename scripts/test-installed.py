@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Install exact producer/consumer wheels and test outside the source directory."""
 import argparse
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -8,8 +9,8 @@ import tempfile
 import venv
 
 
-def run(*args,cwd):
-    subprocess.run([str(part) for part in args],cwd=cwd,check=True)
+def run(*args,cwd,env=None):
+    subprocess.run([str(part) for part in args],cwd=cwd,env=env,check=True)
 
 
 if __name__ == "__main__":
@@ -17,6 +18,8 @@ if __name__ == "__main__":
     parser.add_argument("--geometry-wheel",required=True,type=Path)
     parser.add_argument("--repair-wheel",required=True,type=Path)
     parser.add_argument("--workflow",action="store_true",help="Install the declared validator extra and test reported operations")
+    parser.add_argument("--gltf", choices=["qualified", "unsupported"],
+                        help="Exercise the installed glTF API with an explicit numerical profile")
     parser.add_argument("--interchange-wheel",type=Path,help="Also install and exercise the optional asset workflow")
     options = parser.parse_args(); root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="meshvale-repair-installed-") as scratch:
@@ -35,10 +38,18 @@ if __name__ == "__main__":
                     "import meshvale_repair; import meshvale_geometry")
             code += "; assert meshvale_repair.Mesh is meshvale_geometry.Mesh; assert meshvale_repair.remove_duplicate_faces(meshvale_geometry.Mesh(), []).outcome == 'unchanged'; print('Installed import order passed: "+order+"')"
             run(python,"-I","-c",code,cwd=directory)
-        if options.workflow:
+        if options.workflow or options.gltf:
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[workflow]",cwd=directory)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/workflow","-v",cwd=directory)
             run(python,"-I",root/"examples/python/reported_duplicate.py",cwd=directory)
+        if options.gltf:
+            gltf_environment = os.environ.copy()
+            gltf_environment["MESHVALE_GLTF_PYTHON_PROFILE"] = options.gltf
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/gltf-python","-v",
+                cwd=directory,env=gltf_environment)
+            profile_arguments = ["--unsupported-profile"] if options.gltf == "unsupported" else []
+            run(python,"-I",root/"examples/python/gltf_walkthrough.py",*profile_arguments,
+                cwd=directory,env=gltf_environment)
         if options.interchange_wheel:
             run(python,"-m","pip","install","--no-index",options.interchange_wheel.resolve(),cwd=directory)
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)

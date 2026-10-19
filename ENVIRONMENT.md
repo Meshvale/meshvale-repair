@@ -37,7 +37,7 @@ acceptance.
 
 Documentation and portability checks need Git and Python 3.10 or newer, with no third-party Python packages:
 
-Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml), an installed native Geometry prefix and ordinary GIL-enabled CPython. See [Python packaging and ownership requirements](docs/python.md). Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.
+Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml) and ordinary GIL-enabled CPython. The default wheel also enables the charged, memory and retained-file modules: supply compatible installed Geometry, Interchange and tinyobjloader prefixes. The native Interchange producer must enable its glTF writer, workflow support and file interfaces. See [Python packaging and ownership requirements](docs/python.md) and the [glTF Python contract](docs/gltf-python.md). Native-only legacy builds remain selectable separately. Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.
 
 ```sh
 python scripts/check-portability.py

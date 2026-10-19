@@ -12,11 +12,11 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE", "licenses/*.txt"]
 authors = [{name = "Meshvale contributors"}]
-dependencies = ["meshvale-geometry==0.0.1.dev69+gec38fabd7"]
+dependencies = ["meshvale-geometry==0.0.1.dev134+g48298b24b"]
 
 [project.optional-dependencies]
-workflow = ["meshvale-geometry[reports]==0.0.1.dev69+gec38fabd7"]
-assets = ["meshvale-geometry[reports]==0.0.1.dev69+gec38fabd7", "meshvale-interchange==0.0.1.dev62+g8d5823272"]
+workflow = ["meshvale-geometry[reports]==0.0.1.dev134+g48298b24b"]
+assets = ["meshvale-geometry[reports]==0.0.1.dev134+g48298b24b", "meshvale-interchange==0.0.1.dev179+g5b9b695ba"]
 
 [project.scripts]
 meshvale-repair = "meshvale_repair.commands:main"
@@ -30,11 +30,11 @@ minimum-version = "1.1"
 wheel.packages = ["python/meshvale_repair"]
 install.components = ["python"]
 cmake.define.MESHVALE_REPAIR_PYTHON = true
-cmake.define.MESHVALE_REPAIR_MATERIALIZED_DUPLICATES = false
-cmake.define.MESHVALE_REPAIR_GLTF_WORKFLOW = false
-cmake.define.MESHVALE_REPAIR_GLTF_FILE_WORKFLOW = false
+cmake.define.MESHVALE_REPAIR_MATERIALIZED_DUPLICATES = true
+cmake.define.MESHVALE_REPAIR_GLTF_WORKFLOW = true
+cmake.define.MESHVALE_REPAIR_GLTF_FILE_WORKFLOW = true
 cmake.define.BUILD_TESTING = false
-sdist.include = [".clang-format", "CMakeLists.txt", "pyproject.toml", "README.md", "AGENTS.md", "ENVIRONMENT.md", "environment.example.json", "LICENSE", "NOTICE", "THIRD_PARTY.md", "CHANGELOG.md", "cmake/**", "include/**", "src/**", "python/bindings.cpp", "python/meshvale_repair/*.py", "docs/**", "examples/**", "tests/**", "licenses/*.txt", "scripts/*.py"]
+sdist.include = [".clang-format", "CMakeLists.txt", "pyproject.toml", "README.md", "AGENTS.md", "ENVIRONMENT.md", "environment.example.json", "LICENSE", "NOTICE", "THIRD_PARTY.md", "CHANGELOG.md", "cmake/**", "include/**", "src/**", "python/bindings.cpp", "python/gltf_bindings.h", "python/gltf_bindings.cpp", "python/gltf_presets.h", "python/gltf_presets.cpp", "python/meshvale_repair/*.py", "docs/**", "examples/**", "tests/**", "licenses/*.txt", "scripts/*.py"]
 sdist.inclusion-mode = "explicit"
 sdist.exclude = ["**/__pycache__/**", "**/*.pyc", "**/.local/**", "**/.scratch/**", "**/build/**", "**/references/**"]
 

@@ -9,6 +9,10 @@
 #include "meshvale/geometry/python/record.h"
 #include "meshvale/repair/duplicates.h"
 
+#if defined(MESHVALE_REPAIR_GLTF_PYTHON)
+#include "gltf_bindings.h"
+#endif
+
 namespace nb = nanobind;
 namespace geo = meshvale::geometry;
 namespace repair = meshvale::repair;
@@ -83,4 +87,7 @@ nb::dict remove_duplicates(nb::handle record, const nb::list& targets,
 NB_MODULE(_repair, module) {
   module.def("remove_duplicates", &remove_duplicates, nb::arg("record"),
              nb::arg("targets"), nb::arg("row_local"));
+#if defined(MESHVALE_REPAIR_GLTF_PYTHON)
+  repair::python::RegisterGltfBindings(module);
+#endif
 }
