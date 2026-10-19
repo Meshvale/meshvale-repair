@@ -18,6 +18,21 @@ Run its declared profile from a fresh checkout with the dependency paths and
 tooling described in the helper. Configured jobs remain development checks;
 their presence does not establish a supported release matrix.
 
+The opt-in [retained-file workflow](docs/gltf-file-workflow.md) additionally
+requires `MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON` and the memory workflow enabled.
+Use the Interchange producer pinned by the [file qualification workflow](.github/workflows/gltf-file-workflow.yml).
+Configuration checks the compiled asset ledger query and borrowed verified-file
+provider, in addition to the installed `meshvale::gltf_files` target. The
+[same helper](scripts/gltf-workflow-ci.py) selects this cohort with
+`--file-workflow`. Its configured native inventories contain nine tests in
+qualified profiles and six in unsupported profiles, with four installed
+consumers. Qualified profiles also independently validate the report from an
+actual staged-byte readback failure after receipt preparation. The file header
+and target are installed only when enabled. Actual
+execution, physical artifact hash checks and shared report-schema validation
+are required before a qualification claim; configured jobs alone do not establish
+acceptance.
+
 Documentation and portability checks need Git and Python 3.10 or newer, with no third-party Python packages:
 
 Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml), an installed native Geometry prefix and ordinary GIL-enabled CPython. See [Python packaging and ownership requirements](docs/python.md). Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.

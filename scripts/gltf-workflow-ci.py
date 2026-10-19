@@ -24,9 +24,13 @@ import tarfile
 
 GEOMETRY_REVISION = "48298b24be7c132816fb5580d22d58bde61558d0"
 INTERCHANGE_REVISION = "916c45f742feadbf9bbb608af3576c8d12db045d"
+INTERCHANGE_FILE_REVISION = "3c6884e468ceb9b6cb600cd32a982ef2b42bb911"
 VCPKG_REVISION = "cb5a41b03cde4086d554b3f3e2eac39206b16eda"
 BUILD_WORKERS = 2
 TEST_TIMEOUT_SECONDS = 120
+FILE_TEST_TIMEOUT_SECONDS = 600
+FILE_SUITE_TIMEOUT_SECONDS = 1800
+FILE_REPORT_CASE_COUNT = 12
 
 
 @dataclass(frozen=True)
@@ -232,9 +236,18 @@ class Runner:
             raise RuntimeError(f"{name}: expected {count} tests, observed {len(tests)}")
         return tests
 
-    def test(self, build):
-        self.run("ctest", "--test-dir", build, "-C", self.profile.configuration,
-                 "--output-on-failure", "--timeout", TEST_TIMEOUT_SECONDS, timeout=900)
+    def test(self, build, file_workflow=False):
+        actual_log = Path(build) / "Testing" / "Temporary" / "LastTest.log"
+        try:
+            self.run("ctest", "--test-dir", build, "-C", self.profile.configuration,
+                     "--verbose", "--output-on-failure", "--timeout",
+                     FILE_TEST_TIMEOUT_SECONDS if file_workflow else TEST_TIMEOUT_SECONDS,
+                     timeout=FILE_SUITE_TIMEOUT_SECONDS if file_workflow else 900)
+        finally:
+            if actual_log.is_file():
+                shutil.copyfile(actual_log, self.evidence / (Path(build).name + "-actual-LastTest.log"))
+        if not actual_log.is_file():
+            raise RuntimeError("Executed CTest did not retain its actual test log")
 
     def install(self, build, prefix):
         self.run("cmake", "--install", build, "--config", self.profile.configuration,
@@ -264,16 +277,18 @@ class Runner:
                     "compiler_record_sha256": sha256(records[0])})
 
 
-def qualify(root, profile_name):
+def qualify(root, profile_name, file_workflow=False):
     profile = PROFILES[profile_name]
     if platform.system() != profile.system:
         raise RuntimeError(f"{profile_name} requires {profile.system}")
     work = root / ".local" / "gw"
     runner = Runner(root, work, profile)
     geometry, interchange, vcpkg = (work / name for name in ("g", "i", "v"))
-    inputs = {"profile": profile_name, "configuration": vars(profile), "sources": {}}
+    inputs = {"profile": profile_name, "configuration": vars(profile),
+              "file_workflow": file_workflow, "sources": {}}
     for name, source, revision in (("geometry", geometry, GEOMETRY_REVISION),
-                                    ("interchange", interchange, INTERCHANGE_REVISION),
+                                    ("interchange", interchange,
+                                     INTERCHANGE_FILE_REVISION if file_workflow else INTERCHANGE_REVISION),
                                     ("vcpkg", vcpkg, VCPKG_REVISION)):
         actual = runner.run("git", "-C", source, "rev-parse", "HEAD").strip()
         if actual != revision or runner.run("git", "-C", source, "status", "--porcelain").strip():
@@ -337,6 +352,7 @@ def qualify(root, profile_name):
                      "-DMESHVALE_INTERCHANGE_USD=OFF", "-DMESHVALE_INTERCHANGE_FBX=OFF",
                      "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON",
                      "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON",
+                     f"-DMESHVALE_INTERCHANGE_GLTF_FILES={'ON' if file_workflow else 'OFF'}",
                      f"-DMESHVALE_INTERCHANGE_MATERIALIZATION_TEST_PROFILE={profile.materialization}")
     runner.build(ib)
     # Audit the parser's actual compiler too; sanitizer triplets expose databases.
@@ -345,24 +361,49 @@ def qualify(root, profile_name):
     runner.compilation(parser_database)
     runner.inventory(ib, "interchange")
     runner.check_inventory(interchange, ib, "--topology-write", "ON", "--workflow-support", "ON")
-    runner.test(ib)
+    runner.test(ib, file_workflow)
     runner.install(ib, prefix)
     package_prefix = f"{prefix};{dependencies}/{triplet}"
     repair_options = [f"-DCMAKE_PREFIX_PATH={package_prefix}", "-DMESHVALE_REPAIR_PYTHON=OFF",
                       "-DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON",
                       "-DMESHVALE_REPAIR_GLTF_WORKFLOW=ON",
+                      f"-DMESHVALE_REPAIR_GLTF_FILE_WORKFLOW={'ON' if file_workflow else 'OFF'}",
                       f"-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE={profile.materialization}"]
     runner.configure(root, rb, "-DBUILD_TESTING=ON", *repair_options)
     runner.build(rb)
     qualified = profile.materialization == "qualified"
-    tests = runner.inventory(rb, "repair", 6 if qualified else 4)
-    runner.check_inventory(root, rb, "--gltf-workflow", "ON")
-    runner.test(rb)
+    native_count = (9 if qualified else 6) if file_workflow else (6 if qualified else 4)
+    tests = runner.inventory(rb, "repair", native_count)
+    runner.check_inventory(root, rb, "--gltf-workflow", "ON", "--gltf-file-workflow",
+                           "ON" if file_workflow else "OFF")
+    runner.test(rb, file_workflow)
     if qualified:
         reports = runner.evidence / "reports"
         test = next(test for test in tests if test["name"] == "gltf_workflow")
         runner.run(*test["command"], reports, timeout=TEST_TIMEOUT_SECONDS)
         validate_reports(geometry, reports, runner.evidence / "report-validation.json")
+        if file_workflow:
+            file_reports = runner.evidence / "file-reports"
+            file_test = next(test for test in tests if test["name"] == "gltf_file_workflow_semantics")
+            runner.run(*file_test["command"], "--write-reports", file_reports,
+                       timeout=FILE_TEST_TIMEOUT_SECONDS)
+            file_receipt = runner.evidence / "file-report-validation.json"
+            runner.run(sys.executable, root / "scripts/check-gltf-file-reports.py", file_reports,
+                       "--geometry-python", geometry / "python", "--receipt", file_receipt)
+            validated = json.loads(file_receipt.read_text(encoding="utf-8"))["reports"]
+            if len(validated) != FILE_REPORT_CASE_COUNT:
+                raise RuntimeError("File report oracle did not validate its exact fixture count")
+            readback_reports = runner.evidence / "file-readback-report"
+            request_test = next(test for test in tests if test["name"] == "gltf_file_workflow_requests")
+            runner.run(*request_test["command"], "--write-readback-report", readback_reports,
+                       timeout=FILE_TEST_TIMEOUT_SECONDS)
+            readback_receipt = runner.evidence / "file-readback-validation.json"
+            runner.run(sys.executable, root / "scripts/check-gltf-file-reports.py", readback_reports,
+                       "--readback-failure", "--geometry-python", geometry / "python",
+                       "--receipt", readback_receipt)
+            validated_readback = json.loads(readback_receipt.read_text(encoding="utf-8"))["reports"]
+            if len(validated_readback) != 1:
+                raise RuntimeError("Readback oracle did not validate its one actual failure report")
     dist = work / "dist"
     runner.run(sys.executable, "-m", "build", "--sdist", "--outdir", dist)
     archives = list(dist.glob("*.tar.gz"))
@@ -388,6 +429,8 @@ def qualify(root, profile_name):
         raise RuntimeError("Private workflow test seams leaked into installed headers")
     if not (prefix / "include/meshvale/repair/gltf_workflow.h").is_file():
         raise RuntimeError("Installed workflow public header is absent")
+    if (prefix / "include/meshvale/repair/gltf_file_workflow.h").is_file() != file_workflow:
+        raise RuntimeError("Installed file workflow header differs from selected module")
     write_json(runner.evidence / "package.json", {"source_archive_sha256": sha256(archives[0]),
                                                 "installed_files": inventory})
     relocated = work / "q"
@@ -397,20 +440,28 @@ def qualify(root, profile_name):
     runner.configure(source / "examples/consumer", cb,
                      f"-DCMAKE_PREFIX_PATH={relocated};{dependencies}/{triplet}",
                      "-DMESHVALE_REPAIR_TEST_GLTF_WORKFLOW=ON",
+                     f"-DMESHVALE_REPAIR_TEST_GLTF_FILE_WORKFLOW={'ON' if file_workflow else 'OFF'}",
                      f"-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE={profile.materialization}")
     runner.build(cb)
-    runner.inventory(cb, "installed", 3)
-    runner.check_inventory(root, rb, "--gltf-workflow", "ON", "--installed-build-dir", cb)
-    runner.test(cb)
+    installed_count = 4 if file_workflow else 3
+    runner.inventory(cb, "installed", installed_count)
+    runner.check_inventory(root, rb, "--gltf-workflow", "ON", "--gltf-file-workflow",
+                           "ON" if file_workflow else "OFF", "--installed-build-dir", cb)
+    runner.test(cb, file_workflow)
     write_json(runner.evidence / "result.json", {"gate_passed": True, "profile": profile_name,
                "materialization_profile": profile.materialization,
-               "native_tests": 6 if qualified else 4, "installed_tests": 3,
-               "reports_validated": 12 if qualified else 0, "production_tests": 0})
+               "native_tests": native_count, "installed_tests": installed_count,
+               "reports_validated": 12 if qualified else 0,
+               "file_reports_validated": FILE_REPORT_CASE_COUNT if qualified and file_workflow else 0,
+               "file_readback_reports_validated": 1 if qualified and file_workflow else 0,
+               "file_workflow": file_workflow, "production_tests": 0})
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=PROFILES)
+    parser.add_argument("--file-workflow", action="store_true",
+                        help="Qualify retained file publication against its pinned Interchange producer")
     parser.add_argument("--validate-reports", type=Path,
                         help="Validate existing fixture JSON without configuring native builds")
     parser.add_argument("--geometry-source", type=Path)
@@ -418,11 +469,11 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.validate_reports:
-        if args.profile or args.geometry_source is None or args.receipt is None:
+        if args.profile or args.file_workflow or args.geometry_source is None or args.receipt is None:
             parser.error("Report-only validation requires --geometry-source and --receipt, without --profile")
         validate_reports(args.geometry_source.resolve(), args.validate_reports.resolve(), args.receipt.resolve())
     elif args.profile:
-        qualify(root, args.profile)
+        qualify(root, args.profile, args.file_workflow)
     else:
         parser.error("Select --profile or --validate-reports")
 

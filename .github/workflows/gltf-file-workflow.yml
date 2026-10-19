@@ -1,0 +1,122 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Native glTF file workflow
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workflow:
+    name: File workflow ${{ matrix.profile }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - profile: msvc-release
+            os: windows-latest
+          - profile: msvc-asan
+            os: windows-latest
+          - profile: clang-debug
+            os: ubuntu-24.04
+          - profile: clang-asan-ubsan
+            os: ubuntu-24.04
+          - profile: clang-tsan
+            os: ubuntu-24.04
+          - profile: gnu-unsupported
+            os: ubuntu-24.04
+          - profile: appleclang-unsupported
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: 48298b24be7c132816fb5580d22d58bde61558d0
+          path: .local/gw/g
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-interchange
+          ref: 3c6884e468ceb9b6cb600cd32a982ef2b42bb911
+          path: .local/gw/i
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: microsoft/vcpkg
+          ref: cb5a41b03cde4086d554b3f3e2eac39206b16eda
+          path: .local/gw/v
+      - name: Select Windows x64 compiler environment for Ninja
+        if: runner.os == 'Windows'
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $visualStudio = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $visualStudio) { throw 'No Windows x64 compiler environment' }
+          $environment = & cmd /d /c "call `"$visualStudio/Common7/Tools/VsDevCmd.bat`" -arch=x64 -host_arch=x64 >nul && set"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $compilerVariables = @('PATH', 'INCLUDE', 'LIB', 'LIBPATH', 'WindowsSdkDir', 'WindowsSDKVersion', 'VCINSTALLDIR', 'VCToolsInstallDir', 'UniversalCRTSdkDir', 'UCRTVersion')
+          foreach ($line in $environment) {
+            $name, $value = $line -split '=', 2
+            if ($name -in $compilerVariables) {
+              "$name=$value" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            }
+          }
+      - name: Install the declared Linux compiler tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          sudo apt-get install -y clang-18 g++-13 ninja-build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Install pinned package and independent report tooling
+        run: |
+          python -m pip install build==1.6.1 jsonschema==4.26.0
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { throw 'Ninja is required' }
+      - name: Build and qualify native workflow, reports, and production package
+        run: python scripts/gltf-workflow-ci.py --file-workflow --profile ${{ matrix.profile }}
+      - name: Retain actual qualification records
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: gltf-file-workflow-${{ matrix.profile }}
+          path: |
+            .local/gw/e
+            .local/gw/dist
+            .local/gw/gb/CMakeCache.txt
+            .local/gw/gb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/gb/compile_commands.json
+            .local/gw/gb/Testing
+            .local/gw/ib/CMakeCache.txt
+            .local/gw/ib/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/ib/compile_commands.json
+            .local/gw/ib/Testing
+            .local/gw/rb/CMakeCache.txt
+            .local/gw/rb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/rb/compile_commands.json
+            .local/gw/rb/Testing
+            .local/gw/pb/CMakeCache.txt
+            .local/gw/pb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/pb/compile_commands.json
+            .local/gw/cb/CMakeCache.txt
+            .local/gw/cb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/cb/compile_commands.json
+            .local/gw/cb/Testing
+            .local/gw/v/buildtrees/tinyobjloader/*.log
+            .local/gw/v/buildtrees/tinyobjloader/*/compile_commands.json
+            .local/gw/q
+          include-hidden-files: true
+          retention-days: 14
