@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <meshvale/geometry/execution.h>
 #include <meshvale/geometry/materialization.h>
+#include <meshvale/interchange/glb.h>
 #include <meshvale/interchange/gltf.h>
 #include <meshvale/interchange/gltf_files.h>
 #include <meshvale/interchange/gltf_materialization.h>
@@ -51,6 +52,16 @@ constexpr std::string_view kInputId = "installed-workflow";
 constexpr std::string_view kUnsupportedProfileOption = "--unsupported-profile";
 constexpr std::string_view kJson =
     R"({"asset":{"version":"2.0"},"buffers":[{"uri":"mesh.bin","byteLength":48}],"bufferViews":[{"buffer":0,"byteLength":36},{"buffer":0,"byteOffset":36,"byteLength":12}],"accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3","min":[0,0,0],"max":[1,1,0]},{"bufferView":1,"componentType":5123,"count":6,"type":"SCALAR"}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0},{"mesh":0}],"scenes":[{"nodes":[0,1]}],"extras":{"opaque":1.2300e+04}})";
+constexpr std::string_view kGlbJson =
+    R"({"asset":{"version":"2.0"},"buffers":[{"byteLength":49}],"bufferViews":[{"buffer":0,"byteLength":36},{"buffer":0,"byteOffset":36,"byteLength":12}],"accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3","min":[0,0,0],"max":[1,1,0]},{"bufferView":1,"componentType":5123,"count":6,"type":"SCALAR"}],"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1}]}],"nodes":[{"mesh":0},{"mesh":0}],"scenes":[{"nodes":[0,1]}],"extras":{"opaque":1.2300e+04}})";
+constexpr std::size_t kGlbLogicalBufferBytes = kSourceBytes + 1;
+constexpr std::size_t kGlbPhysicalBufferBytes = 52;
+constexpr std::size_t kGlbChunkCount = 3;
+constexpr std::size_t kGlbBinChunkIndex = 1;
+constexpr std::uint32_t kOpaqueChunkType = 0x12345678;
+constexpr std::byte kUnusedLogicalByte{0xde};
+constexpr std::array<std::byte, 4> kOpaqueChunk{
+    std::byte{0x7f}, std::byte{0}, std::byte{0xde}, std::byte{0xad}};
 
 void Require(bool condition, const char* message) {
   if (!condition) throw std::runtime_error(message);
@@ -127,12 +138,57 @@ std::array<std::byte, kSourceBytes> SourceBuffer() {
         static_cast<std::byte>(indices[i]);
   return bytes;
 }
+std::vector<std::byte> SourceGlb(const geo::ExecutionContext& context) {
+  std::array<std::byte, kGlbLogicalBufferBytes> bin{};
+  std::ranges::copy(SourceBuffer(), bin.begin());
+  bin.back() = kUnusedLogicalByte;
+  const std::array chunks{
+      ic::GlbChunk{ic::kGlbJsonChunkType, std::as_bytes(std::span(kGlbJson))},
+      ic::GlbChunk{ic::kGlbBinChunkType, bin},
+      ic::GlbChunk{kOpaqueChunkType, kOpaqueChunk}};
+  auto result = ic::WriteGlbContainer(
+      chunks, {kPhysicalLimit, kGlbChunkCount, kStageBytes},
+      {kParallelMinimum, kPartitionBytes}, context);
+  Require(result.status == ic::GlbStatus::kSuccess,
+          "Assemble admitted source GLB with embedded BIN");
+  const auto bytes = result.container.Bytes();
+  return {bytes.begin(), bytes.end()};
+}
+void CheckSource(const ic::GltfFileAsset& source, bool glb) {
+  const auto resources = source.Asset().Resources();
+  Require(!resources.empty(), "Retained source buffer resource");
+  if (!glb) {
+    Require(std::ranges::equal(resources[0].bytes, SourceBuffer()),
+            "Retained complete external buffer");
+    return;
+  }
+  Require(
+      source.Container() && source.Container()->ChunkCount() == kGlbChunkCount,
+      "Retained source GLB chunks");
+  const auto bin = source.Container()->Chunk(kGlbBinChunkIndex);
+  Require(
+      bin.type == ic::kGlbBinChunkType &&
+          bin.bytes.size() == kGlbPhysicalBufferBytes &&
+          std::ranges::equal(bin.bytes.first(kSourceBytes), SourceBuffer()) &&
+          bin.bytes[kSourceBytes] == kUnusedLogicalByte &&
+          std::ranges::all_of(
+              bin.bytes.subspan(kGlbLogicalBufferBytes),
+              [](std::byte value) { return value == std::byte{0}; }) &&
+          std::ranges::equal(resources[0].bytes, bin.bytes),
+      "Retained logical unused byte and complete BIN padding");
+  const auto opaque = source.Container()->Chunk(kGlbChunkCount - 1);
+  Require(opaque.type == kOpaqueChunkType &&
+              std::ranges::equal(opaque.bytes, kOpaqueChunk),
+          "Retained opaque chunk");
+}
 
 namespace fs = std::filesystem;
-constexpr std::string_view kEntryPath = "source.gltf";
+constexpr std::string_view kJsonEntryPath = "source.gltf";
+constexpr std::string_view kGlbEntryPath = "source.glb";
 constexpr std::string_view kReportPath = "receipts/report.json";
 constexpr std::string_view kReportSchema = "\"schema\":\"meshvale.report/1\"";
-constexpr std::size_t kExpectedPhysicalFiles = 3;
+constexpr std::size_t kJsonPhysicalFiles = 3;
+constexpr std::size_t kGlbPhysicalFiles = 2;
 constexpr std::uint64_t kMaximumPhysicalFiles = 32;
 constexpr std::uint64_t kMaximumResourceBindings = 32;
 // Native path extent also bounds preallocated rollback traversal storage.
@@ -240,46 +296,59 @@ int main(int argc, char** argv) {
         argc == 2 && std::string_view(argv[1]) == kUnsupportedProfileOption;
     Require(argc == 1 || unsupported,
             "Expected no option or --unsupported-profile");
-    Fixture fixture;
-    std::optional<repair::GltfDuplicateFileWorkflowRecord> retained;
-    {
-      const auto input = fixture.Root() / "input";
-      Require(fs::create_directory(input), "Create input directory");
-      auto bytes = SourceBuffer();
-      Write(input / kEntryPath, std::as_bytes(std::span(kJson)));
-      Write(input / "mesh.bin", bytes);
-      const geo::ExecutionContext context({kWorkers, 1, kLedgerBytes});
-      ic::GltfFileReadOptions source_options;
-      source_options.resource_root = input;
-      auto captured =
-          ic::ReadGltfFileAsset(input / kEntryPath, source_options,
-                                FileReadLimits(), FileReadWork(), context);
-      Require(captured.asset.has_value(), "Capture owned source files");
-      const auto source = *captured.asset;
-      captured.asset.reset();
-      Require(fs::remove(input / kEntryPath) &&
-                  fs::remove(input / "mesh.bin") && fs::remove(input),
-              "Delete source disk before workflow");
-      bytes.fill(std::byte{0});
-      const std::array targets{repair::DuplicateTarget{0, 1}};
-      const auto destination = fixture.Root() / "published";
-      const repair::GltfDuplicateFilePublication publication{
-          destination, kReportPath, {}};
-      const repair::GltfDuplicateFileWorkflowRequest request{
-          source,
-          kInputId,
-          0,
-          {ic::GltfTriangleRequest::kRequireTriangles,
-           ic::GltfValueRequest::kRaw},
-          targets,
-          {},
-          &publication};
-      auto result = repair::RunGltfDuplicateFileWorkflow(request, Limits(),
-                                                         Work(), context);
-      Require(result.record && result.record->Memory(),
-              "Retain real memory suboperation");
-      if (unsupported) {
-        Require(result.diagnostic.memory &&
+    for (const auto format :
+         {ic::GltfFileFormat::kGltfJson, ic::GltfFileFormat::kGlb}) {
+      const bool glb = format == ic::GltfFileFormat::kGlb;
+      const auto entry_path = glb ? kGlbEntryPath : kJsonEntryPath;
+      for (const bool changed : {true, false}) {
+        Fixture fixture;
+        std::optional<repair::GltfDuplicateFileWorkflowRecord> retained;
+        {
+          const auto input = fixture.Root() / "input";
+          Require(fs::create_directory(input), "Create input directory");
+          auto bytes = SourceBuffer();
+          const geo::ExecutionContext context({kWorkers, 1, kLedgerBytes});
+          auto entry = glb ? SourceGlb(context)
+                           : std::vector<std::byte>(
+                                 std::as_bytes(std::span(kJson)).begin(),
+                                 std::as_bytes(std::span(kJson)).end());
+          Write(input / entry_path, entry);
+          if (!glb) Write(input / "mesh.bin", bytes);
+          ic::GltfFileReadOptions source_options;
+          source_options.resource_root = input;
+          auto captured =
+              ic::ReadGltfFileAsset(input / entry_path, source_options,
+                                    FileReadLimits(), FileReadWork(), context);
+          Require(captured.asset.has_value(), "Capture owned source files");
+          const auto source = *captured.asset;
+          captured.asset.reset();
+          Require(fs::remove(input / entry_path) &&
+                      (glb || fs::remove(input / "mesh.bin")) &&
+                      fs::remove(input),
+                  "Delete source disk before workflow");
+          bytes.fill(std::byte{0});
+          std::ranges::fill(entry, std::byte{0});
+          const std::array targets{repair::DuplicateTarget{0, 1}};
+          const auto destination = fixture.Root() / "published";
+          const repair::GltfDuplicateFilePublication publication{
+              destination, kReportPath, {}};
+          const repair::GltfDuplicateFileWorkflowRequest request{
+              source,
+              kInputId,
+              0,
+              {ic::GltfTriangleRequest::kRequireTriangles,
+               ic::GltfValueRequest::kRaw},
+              changed ? std::span<const repair::DuplicateTarget>(targets)
+                      : std::span<const repair::DuplicateTarget>{},
+              {},
+              &publication};
+          auto result = repair::RunGltfDuplicateFileWorkflow(request, Limits(),
+                                                             Work(), context);
+          Require(result.record && result.record->Memory(),
+                  "Retain real memory suboperation");
+          if (unsupported) {
+            Require(
+                result.diagnostic.memory &&
                     result.diagnostic.memory->stage ==
                         repair::GltfWorkflowStage::kMaterialize &&
                     result.outcomes.execution ==
@@ -289,68 +358,101 @@ int main(int argc, char** argv) {
                     !result.record->Published() && !result.publication &&
                     !fs::exists(destination),
                 "Actual unsupported materialization precedes file publication");
-      } else {
-        Require(
-            result.status == repair::GltfWorkflowStatus::kSuccess &&
-                result.outcomes.candidate ==
-                    repair::CandidateOutcome::accepted &&
-                result.outcomes.publication ==
-                    repair::GltfFileWorkflowPublicationOutcome::kPublished &&
-                result.outcomes.profile ==
-                    repair::GltfWorkflowProfileOutcome::kPassed &&
-                result.outcomes.exit ==
-                    repair::GltfWorkflowExitMeaning::kSuccess &&
-                result.publication && result.publication->bundle &&
-                result.record->Published() &&
-                result.record->PublishedReportPath() == kReportPath,
-            "Verified changed file workflow publication");
-        const auto receipt = Read(destination / kReportPath);
-        Require(std::ranges::equal(receipt, result.record->ReportJson()),
-                "Returned receipt equals actual committed physical bytes");
-        constexpr std::array opaque{kReportPath};
-        auto reopened = ic::ReadGltfFileAsset(
-            destination / kEntryPath,
-            {destination, ic::GltfExtensionFilePolicy::kExplicitOpaqueInventory,
-             opaque},
-            FileReadLimits(), FileReadWork(), context);
-        Require(reopened.asset &&
-                    reopened.asset->Files().size() == kExpectedPhysicalFiles,
-                "Reopen complete actual output inventory");
-        auto extracted = ic::ExtractGltfPrimitiveCapped(
-            reopened.asset->Asset(), *reopened.asset->Asset().Primitive(0),
-            {ic::GltfTriangleRequest::kRequireTriangles,
-             ic::GltfValueRequest::kRaw},
-            MemoryLimits().reload_extraction);
-        Require(extracted.extraction &&
+          } else {
+            Require(result.status == repair::GltfWorkflowStatus::kSuccess &&
+                        result.outcomes.candidate ==
+                            (changed ? repair::CandidateOutcome::accepted
+                                     : repair::CandidateOutcome::unchanged) &&
+                        result.outcomes.publication ==
+                            repair::GltfFileWorkflowPublicationOutcome::
+                                kPublished &&
+                        result.outcomes.profile ==
+                            repair::GltfWorkflowProfileOutcome::kPassed &&
+                        result.outcomes.exit ==
+                            repair::GltfWorkflowExitMeaning::kSuccess &&
+                        result.publication && result.publication->bundle &&
+                        result.record->Published() &&
+                        result.record->PublishedReportPath() == kReportPath,
+                    "Verified changed/no-op file workflow publication");
+            if (!changed)
+              Require(
+                  std::ranges::equal(result.record->Published()->EntryBytes(),
+                                     source.EntryBytes()),
+                  "No-op publication preserves complete source entry bytes");
+            if (glb) {
+              const auto* original = source.Container();
+              const auto* published = result.record->Published()->Container();
+              Require(original && published &&
+                          original->ChunkCount() == kGlbChunkCount &&
+                          published->ChunkCount() == kGlbChunkCount,
+                      "Actual source and published GLB containers");
+              for (std::size_t chunk = kGlbBinChunkIndex;
+                   chunk < kGlbChunkCount; ++chunk)
+                Require(original->Chunk(chunk).type ==
+                                published->Chunk(chunk).type &&
+                            std::ranges::equal(original->Chunk(chunk).bytes,
+                                               published->Chunk(chunk).bytes),
+                        "Published ordered BIN/padding/opaque bytes unchanged");
+            }
+            const auto receipt = Read(destination / kReportPath);
+            Require(std::ranges::equal(receipt, result.record->ReportJson()),
+                    "Returned receipt equals actual committed physical bytes");
+            constexpr std::array opaque{kReportPath};
+            auto reopened = ic::ReadGltfFileAsset(
+                destination / entry_path,
+                {destination,
+                 ic::GltfExtensionFilePolicy::kExplicitOpaqueInventory, opaque},
+                FileReadLimits(), FileReadWork(), context);
+            Require(reopened.asset &&
+                        reopened.asset->Files().size() ==
+                            (glb ? kGlbPhysicalFiles : kJsonPhysicalFiles) &&
+                        reopened.asset->Format() == format,
+                    "Reopen complete actual output inventory");
+            auto extracted = ic::ExtractGltfPrimitiveCapped(
+                reopened.asset->Asset(), *reopened.asset->Asset().Primitive(0),
+                {ic::GltfTriangleRequest::kRequireTriangles,
+                 ic::GltfValueRequest::kRaw},
+                MemoryLimits().reload_extraction);
+            constexpr std::array<std::uint32_t, 6> kOriginalTriangles{0, 1, 2,
+                                                                      0, 1, 2};
+            Require(
+                extracted.extraction &&
                     std::ranges::equal(extracted.extraction->TriangleIndices(),
-                                       kExpectedTriangle),
-                "Actual output retains only representative triangle");
+                                       changed ? std::span<const std::uint32_t>(
+                                                     kExpectedTriangle)
+                                               : std::span<const std::uint32_t>(
+                                                     kOriginalTriangles)),
+                "Actual reopened output has exact changed/no-op triangles");
+          }
+          const auto attribution = result.record->NewRequestedBytes();
+          Require(attribution.memory.read == 0 &&
+                      attribution.retained_source.files > 0 &&
+                      attribution.retained_source.capped_reader &&
+                      attribution.wrapper <= kWorkflowBytes &&
+                      context.ActiveWorkers() == 0,
+                  "Fresh retained-source attribution and joined workers");
+          retained = *result.record;
+        }
+        Require(
+            retained->Source().Asset().InstanceCount() == 2,
+            "Copied record owns immutable source after caller context dies");
+        CheckSource(retained->Source(), glb);
+        if (!retained->ReportJson().empty())
+          Require(Text(retained->ReportJson()).find(kReportSchema) !=
+                      std::string_view::npos,
+                  "Owned report envelope");
+        if (!unsupported) {
+          const auto& edit = retained->Memory()->Repair();
+          Require(edit && edit->FaceMap().size() == 2 &&
+                      edit->FaceMap()[0] == 0 &&
+                      edit->FaceMap()[1] == (changed ? 0 : 1) &&
+                      retained->Published(),
+                  "Copied published record retains exact correspondence");
+        }
       }
-      const auto attribution = result.record->NewRequestedBytes();
-      Require(attribution.memory.read == 0 &&
-                  attribution.retained_source.files > 0 &&
-                  attribution.retained_source.capped_reader &&
-                  attribution.wrapper <= kWorkflowBytes &&
-                  context.ActiveWorkers() == 0,
-              "Fresh retained-source attribution and joined workers");
-      retained = *result.record;
     }
-    Require(
-        retained->Source().Asset().InstanceCount() == 2 &&
-            std::ranges::equal(retained->Source().Asset().Resources()[0].bytes,
-                               SourceBuffer()),
-        "Copied record owns immutable source after caller context dies");
-    if (!retained->ReportJson().empty())
-      Require(Text(retained->ReportJson()).find(kReportSchema) !=
-                  std::string_view::npos,
-              "Owned report envelope");
-    if (!unsupported) {
-      const auto& edit = retained->Memory()->Repair();
-      Require(edit && edit->FaceMap().size() == 2 && edit->FaceMap()[0] == 0 &&
-                  edit->FaceMap()[1] == 0 && retained->Published(),
-              "Copied published record retains exact correspondence");
-    }
-    std::cout << "Installed retained file workflow, actual receipt, reopen and "
+    std::cout << "Installed JSON/GLB changed/no-op workflows, actual receipts, "
+                 "reopen and "
                  "lifetime passed\n";
     return 0;
   } catch (const std::exception& failure) {

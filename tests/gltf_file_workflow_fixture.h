@@ -6,6 +6,7 @@
 #include <meshvale/geometry/editable_mesh.h>
 #include <meshvale/geometry/execution.h>
 #include <meshvale/geometry/materialization.h>
+#include <meshvale/interchange/glb.h>
 #include <meshvale/interchange/gltf.h>
 #include <meshvale/interchange/gltf_files.h>
 #include <meshvale/repair/duplicates.h>
@@ -82,6 +83,16 @@ inline constexpr std::array<std::byte, 56> kBinary{
     std::byte{1},    std::byte{0},    std::byte{2},    std::byte{0},
     std::byte{0xde}, std::byte{0xad}, std::byte{0xbe}, std::byte{0xef},
     std::byte{0xca}, std::byte{0xfe}, std::byte{0xba}, std::byte{0xbe}};
+inline constexpr std::size_t kEmbeddedLogicalBytes = 49;
+inline constexpr std::size_t kEmbeddedPhysicalBytes = 52;
+inline constexpr std::size_t kEmbeddedChunkCount = 5;
+inline constexpr std::array<std::byte, kEmbeddedPhysicalBytes> kEmbeddedBin =
+    [] {
+      std::array<std::byte, kEmbeddedPhysicalBytes> bytes{};
+      std::copy_n(kBinary.begin(), kEmbeddedLogicalBytes - 1, bytes.begin());
+      bytes[kEmbeddedLogicalBytes - 1] = std::byte{0xd3};
+      return bytes;
+    }();
 inline constexpr std::array<std::uint32_t, 6> kOriginalTriangles{0, 1, 2,
                                                                  0, 1, 2};
 inline constexpr std::array<std::uint32_t, 3> kChangedTriangles{0, 1, 2};
@@ -232,6 +243,56 @@ inline std::vector<std::byte> LiteralGlb(std::string_view json) {
   wire.insert(wire.end(), kOpaqueChunk.begin(), kOpaqueChunk.end());
   return wire;
 }
+// Independent GLB2 encoder for an embedded source. Full payload literals remain
+// separate from production assembly and the selected writer's JSON prefix.
+inline std::vector<std::byte> LiteralEmbeddedGlb(
+    std::span<const std::byte> json) {
+  constexpr std::uint32_t kMagic = 0x46546c67;
+  constexpr std::uint32_t kVersion = 2;
+  constexpr std::uint32_t kJsonType = 0x4e4f534a;
+  constexpr std::uint32_t kBinType = 0x004e4942;
+  constexpr std::uint32_t kOpaqueType = 0x12345678;
+  constexpr std::uint32_t kOtherOpaqueType = 0xdecafbad;
+  constexpr std::size_t kHeaderBytes = 12;
+  constexpr std::size_t kChunkHeaderBytes = 8;
+  constexpr std::size_t kWordBytes = 4;
+  constexpr std::size_t kBitsPerByte = 8;
+  constexpr std::uint32_t kByteMask = 0xff;
+  constexpr std::array<std::byte, 4> kFirstOpaque{
+      std::byte{0x7f}, std::byte{0}, std::byte{0xde}, std::byte{0xad}};
+  constexpr std::array<std::byte, 8> kSecondOpaque{
+      std::byte{1},    std::byte{2},    std::byte{3}, std::byte{4},
+      std::byte{0x80}, std::byte{0xff}, std::byte{0}, std::byte{0xaa}};
+  constexpr std::array<std::byte, 4> kThirdOpaque{
+      std::byte{0}, std::byte{1}, std::byte{2}, std::byte{0xff}};
+  const auto padding = (kWordBytes - json.size() % kWordBytes) % kWordBytes;
+  std::vector<std::byte> wire;
+  const auto word = [&](std::uint32_t value) {
+    for (std::size_t byte = 0; byte < kWordBytes; ++byte)
+      wire.push_back(
+          static_cast<std::byte>((value >> (byte * kBitsPerByte)) & kByteMask));
+  };
+  word(kMagic);
+  word(kVersion);
+  word(static_cast<std::uint32_t>(
+      kHeaderBytes + kEmbeddedChunkCount * kChunkHeaderBytes + json.size() +
+      padding + kEmbeddedBin.size() + kFirstOpaque.size() +
+      kSecondOpaque.size() + kThirdOpaque.size()));
+  word(static_cast<std::uint32_t>(json.size() + padding));
+  word(kJsonType);
+  wire.insert(wire.end(), json.begin(), json.end());
+  wire.insert(wire.end(), padding, std::byte{' '});
+  const auto chunk = [&](std::uint32_t type, std::span<const std::byte> bytes) {
+    word(static_cast<std::uint32_t>(bytes.size()));
+    word(type);
+    wire.insert(wire.end(), bytes.begin(), bytes.end());
+  };
+  chunk(kBinType, kEmbeddedBin);
+  chunk(kOpaqueType, kFirstOpaque);
+  chunk(kOtherOpaqueType, kSecondOpaque);
+  chunk(kOpaqueType, kThirdOpaque);
+  return wire;
+}
 struct RootRemoval {
   const fs::path& path;
   ~RootRemoval() noexcept {
@@ -248,11 +309,12 @@ struct Fixture {
   std::array<std::byte, kBinary.size()> binary = kBinary;
   std::vector<std::byte> texture{kTextureBytes, std::byte{0x5a}};
   std::vector<std::byte> opaque{kOpaqueBytes, std::byte{0xa7}};
+  bool embedded_glb = false;
   explicit Fixture(ic::GltfFileFormat format = ic::GltfFileFormat::kGltfJson,
                    bool malformed_indices = false,
                    std::string_view json = kJson,
-                   std::uint64_t budget = kLedgerBytes)
-      : context({kWorkers, 1, budget}) {
+                   std::uint64_t budget = kLedgerBytes, bool embedded = false)
+      : context({kWorkers, 1, budget}), embedded_glb(embedded) {
     static std::atomic<std::uint64_t> sequence{0};
     const auto stamp =
         std::chrono::steady_clock::now().time_since_epoch().count();
@@ -266,6 +328,20 @@ struct Fixture {
         format == ic::GltfFileFormat::kGlb
             ? LiteralGlb(json)
             : std::vector<std::byte>(Bytes(json).begin(), Bytes(json).end());
+    if (embedded_glb) {
+      Require(format == ic::GltfFileFormat::kGlb && !malformed_indices,
+              "embedded fixture uses literal valid GLB indices");
+      std::string embedded_json(json);
+      constexpr std::string_view kExternalBuffer =
+          R"("buffers":[{"uri":"mesh.bin","byteLength":48}])";
+      constexpr std::string_view kEmbeddedBuffers =
+          R"("buffers":[{"byteLength":49},{"uri":"mesh.bin","byteLength":48}])";
+      const auto buffer = embedded_json.find(kExternalBuffer);
+      Require(buffer != std::string::npos, "literal external buffer replaced");
+      embedded_json.replace(buffer, kExternalBuffer.size(), kEmbeddedBuffers);
+      embedded_json += " \t\n";
+      entry = LiteralEmbeddedGlb(Bytes(embedded_json));
+    }
     Write(SourceRoot() / kEntry, entry);
     Write(SourceRoot() / kBufferPath, binary);
     Write(SourceRoot() / kTexturePath, texture);

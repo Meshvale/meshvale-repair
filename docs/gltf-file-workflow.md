@@ -1,7 +1,8 @@
 # Native retained-file glTF workflow
 
 This development C++20 interface composes an immutable Interchange file capture,
-the targeted duplicate-face operation and verified JSON bundle publication.
+the targeted duplicate-face operation and verified same-format JSON glTF or GLB
+bundle publication.
 It has no stable release yet. Enable `MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON` and
 link `meshvale::gltf_file_workflow`; the supplied-memory workflow option must also
 be ON. Install Geometry and Interchange with the public `meshvale::gltf_files`
@@ -12,10 +13,10 @@ separate development interfaces.
 The dependency baseline is Geometry
 [`48298b24be7c132816fb5580d22d58bde61558d0`](https://github.com/Meshvale/meshvale-geometry/tree/48298b24be7c132816fb5580d22d58bde61558d0)
 and Interchange
-[`3c6884e468ceb9b6cb600cd32a982ef2b42bb911`](https://github.com/Meshvale/meshvale-interchange/tree/3c6884e468ceb9b6cb600cd32a982ef2b42bb911).
+[`1b1cf0583cd227c0845441c04cb720d231e9ec08`](https://github.com/Meshvale/meshvale-interchange/tree/1b1cf0583cd227c0845441c04cb720d231e9ec08).
 Follow their public
 [Geometry build instructions](https://github.com/Meshvale/meshvale-geometry/blob/48298b24be7c132816fb5580d22d58bde61558d0/ENVIRONMENT.md)
-and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/3c6884e468ceb9b6cb600cd32a982ef2b42bb911/docs/gltf-files.md)
+and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/1b1cf0583cd227c0845441c04cb720d231e9ec08/docs/gltf-files.md)
 to install matching compiler/configuration/runtime packages. Enable Interchange
 files, topology writing and workflow support. Use fresh build directories and
 match sanitizer flags across all producers and the consumer.
@@ -77,8 +78,11 @@ For requested publication, the destination is a new directory with an existing
 parent. Supplemental files and the report path are borrowed through return.
 Interchange owns portable path admission, collisions, staged capture/inspection,
 full byte/inventory verification, cleanup and native no-replace finalization.
-This increment publishes JSON glTF only. A GLB source follows the actual owning
-publisher's typed unsupported result; no format conversion is implied.
+JSON glTF and GLB publish in the captured source format. Changed GLB output
+replaces its JSON chunk while retaining complete ordered BIN and opaque chunks,
+including admitted logical unused bytes and alignment padding. Unchanged output
+retains the complete original entry bytes. The owning publisher verifies actual
+staged bytes before finalization; no format conversion is implied.
 
 The conditional success report is prepared after actual staged verification.
 Repair admits all source framing and initial staged artifact hash bytes before
@@ -130,4 +134,4 @@ alive through synchronous return and every worker join. The copy-only record
 retains source, memory and any actual published owners after caller destruction.
 Original allocator backend state must outlive the last retained block free.
 Concurrent immutable reads through separate copies are supported. Python bindings,
-capture convenience, single/batch commands and GLB publication are later work.
+capture convenience and single/batch commands are later work.

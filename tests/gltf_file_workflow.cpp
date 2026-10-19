@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <meshvale/geometry/execution.h>
 #include <meshvale/geometry/materialization.h>
+#include <meshvale/interchange/glb.h>
 #include <meshvale/interchange/gltf.h>
 #include <meshvale/interchange/gltf_files.h>
 #include <meshvale/interchange/gltf_materialization.h>
@@ -208,6 +209,166 @@ void PublicationAndLifetime(Reports& reports) {
             "before copy is used");
   }
 }
+void GlbPublicationAndLifetime(Reports& reports) {
+  constexpr std::array<geo::index_t, 2> kIdentityFaceMap{0, 1};
+  for (const bool changed : {true, false}) {
+    std::optional<repair::GltfDuplicateFileWorkflowRecord> retained;
+    std::vector<std::byte> expected;
+    {
+      Fixture source(ic::GltfFileFormat::kGlb, false, fixture::kJson,
+                     fixture::kLedgerBytes, true);
+      const auto* original = source.source->Container();
+      Require(original &&
+                  original->ChunkCount() == fixture::kEmbeddedChunkCount &&
+                  std::ranges::equal(original->Chunk(1).bytes,
+                                     fixture::kEmbeddedBin),
+              "literal embedded BIN includes logical unused byte and padding");
+      const auto destination = source.Destination();
+      const repair::GltfDuplicateFilePublication publication{
+          destination, fixture::kReportPath, kStaticFiles};
+      fs::remove_all(source.SourceRoot());
+      const auto result = repair::RunGltfDuplicateFileWorkflow(
+          source.Request(changed ? std::span<const repair::DuplicateTarget>(
+                                       fixture::kTargets)
+                                 : std::span<const repair::DuplicateTarget>{},
+                         &publication),
+          Limits(), Work(), source.context);
+      Require(result.status == repair::GltfWorkflowStatus::kSuccess &&
+                  result.record && result.publication &&
+                  result.publication->bundle &&
+                  result.outcomes.candidate ==
+                      (changed ? repair::CandidateOutcome::accepted
+                               : repair::CandidateOutcome::unchanged) &&
+                  result.outcomes.execution ==
+                      repair::GltfWorkflowExecutionOutcome::kCompleted &&
+                  result.outcomes.profile ==
+                      repair::GltfWorkflowProfileOutcome::kPassed &&
+                  result.outcomes.exit ==
+                      repair::GltfWorkflowExitMeaning::kSuccess &&
+                  result.outcomes.publication ==
+                      repair::GltfFileWorkflowPublicationOutcome::kPublished,
+              "actual changed/no-op GLB repair publishes a verified receipt");
+      CheckMemory(source, *result.record, changed);
+      const auto& published = *result.record->Published();
+      const auto prefix = result.record->Memory()->Output()->Json();
+      expected = changed ? fixture::LiteralEmbeddedGlb(prefix) : source.entry;
+      const auto* container = published.Container();
+      Require(
+          published.Format() == ic::GltfFileFormat::kGlb && container &&
+              std::ranges::equal(published.EntryBytes(), expected) &&
+              std::ranges::equal(container->Bytes(), expected) &&
+              container->ChunkCount() == fixture::kEmbeddedChunkCount &&
+              std::ranges::equal(
+                  published.Inspection().ReloadedAsset().OriginalJson(),
+                  prefix),
+          "GLB full physical wire is independent of exact inspected prefix");
+      for (std::size_t chunk = 1; chunk < original->ChunkCount(); ++chunk)
+        Require(container->Chunk(chunk).type == original->Chunk(chunk).type &&
+                    std::ranges::equal(container->Chunk(chunk).bytes,
+                                       original->Chunk(chunk).bytes),
+                "all ordered non-JSON types/full bytes and duplicate types "
+                "retained");
+      constexpr std::size_t kWordBytes = 4;
+      const auto padding =
+          (kWordBytes - prefix.size() % kWordBytes) % kWordBytes;
+      const auto json = container->Chunk(0).bytes;
+      Require(
+          json.size() == prefix.size() + padding &&
+              std::ranges::equal(json.first(prefix.size()), prefix) &&
+              std::ranges::all_of(json.subspan(prefix.size()),
+                                  [](auto b) { return b == std::byte{' '}; }),
+          "actual container keeps writer prefix plus only derived space "
+          "padding");
+      Require(
+          published.Files().size() == kExpectedSourceFiles + 2 &&
+              result.record->PublishedReportPath() == fixture::kReportPath &&
+              std::ranges::equal(
+                  fixture::Read(destination / fixture::kReportPath),
+                  result.record->ReportJson()),
+          "GLB report is the exact actual committed member with full "
+          "inventory");
+      for (const auto& file : published.Files()) {
+        Require(
+            std::ranges::equal(file.bytes,
+                               fixture::Read(destination / file.path)),
+            "independently reopen every committed GLB/resource/report byte");
+        if (file.path == fixture::kBufferPath)
+          Require(
+              std::ranges::equal(file.bytes, fixture::kBinary),
+              "unused external buffer retains all eight physical tail bytes");
+        if (file.path == fixture::kTexturePath)
+          Require(
+              std::ranges::equal(file.bytes, source.texture),
+              "external image retains PNG signature and all opaque tail bytes");
+      }
+      constexpr std::array final_opaque{
+          fixture::kOpaquePath, fixture::kStaticPath, fixture::kReportPath};
+      const auto work = Work(true).publication;
+      const auto reopened = ic::ReadGltfFileAsset(
+          destination / fixture::kEntry,
+          {{},
+           ic::GltfExtensionFilePolicy::kExplicitOpaqueInventory,
+           final_opaque},
+          {fixture::FileLimits(),
+           fixture::ReadLimits(),
+           {fixture::kPhysicalBytes, fixture::kCount, fixture::kStageBytes}},
+          {work.files, work.reload, work.container}, source.context);
+      Require(
+          reopened.asset &&
+              reopened.asset->Format() == ic::GltfFileFormat::kGlb &&
+              reopened.asset->Files().size() == published.Files().size() &&
+              reopened.asset->Container() &&
+              std::ranges::equal(reopened.asset->EntryBytes(), expected) &&
+              std::ranges::equal(reopened.asset->Asset().OriginalJson(),
+                                 reopened.asset->Container()->Chunk(0).bytes),
+          "ordinary finalized GLB capture again retains complete padded JSON");
+      const auto extracted = ic::ExtractGltfPrimitiveCapped(
+          reopened.asset->Asset(), *reopened.asset->Asset().Primitive(0),
+          {ic::GltfTriangleRequest::kRequireTriangles,
+           ic::GltfValueRequest::kRaw},
+          Limits().memory.reload_extraction);
+      Require(
+          extracted.extraction &&
+              std::ranges::equal(extracted.extraction->TriangleIndices(),
+                                 changed ? std::span<const std::uint32_t>(
+                                               fixture::kChangedTriangles)
+                                         : std::span<const std::uint32_t>(
+                                               fixture::kOriginalTriangles)),
+          "actual reopened GLB decodes literal selected canonical triangles");
+      const auto counters = result.record->NewRequestedBytes();
+      Require(
+          counters.retained_source.container ==
+                  repair::GltfContainerCounterAvailability::kUnavailable &&
+              counters.publication_files && *counters.publication_files > 0 &&
+              source.context.ActiveWorkers() == 0,
+          "GLB counters retain unavailable container scope without fake total");
+      reports.Save(
+          changed ? "glb-changed-published" : "glb-unchanged-published", source,
+          result, true);
+      retained = *result.record;
+    }
+    auto copy = *retained;
+    retained.reset();
+    Require(
+        copy.Source().Format() == ic::GltfFileFormat::kGlb &&
+            copy.Source().Container() && copy.Published() &&
+            copy.Published()->Container() &&
+            std::ranges::equal(copy.Published()->EntryBytes(), expected) &&
+            std::ranges::equal(copy.Published()->Container()->Chunk(1).bytes,
+                               fixture::kEmbeddedBin) &&
+            copy.Memory()->Repair() && !copy.ReportJson().empty() &&
+            copy.PublishedReportPath() == fixture::kReportPath,
+        "GLB source/output/container/receipt outlive all caller owners and "
+        "disk");
+    Require(
+        std::ranges::equal(
+            copy.Memory()->Repair()->FaceMap(),
+            changed ? std::span<const geo::index_t>(fixture::kChangedFaceMap)
+                    : std::span<const geo::index_t>(kIdentityFaceMap)),
+        "retained GLB workflow preserves actual changed/identity "
+        "correspondence");
+  }
+}
 void NoExportAndRejected(Reports& reports) {
   Fixture source;
   for (const bool changed : {true, false}) {
@@ -311,29 +472,28 @@ void ExportFailures(Reports& reports) {
        {ic::GltfFileFormat::kGltfJson, ic::GltfFileFormat::kGlb}) {
     Fixture source(format);
     const auto destination = source.Destination();
-    if (format == ic::GltfFileFormat::kGltfJson)
-      Require(fs::create_directory(destination), "actual occupied destination");
+    Require(fs::create_directory(destination), "actual occupied destination");
     const repair::GltfDuplicateFilePublication publication{
         destination, fixture::kReportPath, kStaticFiles};
     const auto result = repair::RunGltfDuplicateFileWorkflow(
         source.Request(fixture::kTargets, &publication), Limits(), Work(),
         source.context);
-    Require(
-        result.outcomes.candidate == repair::CandidateOutcome::accepted &&
-            result.publication && !result.publication->bundle &&
-            (!result.record || !result.record->Published()) &&
-            result.outcomes.execution ==
-                repair::GltfWorkflowExecutionOutcome::kFailed &&
-            result.outcomes.exit ==
-                repair::GltfWorkflowExitMeaning::kExecutionFailure,
-        "accepted candidate survives real unsupported/occupied export failure");
+    Require(result.outcomes.candidate == repair::CandidateOutcome::accepted &&
+                result.publication && !result.publication->bundle &&
+                (!result.record || !result.record->Published()) &&
+                result.outcomes.execution ==
+                    repair::GltfWorkflowExecutionOutcome::kFailed &&
+                result.outcomes.exit ==
+                    repair::GltfWorkflowExitMeaning::kExecutionFailure,
+            "accepted candidate survives real occupied export failure");
     Require(result.publication->diagnostic.code ==
-                (format == ic::GltfFileFormat::kGlb
-                     ? ic::GltfFileDiagnosticCode::kPublicationUnsupported
-                     : ic::GltfFileDiagnosticCode::kDestinationExists),
-            "actual pinned publisher GLB-unavailable or occupied-directory "
-            "diagnostic");
-    reports.Save(format == ic::GltfFileFormat::kGlb ? "glb-unsupported-export"
+                    ic::GltfFileDiagnosticCode::kDestinationExists &&
+                result.publication->cleanup ==
+                    ic::GltfFileCleanupOutcome::kNotRequired &&
+                fs::is_empty(destination),
+            "actual JSON/GLB occupied-directory failure leaves destination "
+            "untouched");
+    reports.Save(format == ic::GltfFileFormat::kGlb ? "glb-destination-exists"
                                                     : "destination-exists",
                  source, result, false);
     source.CheckSource();
@@ -446,6 +606,7 @@ int main(int argc, char** argv) {
     else {
       AdmissionPrecedence();
       PublicationAndLifetime(reports);
+      GlbPublicationAndLifetime(reports);
       NoExportAndRejected(reports);
       ExportFailures(reports);
       MemoryFailureAndCaps(reports);
