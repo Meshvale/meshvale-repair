@@ -886,12 +886,14 @@ void RetainCompletedRepair(const GltfDuplicateWorkflowRequest& request,
   if (request.report_failure_retention ==
           GltfReportFailureRetention::kRetainCompletedRepair &&
       !result.record && state && state->repair)
-    result.retained_repair = state->repair;
+    // Only the contained shared owner is copied. Optional copy signatures do
+    // not portably expose the contained type's nonthrowing copy guarantee.
+    result.retained_repair.emplace(*state->repair);
 }
-static_assert(std::is_nothrow_copy_constructible_v<
-              std::optional<MaterializedDuplicateRepair>>);
-static_assert(std::is_nothrow_copy_assignable_v<
-              std::optional<MaterializedDuplicateRepair>>);
+static_assert(
+    std::is_nothrow_copy_constructible_v<MaterializedDuplicateRepair>);
+static_assert(std::is_nothrow_copy_assignable_v<MaterializedDuplicateRepair>);
+static_assert(std::is_nothrow_destructible_v<MaterializedDuplicateRepair>);
 static_assert(
     std::is_nothrow_move_constructible_v<GltfDuplicateWorkflowResult>);
 static_assert(std::is_nothrow_move_assignable_v<GltfDuplicateWorkflowResult>);
