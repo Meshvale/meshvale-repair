@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-GLTF-SCENE-EXAMPLE-001 |
 | Version | 0.1.1 |
-| Status | Selected original fixture and acceptance profile; implementation pending |
+| Status | Development example implemented; final integration/platform qualification pending |
 | Owner | Static shared-instance walkthrough and its literal preservation oracle |
 
 This example applies the existing [file operation](gltf-python.md) and
@@ -50,9 +50,9 @@ unchanged request retains the complete original entry/container bytes.
 
 ## Entry points and independent inspection
 
-The installed Python walkthrough will create this same original scene in JSON
-glTF and GLB and run changed/unchanged requests through the file API,
-console/module commands and API/CLI batches. It will compare real receipts,
+The installed Python walkthrough creates this same original scene in JSON
+glTF and GLB and runs changed/unchanged requests through the file API,
+console/module commands and API/CLI batches. It compares real receipts,
 literal batch slices, correspondence, physical artifact hashes and original
 source bytes. A mixed batch demonstrates an actual missing-resource failure,
 continuation and fail-fast without inventing successful publication.
@@ -65,7 +65,9 @@ and before/after preservation independently of the workflow's own checks.
 The Python walkthrough accepts optional `--scene-inspector PATH` to run this
 consumer for each successful output. Without it, the walkthrough does not claim
 that this independent native consumer executed. JSON lexical-table checks
-remain separate from native scene-view inspection.
+remain separate from native scene-view inspection. The named image resources
+are opaque byte fixtures; image decoding and rendered appearance are outside
+these checks.
 
 Qualified-profile success and actual unsupported numerical refusal are separate
 executions. An unsupported producer must return its genuine native result and
