@@ -2,7 +2,7 @@
 
 Configurable inspection and repair of imperfect polygon meshes.
 
-**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal, reported verification, verified OBJ bundle publication and OBJ single-asset/batch commands. No stable release yet.
+**Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal, reported verification, verified OBJ bundles and commands, and a glTF/GLB file API under qualification. No stable release yet.
 
 Start with the [textured OBJ walkthrough](docs/quickstart.md): run the same repair through the Python API, single command and batch, then inspect preserved polygon loops, UV seams, resource bytes and bundled reports.
 
@@ -12,9 +12,9 @@ Remove explicitly selected duplicate triangles, quads or n-gons while retaining 
 
 Read the [operation contract and install instructions](docs/duplicates.md) for exact equality, attribute policy, rejection and preservation limits. The [installed consumer example](examples/consumer/main.cpp) demonstrates the public C++ interface.
 
-The development [charged native interface](docs/materialized_duplicates.md) applies the same targeted operation directly to immutable Geometry owners, shares their execution budget, and returns an immutable candidate with complete correspondence. Its default-ON native target requires the documented newer Geometry producer. The [installed example](examples/consumer/materialized_duplicates.cpp) exercises that interface. Complete request/profile qualification is pending; the Python and OBJ workflows continue to use their existing operation and dependency cohort.
+The development [charged native interface](docs/materialized_duplicates.md) applies the same targeted operation directly to immutable Geometry owners, shares their execution budget, and returns an immutable candidate with complete correspondence. Its default-ON native target requires the documented Geometry producer. The [installed example](examples/consumer/materialized_duplicates.cpp) exercises that interface. The glTF file API composes this operation; the existing Python mesh and OBJ interfaces retain their original copy-producing operation.
 
-The optional [supplied-memory glTF workflow](docs/gltf-workflow.md) composes public read, extraction, charged repair, checked writing, independent reload/preservation inspection and owned report/1 output. Its [installed native example](examples/consumer/gltf_workflow.cpp) retains verified output and correspondence after the caller buffer and execution context are destroyed. Initial Windows native development checks cover this seam; complete qualification remains pending. Filesystem publication uses the separate retained-file interface below; Python bindings and commands remain forthcoming.
+The optional [supplied-memory glTF workflow](docs/gltf-workflow.md) composes public read, extraction, charged repair, checked writing, independent reload/preservation inspection and owned report/1 output. Its [installed native example](examples/consumer/gltf_workflow.cpp) retains verified output and correspondence after the caller buffer and execution context are destroyed. Initial Windows native development checks cover this seam; complete qualification remains pending. Filesystem publication and the Python path API compose the separate retained-file interface below. A Python supplied-memory API and glTF commands remain forthcoming.
 
 The optional [retained-file glTF workflow](docs/gltf-file-workflow.md) uses an
 already captured file asset and the same repair engine. It can publish a new
@@ -24,7 +24,15 @@ bytes before committing the destination. The [installed native example](examples
 demonstrates capture, source-file removal, changed/no-op repair, publication and
 reopening in both formats. GLB retains complete ordered BIN and opaque chunks;
 unchanged output preserves the original wire bytes. This development interface
-is under qualification. Python bindings and commands remain forthcoming.
+is under qualification.
+
+The [Python glTF/GLB file API](docs/gltf-python.md) accepts an explicit primitive,
+triangle/value policies and duplicate targets. It owns an execution session,
+releases the GIL for native work, and retains actual diagnostics, maps and the
+verified bundled receipt. The [installed walkthrough](examples/python/gltf_walkthrough.py)
+exercises changed and unchanged JSON glTF and GLB files. Initial qualification
+targets Windows x64 MSVC Release CPython 3.13; other profiles expose their actual
+native unsupported outcomes. glTF commands remain forthcoming.
 
 The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
 

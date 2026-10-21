@@ -133,5 +133,6 @@ All borrowed input/options/context/backend observer state remains unchanged and
 alive through synchronous return and every worker join. The copy-only record
 retains source, memory and any actual published owners after caller destruction.
 Original allocator backend state must outlive the last retained block free.
-Concurrent immutable reads through separate copies are supported. Python bindings,
-capture convenience and single/batch commands are later work.
+Concurrent immutable reads through separate copies are supported. The separate
+[Python path interface](gltf-python.md) owns capture convenience, application
+presets and Python observations. Single/batch glTF commands remain later work.

@@ -13,3 +13,9 @@ Core code. Its MPL-2.0, Apache-2.0 and permissive notices accompany this
 distribution in licenses/eigen-mpl2.txt, licenses/eigen-apache.txt and
 licenses/eigen-notices.txt. Eigen source is available from
 https://gitlab.com/libeigen/eigen/-/tree/3.4.1; no source modifications are made.
+
+The optional glTF file-workflow Python build statically incorporates Meshvale
+Interchange (Apache-2.0), cgltf (MIT), jsoncons (Boost Software License 1.0)
+and tinyobjloader (MIT). Their original notices accompany the distribution in
+licenses/meshvale-interchange-notice.txt, licenses/cgltf.txt,
+licenses/jsoncons.txt and licenses/tinyobjloader.txt.

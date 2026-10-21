@@ -8,9 +8,11 @@
 
 ### Added
 
-- Optional native [`meshvale::gltf_file_workflow`](docs/gltf-file-workflow.md) for retained glTF file duplicate repair and verified same-format JSON glTF/GLB bundle publication. Its bundled report records retained-source and staged-artifact SHA-256 hashes, preserves actual diagnostics and shares the existing memory repair engine. GLB publication retains complete ordered BIN/opaque chunks and preserves the complete original wire for unchanged output. An installed example exercises both formats after source-file removal. Qualification remains pending; Python bindings and commands remain forthcoming.
+- Python [`repair_gltf_file`](docs/gltf-python.md) for explicit targeted repair of one captured JSON glTF or GLB primitive, with owned execution/cancellation, lazy typed native observations, correspondence and exact bundled receipt bytes. The final Python result is prepared before capture; installed examples cover changed/no-op publication in both formats. Initial Windows x64 MSVC Release CPython 3.13 qualification is in progress; glTF commands and stable releases remain separate work.
 
-- Optional native [`meshvale::gltf_workflow`](docs/gltf-workflow.md) for supplied-memory glTF duplicate repair, checked writing, independent reload/preservation inspection and owned report/1 output. It retains accepted candidate facts across later failures and uses explicit stage/aggregate request caps. Native qualification remains pending; filesystem publication, GLB workflow composition, Python bindings, commands and stable releases remain separate work.
+- Optional native [`meshvale::gltf_file_workflow`](docs/gltf-file-workflow.md) for retained glTF file duplicate repair and verified same-format JSON glTF/GLB bundle publication. Its bundled report records retained-source and staged-artifact SHA-256 hashes, preserves actual diagnostics and shares the existing memory repair engine. GLB publication retains complete ordered BIN/opaque chunks and preserves the complete original wire for unchanged output. An installed example exercises both formats after source-file removal. Qualification remains profile-scoped; glTF commands remain forthcoming.
+
+- Optional native [`meshvale::gltf_workflow`](docs/gltf-workflow.md) for supplied-memory glTF duplicate repair, checked writing, independent reload/preservation inspection and owned report/1 output. It retains accepted candidate facts across later failures and uses explicit stage/aggregate request caps. The retained-file and Python interfaces compose this engine; commands and stable releases remain separate work.
 
 - Development native `meshvale::materialized_duplicates` interface for direct immutable Geometry repair, shared execution accounting, joined workers, independently verified candidates and complete face/corner maps. Complete original-request/profile qualification remains pending; Python and asset commands do not expose this interface yet.
 
@@ -27,6 +29,8 @@
 - Installed OBJ single-asset/batch commands and reusable sequential scheduling, with whole-request validation, isolated destinations, real per-job reports, fail-fast accounting, cooperative interrupts and explicit aggregate delivery failure.
 
 ### Changed
+
+- The default Python wheel enables the charged and glTF memory/file modules and builds against Geometry `48298b24be7c132816fb5580d22d58bde61558d0` (Python `0.0.1.dev134+g48298b24b`) and Interchange `5b9b695ba1fef166baa8c7cf9ad21a5630691f70` (Python `0.0.1.dev179+g5b9b695ba`). Rebuild all native producers together and retain their parser, Eigen and OBJ notices. Existing OBJ behavior and import boundaries are retained.
 
 - Native builds enable the charged module by default and require Geometry `1a364acb0cba4fbf8cd9cccde5c04a1fa4428536`. Select `MESHVALE_REPAIR_MATERIALIZED_DUPLICATES=OFF` for legacy-only builds. Python packaging explicitly selects OFF and retains its existing exact dependency cohort.
 

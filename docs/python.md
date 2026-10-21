@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-PYTHON-001 |
-| Version | 0.1.2 |
+| Version | 0.1.3 |
 | Status | Development interface; not released |
 | Owner | Python operation shape, ownership, errors and installation |
 
@@ -17,18 +17,20 @@ Wrong Python shapes/types raise `TypeError`/`ValueError`/`OverflowError`, with n
 
 ## Build and consumption
 
-The distribution is `meshvale-repair`; the import is `meshvale_repair`. Optional builds require ordinary GIL-enabled CPython 3.10+, C++20, CMake 3.24+, the pinned nanobind/scikit-build-core/version provider in [pyproject.toml](../pyproject.toml), and the installed compiled Geometry native package from public revision `ec38fabd783a578947d43856b0c7a7fd54ce8533`. Python runtime dependency is exactly `meshvale-geometry==0.0.1.dev69+gec38fabd7`, the tested development candidate from that same revision. Neither candidate is on a package index; build/install its wheel first. Geometry native snapshots still use version `0.0.0`. Native-only Repair builds do not need Python bindings. The optional binding uses the installed `meshvale_geometry_add_python_record` factory with its existing `meshvale_repair` nanobind domain. This compiles Geometry's installed record implementation into a per-extension target linked to `meshvale::geometry`; no Python ABI archive is shared between products.
+The distribution is `meshvale-repair`; the import is `meshvale_repair`. Optional builds require ordinary GIL-enabled CPython 3.10+, C++20, CMake 3.24+, and the pinned nanobind/scikit-build-core/version provider in [pyproject.toml](../pyproject.toml). Build Geometry revision `48298b24be7c132816fb5580d22d58bde61558d0` and Interchange revision `5b9b695ba1fef166baa8c7cf9ad21a5630691f70` from public source. The exact Python dependencies are Geometry `0.0.1.dev134+g48298b24b` and, for the assets extra, Interchange `0.0.1.dev179+g5b9b695ba`. These development candidates are not on a package index; build their wheels first. Geometry native snapshots still use version `0.0.0`.
 
-Supply your chosen installed Geometry prefix; no private or sibling source dependency is built automatically:
+The default wheel enables the charged, glTF memory and retained-file native modules. Supply compatible installed Geometry, Interchange and tinyobjloader prefixes. Interchange must enable `MESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE`, `MESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT` and `MESHVALE_INTERCHANGE_GLTF_FILES`; its public preparation helper owns the static double-precision tinyobjloader dependency. Native-only Repair builds do not need Python bindings. The existing mesh API uses the installed `meshvale_geometry_add_python_record` factory with its `meshvale_repair` nanobind domain. This compiles Geometry's installed record implementation into a per-extension target linked to `meshvale::geometry`; no Python ABI archive is shared between products. The glTF file API instead calls the linked native producers within this extension, as specified in [its own contract](gltf-python.md).
+
+Supply a CMake prefix list containing those installed native producers; no private or sibling source dependency is built automatically. Use semicolons between entries, including in the quoted shell variable below:
 
 ```sh
-python -m pip wheel . --no-deps --wheel-dir .local/wheels --config-settings=cmake.define.CMAKE_PREFIX_PATH="$GEOMETRY_PREFIX"
+python -m pip wheel . --no-deps --wheel-dir .local/wheels --config-settings=cmake.define.CMAKE_PREFIX_PATH="$NATIVE_PREFIXES"
 python -m pip install --no-index --find-links "$CANDIDATE_WHEELS" meshvale-repair
 python -m unittest discover -s tests/python -v
 python examples/python/remove_duplicate.py
 ```
 
-Candidate wheels contain the Python package/native extension and required notices, with the repair library and nanobind runtime linked statically; ABI/platform-specific wheels and dynamic platform C++ runtime dependencies remain explicit build constraints. Source archives select public product inputs, include generated source version metadata, and rebuild without Git. Exact `vX.Y.Z` tags own released versions; development versions derive from full Git history. Archive checks and installed tests run outside source directories with two separate wheels, and both native-extension import orders are evaluated. Hosted CPython 3.10/3.14 Windows/Linux/macOS checks are evaluation evidence rather than a full release matrix. Free-threaded/stable-ABI wheels and arbitrary newer Geometry versions are not supported by this experiment.
+Candidate wheels contain the Python package/native extension and required notices, with the native Repair/producer libraries and nanobind runtime linked statically; ABI/platform-specific wheels and dynamic platform C++ runtime dependencies remain explicit build constraints. Source archives select public product inputs, include generated source version metadata, and rebuild without Git. Exact `vX.Y.Z` tags own released versions; development versions derive from full Git history. Archive checks and installed tests run outside source directories with a matched three-product cohort, and all six import orders are evaluated. Hosted CPython 3.10/3.14 Windows/Linux/macOS checks are development evaluation rather than a full release matrix. Free-threaded/stable-ABI wheels and arbitrary newer producer versions remain unsupported.
 
 ```python
 from meshvale_repair import remove_duplicate_faces
@@ -42,15 +44,15 @@ else:
 
 See the [runnable installed example](../examples/python/remove_duplicate.py), [original Python tests](../tests/python/test_duplicates.py), [dependency inventory](../THIRD_PARTY.md) and [changelog](../CHANGELOG.md). Real format/asset integration and CLI/report policy remain separate work.
 
-## Portable OBJ development cohort
+## Portable development cohort
 
 The [candidate workflow](../.github/workflows/portable-candidates.yml) evaluates ordinary GIL-enabled CPython 3.13 on Linux x86_64 with a manylinux_2_28 floor and Windows x64 on `windows-2022`. Artifacts are development candidates retained for 14 days; they do not establish a supported release matrix. A clean Windows 11 consumer floor, macOS and additional interpreter/architecture combinations remain unevaluated by this workflow.
 
-Each lane rebuilds public Geometry `ec38fabd783a578947d43856b0c7a7fd54ce8533` / Python `0.0.1.dev69+gec38fabd7` / native `0.0.0` and Interchange `8d5823272b576052553608dbff26685ba56b4dea` / Python `0.0.1.dev62+g8d5823272` from full-history public source. It invokes that pinned Interchange source's preparation to retain its double-precision static tinyobjloader manifest, then builds Repair independently from source and its Git-free source archive. Upstream CI downloads are not build dependencies. The workflow pins cibuildwheel `4.2.0`, product and isolated-backend CMake `4.3.1`, the manylinux image digest and action revisions; retained reports record compiler, dependency tools, final metadata, symbols, hashes and notices.
+Each lane rebuilds the exact Geometry and Interchange revisions and Python versions above from full-history public source. It invokes that pinned Interchange source's preparation to retain its double-precision static tinyobjloader manifest, builds its native glTF interfaces, then builds Repair independently from source and its Git-free source archive. Upstream CI downloads are not build dependencies. The workflow pins cibuildwheel `4.2.0`, product and isolated-backend CMake `4.3.1`, the manylinux image digest and action revisions; retained reports record compiler, dependency tools, final metadata, symbols, hashes and notices.
 
 Windows candidates require the [official x64 Microsoft Visual C++ v14 runtime](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) at least as recent as the recorded build toolset, including `msvcp140.dll` and `msvcp140_atomic_wait.dll`. These files remain external prerequisites. Package checks reject unexpected bundled binaries; no binary is manually retagged.
 
-Clean installed checks exercise the existing Repair and producer test suites, all six product import orders with canonical Mesh identity, independent native record consumers and the [textured API/single/batch walkthrough](quickstart.md). The walkthrough retains independently reloaded bundles, source/resource bytes, correspondence, receipts and a rejected request that publishes nothing. The report reader is also checked with all native product imports blocked, and `pip check` verifies installed dependencies.
+Clean installed checks exercise the existing Repair and producer test suites, all six product import orders with canonical Mesh identity, independent native record consumers and the [textured API/single/batch walkthrough](quickstart.md). The walkthrough retains independently reloaded bundles, source/resource bytes, correspondence, receipts and a rejected request that publishes nothing. The report reader is also checked with all native product imports blocked, and `pip check` verifies installed dependencies. The dedicated [glTF suite](../tests/gltf-python/test_gltf_file_workflow.py) uses explicit numerical profiles: qualified Windows MSVC Release checks actual JSON/GLB publication; the Linux portable lane checks actual unsupported native outcomes. Neither profile silently skips the other. The [glTF walkthrough](../examples/python/gltf_walkthrough.py) follows that same profile selection.
 
 To inspect a matching cohort, download one lane's artifact from its passing workflow run. Select a **new** `CANDIDATE_WHEELS` directory containing one Repair wheel plus that lane's Geometry and Interchange wheels from `upstream/`; avoid mixing source/archive alternatives or runs. Create a fresh environment matching the candidate's interpreter and platform, satisfy the recorded platform runtime prerequisite, then install:
 

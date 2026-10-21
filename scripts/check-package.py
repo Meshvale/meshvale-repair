@@ -22,7 +22,7 @@ def inspect(path):
                 assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
                 continue
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py","gltf_workflow.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
             else:
                 assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
@@ -32,8 +32,12 @@ def inspect(path):
                     ("licenses", "licenses", "eigen-mpl2.txt"),
                     ("licenses", "licenses", "eigen-apache.txt"),
                     ("licenses", "licenses", "eigen-notices.txt"),
-                    ("licenses", "licenses", "meshvale-geometry-notice.txt")], name
-        for license in ["eigen-mpl2.txt","eigen-apache.txt","eigen-notices.txt","LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt"]:
+                    ("licenses", "licenses", "meshvale-geometry-notice.txt"),
+                    ("licenses", "licenses", "meshvale-interchange-notice.txt"),
+                    ("licenses", "licenses", "cgltf.txt"),
+                    ("licenses", "licenses", "jsoncons.txt"),
+                    ("licenses", "licenses", "tinyobjloader.txt")], name
+        for license in ["eigen-mpl2.txt","eigen-apache.txt","eigen-notices.txt","LICENSE","NOTICE","nanobind.txt","robin-map.txt","meshvale-geometry-notice.txt","meshvale-interchange-notice.txt","cgltf.txt","jsoncons.txt","tinyobjloader.txt"]:
             matching = [name for name in notice_contents if name.endswith("/" + license)]
             assert len(matching) == 1, (license, matching)
             reference = Path(__file__).resolve().parents[1] / (license if license in {"LICENSE", "NOTICE"} else "licenses/" + license)
@@ -55,6 +59,13 @@ def inspect(path):
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
         for required in [".clang-format","scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h",
                          "scripts/check-native-tests.py", "scripts/diagnose-windows-startup.py",
+                         "scripts/check-gltf-python-return.py",
+                         "tests/python_native/gltf_binding_module.cpp",
+                         "tests/python_native/gltf_binding_observer.h",
+                         "tests/python_native/gltf_binding_observer.cpp",
+                         "tests/python_native/gltf_binding_allocation.h",
+                         "tests/python_native/gltf_binding_allocation.cpp",
+                         "tests/python_native/test_gltf_return.py",
                          "include/meshvale/repair/materialized_duplicates.h",
                          "include/meshvale/repair/gltf_workflow.h", "docs/gltf-workflow.md",
                          "cmake/GltfWorkflow.cmake", "src/gltf_workflow.cpp",
@@ -91,12 +102,16 @@ def inspect(path):
                          "docs/materialized_duplicates.md", "examples/consumer/materialized_duplicates.cpp",
                          "tests/header_canonical.cpp","examples/consumer/main.cpp",
                          "python/meshvale_repair/_version.py","python/bindings.cpp","tests/python/test_duplicates.py","src/duplicates.cpp",
+                         "python/gltf_bindings.h", "python/gltf_bindings.cpp",
+                         "python/gltf_presets.h", "python/gltf_presets.cpp",
+                         "python/meshvale_repair/gltf_workflow.py", "docs/gltf-python.md",
+                         "tests/gltf-python/test_gltf_file_workflow.py", "examples/python/gltf_walkthrough.py",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
                          "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
                          "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",
                          "scripts/portable-preview.py","examples/python/obj_walkthrough.py","docs/quickstart.md"]:
             assert required in names,required
-        for license in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt", "meshvale-geometry-notice.txt"]:
+        for license in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt", "meshvale-geometry-notice.txt", "meshvale-interchange-notice.txt", "cgltf.txt", "jsoncons.txt", "tinyobjloader.txt"]:
             assert "licenses/" + license in names, license
         assert not any(name.endswith(".hpp") for name in names)
     print(f"Package content check passed: {path.name}; {len(names)} files")

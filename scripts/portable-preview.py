@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Build and verify the bounded CPython 3.13 OBJ development cohort."""
+"""Build and verify the bounded CPython 3.13 asset development cohort."""
 import argparse
 from email.parser import Parser
 import hashlib
@@ -15,10 +15,10 @@ import sys
 import tarfile
 import zipfile
 
-GEOMETRY_REVISION = "ec38fabd783a578947d43856b0c7a7fd54ce8533"
-GEOMETRY_VERSION = "0.0.1.dev69+gec38fabd7"
-INTERCHANGE_REVISION = "8d5823272b576052553608dbff26685ba56b4dea"
-INTERCHANGE_VERSION = "0.0.1.dev62+g8d5823272"
+GEOMETRY_REVISION = "48298b24be7c132816fb5580d22d58bde61558d0"
+GEOMETRY_VERSION = "0.0.1.dev134+g48298b24b"
+INTERCHANGE_REVISION = "5b9b695ba1fef166baa8c7cf9ad21a5630691f70"
+INTERCHANGE_VERSION = "0.0.1.dev179+g5b9b695ba"
 PACKAGE = Path(__file__).resolve().parents[1]
 
 
@@ -56,11 +56,31 @@ def prepare():
     for notice in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt"]:
         installed = root / "prefix/share/MeshvaleGeometry/licenses" / notice
         assert installed.read_text() == (PACKAGE / "licenses" / notice).read_text(), notice
+    for notice in ["cgltf.txt", "jsoncons.txt", "tinyobjloader.txt"]:
+        assert (source / "licenses" / notice).read_text() == (PACKAGE / "licenses" / notice).read_text(), notice
+    assert (source / "NOTICE").read_text() == (PACKAGE / "licenses/meshvale-interchange-notice.txt").read_text()
+    triplet = "x64-windows-static-md" if sys.platform == "win32" else "x64-linux"
+    prefixes = str(root / "prefix") + ";" + str(root / "dependencies" / triplet)
+    run("cmake", "-S", source, "-B", root / "interchange-native",
+        "-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_PREFIX_PATH=" + prefixes,
+        "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON",
+        "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON",
+        "-DMESHVALE_INTERCHANGE_GLTF_FILES=ON")
+    run("cmake", "--build", root / "interchange-native", "--config", "Release", "--parallel", "2")
+    run("cmake", "--install", root / "interchange-native", "--config", "Release",
+        "--prefix", root / "interchange-prefix")
     run(sys.executable, "-m", "pip", "wheel", source, "--no-deps", "--verbose",
         "--config-settings=cmake.version===4.3.1", "--wheel-dir", root / "interchange-raw")
     wheel, = (root / "interchange-raw").glob("meshvale_interchange-*.whl")
     assert wheel.name.startswith("meshvale_interchange-" + INTERCHANGE_VERSION + "-cp313-cp313-"), wheel.name
     output = Path(os.environ["MESHVALE_PREVIEW_DIR"])
+    if sys.platform == "win32":
+        run(sys.executable, "-m", "pip", "install", "nanobind==3.1.0")
+        run(sys.executable, PACKAGE / "scripts/check-gltf-python-return.py",
+            "--build", root / "return-observer" / output.name,
+            "--output", output / "return-observer",
+            "--prefixes", str(root / "interchange-prefix") + ";" + prefixes)
     producer.repair(wheel, root / "interchange-wheels", output / "interchange-dependencies.txt")
     for path in (root / "interchange-wheels").glob("*.whl"):
         run(sys.executable, source / "scripts/check-package.py", path)
@@ -68,7 +88,9 @@ def prepare():
     (output / "cohort-inputs.json").write_text(json.dumps({
         "geometry_revision": GEOMETRY_REVISION, "geometry_version": GEOMETRY_VERSION,
         "geometry_native_version": "0.0.0", "interchange_revision": INTERCHANGE_REVISION,
-        "interchange_version": INTERCHANGE_VERSION}, indent=2) + "\n", encoding="utf-8")
+        "interchange_version": INTERCHANGE_VERSION,
+        "interchange_native_features": ["gltf_topology_write", "gltf_workflow_support", "gltf_files"]},
+        indent=2) + "\n", encoding="utf-8")
 
 
 def before_test():
@@ -82,10 +104,14 @@ def test():
         "--find-links", dependency_root() / "interchange-wheels", "meshvale-repair[assets]==" + version("meshvale-repair"))
     producer = interchange()
     producer.test()
-    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli"]:
+    profile = "qualified" if sys.platform == "win32" else "unsupported"
+    os.environ["MESHVALE_GLTF_PYTHON_PROFILE"] = profile
+    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/gltf-python"]:
         run(sys.executable, "-I", "-m", "unittest", "discover", "-s", PACKAGE / directory, "-v")
     for example in ["remove_duplicate.py", "reported_duplicate.py", "repair_obj_bundle.py", "obj_commands.py"]:
         run(sys.executable, "-I", PACKAGE / "examples/python" / example)
+    profile_arguments = ["--unsupported-profile"] if profile == "unsupported" else []
+    run(sys.executable, "-I", PACKAGE / "examples/python/gltf_walkthrough.py", *profile_arguments)
     products = ("meshvale_geometry", "meshvale_interchange", "meshvale_repair")
     for order in itertools.permutations(products):
         code = "; ".join("import " + name for name in order)
@@ -165,6 +191,7 @@ def manifest(output):
     data = {"candidate_only": True, "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "package_version": next(iter(versions)), "geometry_revision": GEOMETRY_REVISION, "geometry_version": GEOMETRY_VERSION,
         "interchange_revision": INTERCHANGE_REVISION, "interchange_version": INTERCHANGE_VERSION,
+        "gltf_python_expected_profile": "qualified" if sys.platform == "win32" else "unsupported",
         "cibuildwheel": "4.2.0", "selected_build": os.environ["CIBW_BUILD"], "artifacts": artifacts}
     (output / "manifest.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
