@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-SCENE-EXAMPLE-001 |
-| Version | 0.1.0 |
+| Version | 0.1.1 |
 | Status | Selected original fixture and acceptance profile; implementation pending |
 | Owner | Static shared-instance walkthrough and its literal preservation oracle |
 
@@ -31,6 +31,14 @@ materials have distinct named definitions and preserved texture/image resource
 bindings. Generated original resource bytes, including unused/trailing bytes,
 have independent literal expectations. The GLB variant includes embedded BIN
 padding and an opaque chunk; JSON glTF and GLB retain their original format.
+
+Both primitives carry `POSITION` and raw named `TEXCOORD_0` vertex rows. The
+request explicitly declares `("vertex","TEXCOORD_0")` row-local, using
+`--row-local vertex:TEXCOORD_0` in single commands and
+`"row_local_attributes":[["vertex","TEXCOORD_0"]]` in batch jobs. This uses the
+existing [attribute policy](duplicates.md); it does not infer semantics or ignore
+channel equality. The undeclared changed request is a separate actual refusal
+control and must publish nothing. UV rows remain unchanged in accepted output.
 
 Request `(keep=0,remove=1)` on primitive ordinal0. Its two triangles become one
 with vertex identity, face map `[0,0]` and corner map `[0,1,2,0,1,2]`.
