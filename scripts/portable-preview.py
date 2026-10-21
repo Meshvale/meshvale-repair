@@ -4,7 +4,7 @@ import argparse
 from email.parser import Parser
 import hashlib
 import importlib.util
-from importlib.metadata import version
+from importlib.metadata import distribution, version
 import itertools
 import json
 import os
@@ -99,6 +99,35 @@ def before_test():
         dependency_root() / "interchange-wheels", "meshvale-interchange==" + INTERCHANGE_VERSION)
 
 
+def command_fallback():
+    # The candidate is installed by cibuildwheel before test(), whereas prepare()
+    # runs before that wheel exists. Keep the compiled observer's original proof.
+    output = Path(os.environ["MESHVALE_PREVIEW_DIR"])
+    original_path = output / "return-observer/receipt.json"
+    original = json.loads(original_path.read_text(encoding="utf-8"))
+    module, = (dependency_root() / "return-observer" / output.name).glob("_repair_gltf_return_test*.pyd")
+    assert hashlib.sha256(module.read_bytes()).hexdigest() == original["module_sha256"]
+    package = distribution("meshvale-repair")
+    inputs = {}
+    for name in ("__init__.py", "__main__.py", "commands.py", "gltf_commands.py", "gltf_workflow.py"):
+        installed = package.locate_file("meshvale_repair/" + name)
+        source = PACKAGE / "python/meshvale_repair" / name
+        assert installed.read_bytes() == source.read_bytes(), "Installed command source differs: " + name
+        inputs[name] = hashlib.sha256(installed.read_bytes()).hexdigest()
+    run(sys.executable, "-I", PACKAGE / "tests/gltf-cli/_gltf_command_observer.py",
+        module, output / "command-fallback")
+    actual = json.loads((output / "command-fallback/receipt.json").read_text(encoding="utf-8"))
+    assert actual["complete"] and len(actual["rows"]) == 8
+    assert actual["semantic_corruptions_rejected"] == 32 and not actual["production_extension_loaded"]
+    assert actual["observer_sha256"] == original["module_sha256"]
+    assert all(row["exit"] == 130 and row["active_after_detach"] == 0 for row in actual["rows"])
+    (output / "command-fallback-binding.json").write_text(json.dumps({
+        "installed_version": package.version, "installed_command_sha256": inputs,
+        "compiled_observer_receipt_sha256": hashlib.sha256(original_path.read_bytes()).hexdigest(),
+        "actual_receipt_sha256": hashlib.sha256((output / "command-fallback/receipt.json").read_bytes()).hexdigest(),
+        "inventory": {"actual_cases": 8, "semantic_corruptions_rejected": 32}}, indent=2) + "\n", encoding="utf-8")
+
+
 def test():
     run(sys.executable, "-m", "pip", "install", "--no-index", "--find-links", dependency_root() / "wheels",
         "--find-links", dependency_root() / "interchange-wheels", "meshvale-repair[assets]==" + version("meshvale-repair"))
@@ -106,12 +135,15 @@ def test():
     producer.test()
     profile = "qualified" if sys.platform == "win32" else "unsupported"
     os.environ["MESHVALE_GLTF_PYTHON_PROFILE"] = profile
-    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/gltf-python"]:
+    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/gltf-python", "tests/gltf-cli"]:
         run(sys.executable, "-I", "-m", "unittest", "discover", "-s", PACKAGE / directory, "-v")
     for example in ["remove_duplicate.py", "reported_duplicate.py", "repair_obj_bundle.py", "obj_commands.py"]:
         run(sys.executable, "-I", PACKAGE / "examples/python" / example)
     profile_arguments = ["--unsupported-profile"] if profile == "unsupported" else []
     run(sys.executable, "-I", PACKAGE / "examples/python/gltf_walkthrough.py", *profile_arguments)
+    run(sys.executable, "-I", PACKAGE / "examples/python/gltf_walkthrough.py", "--commands", *profile_arguments)
+    if sys.platform == "win32":
+        command_fallback()
     products = ("meshvale_geometry", "meshvale_interchange", "meshvale_repair")
     for order in itertools.permutations(products):
         code = "; ".join("import " + name for name in order)

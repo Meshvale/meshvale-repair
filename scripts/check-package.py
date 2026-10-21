@@ -22,7 +22,7 @@ def inspect(path):
                 assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
                 continue
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py","gltf_workflow.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py","gltf_workflow.py","gltf_commands.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
             else:
                 assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
@@ -109,6 +109,9 @@ def inspect(path):
                          "python/meshvale_repair/gltf_workflow.py", "docs/gltf-python.md",
                          "tests/gltf-python/test_gltf_file_workflow.py", "examples/python/gltf_walkthrough.py",
                          "tests/gltf-python/test_retained_facts.py",
+                         "python/meshvale_repair/gltf_commands.py", "docs/gltf-commands.md",
+                         "tests/gltf-cli/test_gltf_commands.py",
+                         "tests/gltf-cli/_gltf_command_observer.py", "tests/gltf-cli/gltf_command_fixture.py",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
                          "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
                          "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",

@@ -50,6 +50,10 @@ if __name__ == "__main__":
             profile_arguments = ["--unsupported-profile"] if options.gltf == "unsupported" else []
             run(python,"-I",root/"examples/python/gltf_walkthrough.py",*profile_arguments,
                 cwd=directory,env=gltf_environment)
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/gltf-cli","-v",
+                cwd=directory,env=gltf_environment)
+            run(python,"-I",root/"examples/python/gltf_walkthrough.py","--commands",*profile_arguments,
+                cwd=directory,env=gltf_environment)
         if options.interchange_wheel:
             run(python,"-m","pip","install","--no-index",options.interchange_wheel.resolve(),cwd=directory)
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)
