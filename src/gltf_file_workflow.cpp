@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <meshvale/repair/gltf_file_workflow.h>
+#include <meshvale/repair/materialized_duplicates.h>
 
 #include <algorithm>
 #include <array>
@@ -13,6 +14,7 @@
 #include <span>
 #include <stop_token>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 
 #include "gltf_file_workflow_internal.h"
@@ -22,6 +24,12 @@
 #include "materialized_duplicate_workers.h"
 
 namespace meshvale::repair::gltf_file_workflow_detail {
+static_assert(
+    std::is_nothrow_move_constructible_v<GltfDuplicateFileWorkflowResult>);
+static_assert(
+    std::is_nothrow_move_assignable_v<GltfDuplicateFileWorkflowResult>);
+static_assert(std::is_nothrow_destructible_v<GltfDuplicateFileWorkflowResult>);
+
 Artifact::Artifact(const allocation::AllocationContext& allocation)
     : path(allocation::Allocator<char>(allocation)) {}
 State::State(const allocation::AllocationContext& allocator,
@@ -43,6 +51,14 @@ GltfFileWorkflowRequestedBytes State::Bytes() const noexcept {
           : GltfContainerCounterAvailability::kNotApplicable};
   bytes.wrapper = allocation.OperationActiveBytes();
   if (memory) bytes.memory = memory->NewRequestedBytes();
+  if (retained_repair) {
+    auto& retained = bytes.retained_repair.emplace();
+    retained.source_geometry = retained_repair->Source().NewRequestedBytes();
+    retained.repair = retained_repair->NewRequestedBytes();
+    // These disjoint operations were admitted together within the memory
+    // operation's checked size_t cap. Shared candidate blocks are not added.
+    retained.total = retained.source_geometry + retained.repair.total;
+  }
   if (published) bytes.publication_files = published->NewRequestedBytes();
   return bytes;
 }
@@ -89,7 +105,8 @@ GltfDuplicateWorkflowRequest MemoryRequest(
           request.primitive_ordinal,
           request.extraction,
           request.targets,
-          request.repair};
+          request.repair,
+          request.report_failure_retention};
 }
 GltfDuplicateWorkflowLimits MemoryLimits(
     const GltfDuplicateFileMemoryLimits& limits) {
@@ -636,6 +653,7 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
         MemoryLimits(limits.memory), work.memory, context, stop,
         options.memory);
     state->memory = memory_result.record;
+    state->retained_repair = memory_result.retained_repair;
     state->memory_outcomes = memory_result.outcomes;
     state->status = memory_result.status;
     state->outcomes.candidate = memory_result.outcomes.candidate;
@@ -754,6 +772,16 @@ const interchange::GltfFileAsset& GltfDuplicateFileWorkflowRecord::Source()
 const std::optional<GltfDuplicateWorkflowRecord>&
 GltfDuplicateFileWorkflowRecord::Memory() const noexcept {
   return state_->memory;
+}
+const std::optional<GltfWorkflowOutcomes>&
+GltfDuplicateFileWorkflowRecord::MemoryOutcomes() const noexcept {
+  return state_->memory_outcomes;
+}
+const MaterializedDuplicateRepair*
+GltfDuplicateFileWorkflowRecord::RepairFacts() const noexcept {
+  if (state_->memory && state_->memory->Repair())
+    return &*state_->memory->Repair();
+  return state_->retained_repair ? &*state_->retained_repair : nullptr;
 }
 const std::optional<interchange::GltfPublishedBundle>&
 GltfDuplicateFileWorkflowRecord::Published() const noexcept {

@@ -3,6 +3,7 @@
 #define MESHVALE_REPAIR_SRC_GLTF_FILE_WORKFLOW_INTERNAL_H_
 
 #include <meshvale/repair/gltf_file_workflow.h>
+#include <meshvale/repair/materialized_duplicates.h>
 
 #include <array>
 #include <cstddef>
@@ -40,6 +41,8 @@ struct State {
   allocation::AllocationContext allocation;
   interchange::GltfFileAsset source;
   std::optional<GltfDuplicateWorkflowRecord> memory;
+  // Exclusive with memory: retains completed facts, never partial report wire.
+  std::optional<MaterializedDuplicateRepair> retained_repair;
   // Inline reached facts survive memory report refusal even without its owner.
   std::optional<GltfWorkflowOutcomes> memory_outcomes;
   std::optional<interchange::GltfPublishedBundle> published;

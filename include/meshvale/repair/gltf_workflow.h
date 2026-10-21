@@ -27,6 +27,10 @@ struct Access;
 struct WorkflowState;
 }  // namespace gltf_workflow_detail
 
+// Per-invocation ownership after an expected failure prevents a report record.
+// Retention preserves only an actually completed Repair, never partial wire.
+enum class GltfReportFailureRetention { kRelease, kRetainCompletedRepair };
+
 // Development native interface; link optional meshvale::gltf_workflow.
 // All views are borrowed, readable and unchanged until synchronous return.
 struct GltfDuplicateWorkflowRequest {
@@ -39,6 +43,8 @@ struct GltfDuplicateWorkflowRequest {
   interchange::GltfExtractionRequest extraction;
   std::span<const DuplicateTarget> targets;
   MaterializedDuplicateOptions repair;
+  GltfReportFailureRetention report_failure_retention =
+      GltfReportFailureRetention::kRelease;
 };
 
 // Required positive fields, including all nested limits. The aggregate cap
@@ -280,6 +286,11 @@ struct GltfDuplicateWorkflowResult {
   std::optional<GltfDuplicateWorkflowRecord> record;
   GltfWorkflowDiagnostic diagnostic;
   GltfWorkflowExecutionStats execution;
+  // Opt-in completed facts only when record is absent. Shared immutable owners
+  // retain their source, candidate, maps and original ledger without
+  // allocation. This is not a report or proof of later workflow/publication
+  // completion.
+  std::optional<MaterializedDuplicateRepair> retained_repair;
 };
 
 // Supplied-memory pipeline: read -> extract -> materialize -> repair ->

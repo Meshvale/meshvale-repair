@@ -119,7 +119,8 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
             expected |= frozenset({"gltf_workflow_unsupported"})
     if file_workflow and not installed:
         expected |= frozenset({"gltf_file_sha256"})
-        expected |= (frozenset({"gltf_file_workflow_semantics", "gltf_file_workflow_requests"})
+        expected |= (frozenset({"gltf_file_workflow_semantics", "gltf_file_workflow_requests",
+                               "gltf_retained_facts"})
                      if profile == QUALIFIED_PROFILE else
                      frozenset({"gltf_file_workflow_unsupported"}))
     elif file_workflow:

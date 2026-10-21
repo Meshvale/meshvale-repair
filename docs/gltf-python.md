@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-PYTHON-001 |
-| Version | 0.1.0 |
-| Status | Selected development interface; implementation and qualification in progress |
+| Version | 0.1.1 |
+| Status | Development interface; qualification in progress |
 | Owner | Python path arguments, application execution presets and result observations |
 | Native owner | [Retained-file workflow](gltf-file-workflow.md) |
 
@@ -22,6 +22,7 @@ repair_gltf_file(
     primitive_ordinal, triangles, values,
     input_id="source", resource_root=None, row_local_attributes=(),
     report_path="receipts/report.json", execution=None, cancellation=None,
+    retain_failure_facts=False,
 )
 ```
 
@@ -56,6 +57,12 @@ IO, preserving non-ASCII and non-BMP characters. Relative report paths remain
 UTF-8 and native portable-path admission applies. `resource_root=None` uses the
 entry's parent through the native default. Capture rejects opaque extensions by
 default; this surface supplies no extension-file discovery or supplemental files.
+
+`retain_failure_facts` must be an actual `bool`. The default `False` preserves
+release of completed repair payload when no native memory record survives.
+`True` selects the native [completed-facts retention policy](gltf-retained-facts.md).
+It is per invocation, with no execution-session setting. Retained failures can
+consume later session headroom until their last owning result is released.
 
 ## GLTF-PY-EXECUTION-001: Owned sessions and cancellation
 
@@ -106,12 +113,21 @@ and best-effort cleanup, without asserting an invented cleanup outcome.
 | `workflow_started` | Whether the retained-file operation was invoked |
 | `capture_status`, `capture_diagnostic`, `capture_execution` | Exact native capture observations |
 | `status`, `outcomes`, `diagnostic`, `execution` | Exact native workflow observations; `None` when capture prevented the operation |
+| `memory_outcomes` | Exact optional returned inner outcomes, even without a memory record; `None` if the inner operation never returned |
 | `publication` | Actual optional publisher outcome, phase, diagnostic, cleanup/error and execution; absent when not invoked |
 | `requested_bytes` | Actual immutable record counters when a record exists, preserving optional/unavailable values |
 | `source_format`, `source_entry_path` | Successful capture's format and relative entry path; otherwise `None` |
 | `published_entry_path`, `published_report_path` | Actual surviving published owner's relative paths; otherwise `None` |
 | `report_json` | Exact nonempty native report bytes copied on access; otherwise `None` |
 | `face_map`, `corner_map`, `source_faces`, `source_corners` | Immutable tuple copies of the reached native repair owner's actual maps; otherwise `None` |
+| `input_snapshot_counts`, `candidate_snapshot_counts` | Optional immutable `(vertices, faces, corners)` tuples from the actual completed Repair owner; otherwise `None` |
+
+Maps and counts use the ordinary memory Repair owner or the mutually exclusive
+opt-in fallback. No pre-repair snapshot is inferred. `requested_bytes.retained_repair`
+is the optional fallback source-Geometry/Repair live subset described by the
+native retention contract; ordinary `memory` counters exclude it. Missing native
+receipt bytes remain `None`. These observations create no native check coverage,
+profile completion or publication receipt.
 
 Diagnostic and execution observations preserve their public native field names,
 enum domains, nested active variants and optionality. They do not flatten a
@@ -151,6 +167,13 @@ test results or translating failures. Original native request observers cover
 Repair's prepared-report boundary; they do not replace the real publisher or
 claim that publisher internals cannot allocate. Real wrapper-allocation positive
 controls and separate pre-instance/lazy-report refusals check observer sensitivity.
+Additional controls cancel through the shared native stop source from an actual
+joined report worker. They exercise JSON/GLB changed/unchanged default and opt-in
+returns, exact retained counts/maps/byte attribution, lazy retained-property
+allocation refusal and strict boolean admission. The test variant captures its
+token before native work; production contains no fault behavior. These controls
+preserve all original publication-return checks and require the public helper's
+explicit inventories.
 The module has no install rule and is absent from production wheels. With pinned
 nanobind and a selected x64 compiler environment, run the public helper against
 the same installed native prefixes used for the wheel:

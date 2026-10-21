@@ -44,6 +44,8 @@ struct GltfDuplicateFileWorkflowRequest {
   MaterializedDuplicateOptions repair;
   // Null means publication not requested. Borrowed through all joins/return.
   const GltfDuplicateFilePublication* publication = nullptr;
+  GltfReportFailureRetention report_failure_retention =
+      GltfReportFailureRetention::kRelease;
 };
 
 // Required positive fields. No initial read: exact source owner is retained.
@@ -150,6 +152,13 @@ struct GltfRetainedFileSourceRequestedBytes {
   GltfContainerCounterAvailability container =
       GltfContainerCounterAvailability::kNotApplicable;
 };
+// Live fallback subset only. Source Geometry and Repair operation charges are
+// disjoint; Repair already includes selection/candidate and both inspections.
+struct GltfRetainedRepairRequestedBytes {
+  std::uint64_t source_geometry = 0;
+  MaterializedDuplicateRequestedBytes repair;
+  std::uint64_t total = 0;
+};
 struct GltfFileWorkflowRequestedBytes {
   // Preexisting retained input requests: not fresh for this workflow.
   GltfRetainedFileSourceRequestedBytes retained_source;
@@ -159,7 +168,10 @@ struct GltfFileWorkflowRequestedBytes {
   GltfWorkflowRequestedBytes memory;
   // File owner only; absent when no surviving published owner exists.
   std::optional<std::uint64_t> publication_files;
-  // No total: container/composite delegated publication charges are
+  // Present only without a memory-record owner. Zero memory attribution does
+  // not imply zero payload when these completed facts remain alive.
+  std::optional<GltfRetainedRepairRequestedBytes> retained_repair;
+  // No overall total: container/composite delegated publication charges are
   // unavailable.
 };
 
@@ -179,6 +191,13 @@ class GltfDuplicateFileWorkflowRecord {
   // observation with publication not-requested, not the final file receipt.
   [[nodiscard]] const std::optional<GltfDuplicateWorkflowRecord>& Memory()
       const noexcept;
+  // Exact inner outcomes, including when no memory report could be admitted.
+  // Absent if the inner operation never returned.
+  [[nodiscard]] const std::optional<GltfWorkflowOutcomes>& MemoryOutcomes()
+      const noexcept;
+  // Borrows this alive, unreassigned record. Normal memory Repair, otherwise
+  // the opt-in completed fallback, otherwise null. The paths are exclusive.
+  [[nodiscard]] const MaterializedDuplicateRepair* RepairFacts() const noexcept;
   [[nodiscard]] const std::optional<interchange::GltfPublishedBundle>&
   Published() const noexcept;
   [[nodiscard]] GltfFileWorkflowOutcomes Outcomes() const noexcept;

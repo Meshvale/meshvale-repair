@@ -24,7 +24,7 @@ Use the Interchange producer pinned by the [file qualification workflow](.github
 Configuration checks the compiled asset ledger query and borrowed verified-file
 provider, in addition to the installed `meshvale::gltf_files` target. The
 [same helper](scripts/gltf-workflow-ci.py) selects this cohort with
-`--file-workflow`. Its configured native inventories contain nine tests in
+`--file-workflow`. Its configured native inventories contain ten tests in
 qualified profiles and six in unsupported profiles, with four installed
 consumers. Qualified profiles also independently validate the report from an
 actual staged-byte readback failure after receipt preparation. The semantic

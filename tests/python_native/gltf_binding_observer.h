@@ -4,6 +4,8 @@
 
 #include <nanobind/nanobind.h>
 
+#include <stop_token>
+
 namespace meshvale::repair::gltf_file_workflow_detail {
 struct FileWorkflowTestOptions;
 }
@@ -22,6 +24,8 @@ class AllocationScope {
 [[nodiscard]] AllocationScope BeforeReportBytes();
 [[nodiscard]] gltf_file_workflow_detail::FileWorkflowTestOptions
 WorkflowOptions();
+// Test-only shared token capture before native work, never a Python callback.
+void ObserveStopSource(const std::stop_source& source) noexcept;
 void AfterNativeReturn() noexcept;
 void BeforeReturn(nanobind::handle prepared) noexcept;
 void Restore() noexcept;

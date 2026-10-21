@@ -51,6 +51,7 @@ namespace geo = geometry;
 constexpr std::string_view kVertexDomainName = "vertex";
 constexpr std::string_view kFaceDomainName = "face";
 constexpr std::string_view kCornerDomainName = "corner";
+constexpr std::size_t kPositionComponents = 3;
 
 template <class T>
 struct Observation {
@@ -136,15 +137,15 @@ struct GltfFileWorkflowResult {
   GltfDuplicateFileWorkflowResult workflow;
   InvocationState state = InvocationState::kPrepared;
   bool workflow_started = false;
+  GltfReportFailureRetention report_failure_retention =
+      GltfReportFailureRetention::kRelease;
   void RequireComplete() const {
     if (state != InvocationState::kComplete)
       throw nb::value_error("glTF invocation has not completed");
   }
   const MaterializedDuplicateRepair* Repair() const noexcept {
-    if (!workflow_started || !workflow.record || !workflow.record->Memory() ||
-        !workflow.record->Memory()->Repair())
-      return nullptr;
-    return &*workflow.record->Memory()->Repair();
+    return workflow_started && workflow.record ? workflow.record->RepairFacts()
+                                               : nullptr;
   }
 };
 static_assert(std::is_nothrow_move_constructible_v<ic::GltfFileReadResult>);
@@ -251,7 +252,10 @@ nb::object Prepare(nb::handle source, nb::handle destination,
                    nb::handle triangles, nb::handle values,
                    nb::handle execution, nb::handle input_id,
                    nb::handle resource_root, nb::handle row_local_attributes,
-                   nb::handle report_path, nb::handle cancellation) {
+                   nb::handle report_path, nb::handle cancellation,
+                   nb::handle retain_failure_facts) {
+  if (!PyBool_Check(retain_failure_facts.ptr()))
+    throw nb::type_error("retain_failure_facts must be a bool");
   if (!nb::isinstance<GltfExecution>(execution))
     throw nb::type_error("execution must be a resolved GltfExecution session");
   const auto& session = nb::cast<const GltfExecution&>(execution);
@@ -269,6 +273,9 @@ nb::object Prepare(nb::handle source, nb::handle destination,
   auto* result = new (nb::inst_ptr<GltfFileWorkflowResult>(object))
       GltfFileWorkflowResult(session, std::move(stop));
   nb::inst_mark_ready(object);
+  if (retain_failure_facts.ptr() == Py_True)
+    result->report_failure_retention =
+        GltfReportFailureRetention::kRetainCompletedRepair;
   const auto& limits = result->preset;
   const auto path_limit =
       limits.capture_limits.files.max_native_path_code_units;
@@ -346,6 +353,9 @@ nb::object Run(nb::handle prepared) {
   nb::object returned = nb::borrow(prepared);
   result->state = InvocationState::kRunning;
   try {
+#if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
+    binding_test::ObserveStopSource(result->stop);
+#endif
     {
       nb::gil_scoped_release release;
       result->capture = ic::ReadGltfFileAsset(
@@ -364,7 +374,8 @@ nb::object Run(nb::handle prepared) {
             result->extraction,
             result->targets,
             {result->declaration_views},
-            publication ? &*publication : nullptr};
+            publication ? &*publication : nullptr,
+            result->report_failure_retention};
         result->workflow_started = true;
 #if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
         auto native_result =
@@ -411,6 +422,18 @@ nb::object Map(const GltfFileWorkflowResult& result,
     PyTuple_SET_ITEM(output.ptr(), static_cast<Py_ssize_t>(i), value);
   }
   return output;
+}
+nb::object SnapshotCounts(
+    const GltfFileWorkflowResult& result,
+    const geo::MaterializedMesh& (MaterializedDuplicateRepair::*mesh)()
+        const noexcept) {
+  result.RequireComplete();
+  const auto* repair = result.Repair();
+  if (!repair) return nb::none();
+  const auto view = (repair->*mesh)().View();
+  return nb::make_tuple(view.positions.size() / kPositionComponents,
+                        view.face_offsets.size() - 1,
+                        view.corner_vertices.size());
 }
 nb::dict PresetObservation(const geo::ExecutionOptions& value);
 nb::dict PresetObservation(const ic::GltfFileLimits& value);
@@ -1499,7 +1522,75 @@ void RegisterGltfBindings(nb::module_& module) {
       .def_prop_ro("publication_files",
                    [](const Observation<GltfFileWorkflowRequestedBytes>& self) {
                      return Observe(self.value.publication_files);
+                   })
+      .def_prop_ro("retained_repair",
+                   [](const Observation<GltfFileWorkflowRequestedBytes>& self) {
+                     return Observe(self.value.retained_repair);
                    });
+  nb::class_<Observation<GltfRetainedRepairRequestedBytes>>(
+      module, "GltfRetainedRepairRequestedBytes")
+      .def_prop_ro(
+          "source_geometry",
+          [](const Observation<GltfRetainedRepairRequestedBytes>& self) {
+            return Observe(self.value.source_geometry);
+          })
+      .def_prop_ro(
+          "repair",
+          [](const Observation<GltfRetainedRepairRequestedBytes>& self) {
+            return Observe(self.value.repair);
+          })
+      .def_prop_ro(
+          "total",
+          [](const Observation<GltfRetainedRepairRequestedBytes>& self) {
+            return Observe(self.value.total);
+          });
+  nb::class_<Observation<MaterializedDuplicateRequestedBytes>>(
+      module, "MaterializedDuplicateRequestedBytes")
+      .def_prop_ro(
+          "repair",
+          [](const Observation<MaterializedDuplicateRequestedBytes>& self) {
+            return Observe(self.value.repair);
+          })
+      .def_prop_ro(
+          "source_inspection",
+          [](const Observation<MaterializedDuplicateRequestedBytes>& self) {
+            return Observe(self.value.source_inspection);
+          })
+      .def_prop_ro(
+          "selection",
+          [](const Observation<MaterializedDuplicateRequestedBytes>& self) {
+            return Observe(self.value.selection);
+          })
+      .def_prop_ro(
+          "candidate_inspection",
+          [](const Observation<MaterializedDuplicateRequestedBytes>& self) {
+            return Observe(self.value.candidate_inspection);
+          })
+      .def_prop_ro(
+          "total",
+          [](const Observation<MaterializedDuplicateRequestedBytes>& self) {
+            return Observe(self.value.total);
+          });
+  nb::class_<Observation<GltfWorkflowOutcomes>>(module, "GltfWorkflowOutcomes")
+      .def_prop_ro("execution",
+                   [](const Observation<GltfWorkflowOutcomes>& self) {
+                     return Observe(self.value.execution);
+                   })
+      .def_prop_ro("candidate",
+                   [](const Observation<GltfWorkflowOutcomes>& self) {
+                     return Observe(self.value.candidate);
+                   })
+      .def_prop_ro("profile",
+                   [](const Observation<GltfWorkflowOutcomes>& self) {
+                     return Observe(self.value.profile);
+                   })
+      .def_prop_ro("stage",
+                   [](const Observation<GltfWorkflowOutcomes>& self) {
+                     return Observe(self.value.stage);
+                   })
+      .def_prop_ro("exit", [](const Observation<GltfWorkflowOutcomes>& self) {
+        return Observe(self.value.exit);
+      });
   nb::class_<Observation<GltfRetainedFileSourceRequestedBytes>>(
       module, "GltfRetainedFileSourceRequestedBytes")
       .def_prop_ro(
@@ -2016,6 +2107,14 @@ void RegisterGltfBindings(nb::module_& module) {
                                 ? Observe(self.workflow.diagnostic)
                                 : nb::none();
                    })
+      .def_prop_ro(
+          "memory_outcomes",
+          [](const GltfFileWorkflowResult& self) {
+            self.RequireComplete();
+            return self.workflow_started && self.workflow.record
+                       ? Observe(self.workflow.record->MemoryOutcomes())
+                       : nb::none();
+          })
       .def_prop_ro("execution",
                    [](const GltfFileWorkflowResult& self) {
                      self.RequireComplete();
@@ -2085,6 +2184,16 @@ void RegisterGltfBindings(nb::module_& module) {
                                           : nb::object(nb::bytes(bytes.data(),
                                                                  bytes.size()));
                    })
+      .def_prop_ro("input_snapshot_counts",
+                   [](const GltfFileWorkflowResult& self) {
+                     return SnapshotCounts(
+                         self, &MaterializedDuplicateRepair::Source);
+                   })
+      .def_prop_ro("candidate_snapshot_counts",
+                   [](const GltfFileWorkflowResult& self) {
+                     return SnapshotCounts(
+                         self, &MaterializedDuplicateRepair::Candidate);
+                   })
       .def_prop_ro("face_map",
                    [](const GltfFileWorkflowResult& self) {
                      return Map(self, &MaterializedDuplicateRepair::FaceMap);
@@ -2109,7 +2218,8 @@ void RegisterGltfBindings(nb::module_& module) {
              nb::arg("resource_root") = nb::none(),
              nb::arg("row_local_attributes") = nb::tuple(),
              nb::arg("report_path") = kDefaultGltfReportPath,
-             nb::arg("cancellation") = nb::none());
+             nb::arg("cancellation") = nb::none(),
+             nb::arg("retain_failure_facts") = false);
   // One borrowed handle, no conversion owners, postcall hooks or keepalive.
   module.def("_run_gltf_file", &Run);
 }
