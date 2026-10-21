@@ -1,0 +1,160 @@
+# glTF single-file and batch commands
+
+| Field | Value |
+|---|---|
+| ID | REPAIR-GLTF-COMMANDS-001 |
+| Version | 0.1.0 |
+| Status | Selected development interface; implementation and qualification pending |
+| Owner | Command admission, ordered scheduling, receipt framing and delivery |
+
+These commands use the same [prepared file operation](gltf-python.md), native
+policies, execution presets and verified publisher as the Python interface.
+Install the declared `workflow` extra for Geometry's report reader/validator;
+the glTF path does not require the Interchange Python extension. There is no
+package-index release or supported compatibility matrix yet.
+
+## GLC-INVOCATION-001: Explicit operation
+
+```sh
+meshvale-repair gltf source/scene.glb output/new --primitive-ordinal 0 --triangles require-triangles --values raw --target 0:1
+meshvale-repair gltf source/scene.gltf output/copy --primitive-ordinal 0 --triangles require-triangles --values raw --unchanged
+meshvale-repair gltf-batch jobs.json --preset balanced-v1
+```
+
+`python -m meshvale_repair` uses the same front end. A single invocation requires
+INPUT and DESTINATION, an explicit primitive ordinal, triangle/value policies and
+either repeated `--target KEEP:REMOVE` or `--unchanged`. They retain the Python
+interface's canonical-triangle meanings. Destination is required for commands;
+the Python operation separately permits explicit `None` for no export. Content
+selects JSON/GLB and publication retains the format.
+
+Single options `--input-id` (default `source`), `--resource-root`, repeated
+`--row-local DOMAIN:NAME` and `--report-path` (default `receipts/report.json`)
+mirror the file interface. Both commands accept `--preset balanced-v1` or
+`serial-reference-v1`. Batch also accepts `--fail-fast`. No automatic primitive
+discovery, target selection, custom native limits, phase callbacks or parallel
+job scheduler is added. Help/version do not import optional report/asset modules.
+
+## GLC-ADMISSION-001: Closed, bounded request
+
+Batch UTF-8 JSON has exactly `schema` and `jobs`, with schema
+`meshvale.repair.gltf-jobs/1`. Each job requires `id`, `input`, `destination`,
+`targets`, `primitive_ordinal`, `triangles`, `values`; optional fields are
+`resource_root`, `row_local_attributes`, `report_path`. IDs are unique opaque
+native report identifiers. Paths are nonempty strings; resource root may be null.
+Targets and row declarations are arrays of two-element arrays. Empty targets are
+intentional unchanged processing. Reject duplicate JSON keys, nonfinite numbers,
+unknown/missing fields, booleans as indices, invalid policy/encoding and bounds
+before capture. The native preparation path remains the conversion authority.
+
+```json
+{"schema":"meshvale.repair.gltf-jobs/1","jobs":[
+  {"id":"part-a","input":"source/a.glb","destination":"output/a","targets":[[0,1]],"primitive_ordinal":0,"triangles":"require-triangles","values":"raw"},
+  {"id":"part-b","input":"source/b.gltf","destination":"output/b","targets":[],"primitive_ordinal":0,"triangles":"require-triangles","values":"raw"}
+]}
+```
+
+Admission ceilings are inclusive: 16 jobs, 8 MiB request bytes, 1,000,000 target
+pairs in total, 16 MiB per detached report and 8 MiB outer-only batch framing.
+The CLI reads at most 8 MiB plus one refusal lookahead before decoding. Parsed API
+requests must be ordinary dictionaries/lists/scalars and also fit 8 MiB canonical
+UTF-8 JSON with compact separators, `ensure_ascii=False` and no nonfinite values.
+Validate shape/count limits before that bounded encoding. This is a separate
+API-object admission rule; whitespace in a CLI file still counts toward its raw
+byte limit. Native per-job declaration/name/path/target ceilings also apply.
+
+Before any capture, validate all rows and path isolation, allocate every final
+prepared result, and admit `16 MiB * job_count` of arithmetic report allowance
+(at most 256 MiB), plus the separate 8 MiB framing allowance. These are wire-byte
+ceilings, not preallocated storage, Python heap limits, native payload totals or
+RSS guarantees. Report validation and lazy parsing can temporarily expand JSON.
+
+CLI paths resolve from cwd; batch paths resolve from the request file's parent.
+The API's base defaults to cwd. Use canonical existing ancestors for comparison,
+while retaining logical source/resource arguments for native capture. Reject
+equal/nested destinations, or any destination overlapping any job's source entry
+or effective resource root (default source parent). Missing files/resources,
+existing destinations and native unsupported profiles remain actual per-job
+outcomes. Metadata comparison does not read asset contents or override native
+link traversal rules. The file owner's concurrent-change and alias limits apply.
+
+## GLC-RESULT-001: One operation, truthful detached bytes
+
+`run_gltf_jobs(request, *, base=None, fail_fast=False, execution=None,
+cancellation=None)` in `meshvale_repair.gltf_commands` returns an immutable
+`GltfCommandResult` with `report_json: bytes`, `exit_code: int`, and a lazy `report`
+property returning a fresh validated parsed value. It retains no native job owner
+or cached parsed tree. Invalid invocation raises the front end's `InvocationError`
+before processing. A typed `GltfCommandDeliveryError` carries exit 2 or 130 when
+no complete truthful result can be constructed. Unexpected internal/native
+exceptions propagate to embedding callers; the CLI emits a path-free diagnostic
+and exit 2, without inventing a report.
+
+One new `GltfExecution` and `GltfCancellation` span an invocation unless explicit
+owning objects are supplied. Both must have the actual interface types;
+`fail_fast` must be a bool. Prepare every final result through the same private
+facade used by `repair_gltf_file`, then run each once in request order with
+`retain_failure_facts=True`. Detach and validate its exact report bytes or actual
+fallback observations; release its native owner before scheduling the next job.
+Unscheduled prepared results own only converted arguments and are released too.
+
+Nonempty native report bytes always win, including genuine failure reports.
+Validate them without changing any bytes or publication facts. A single stdout
+document is that exact byte slice plus newline. A batch frames each validated
+single-document slice literally inside its attempted row; it does not reserialize
+native receipts. Input identities/hashes and exits come from the validated actual
+reports. Framing is command-owned; bundle receipts remain the native originals.
+
+When no native bytes exist, the command produces an explicitly identified
+Repair command fallback under Geometry's unchanged `meshvale.report/1` contract.
+Known caller IDs and requested operation options remain; unavailable hashes are
+null. Preserve actual candidate/execution/diagnostic observations. Accepted or
+unchanged candidates require real retained source/candidate counts and complete
+vertex/face/corner correspondence. Vertex identity follows Geometry's selection
+contract; all other maps come from actual Repair. Before completed repair, no
+snapshot/map is invented. No file table counts or reread reconstructs a mesh.
+
+The fallback extension `meshvale.repair.gltf.commands` version `1` identifies its
+command origin and missing native receipt, and projects whitelisted actual typed
+capture/file/inner outcomes, diagnostics, execution and publication observations.
+Enum domains/members and optionality stay explicit. System errors carry category
+and value without machine paths/messages. A required skipped
+`native-receipt-validation` check with null finding and a blocked-by-absence reason
+derives an incomplete command profile. It does not pretend that native checks
+failed or never ran. Preservation claims and publication artifacts stay empty;
+successful publication requires its genuine native receipt.
+
+## GLC-SCHEDULING-001: Cancellation, delivery and exits
+
+Continue mode attempts all admitted jobs despite nonzero results. Fail-fast stops
+after the first nonzero result, preserving its opaque ID in unscheduled reasons.
+Attempted batch rows always contain complete reports. Unattempted rows carry the
+known ID, null hash, null report and explicit reason. Empty batches complete with
+exit 0. Use Geometry's actual batch/1 consistency and exit rules.
+
+The CLI temporarily handles SIGINT by requesting the shared native token and
+restores the caller's handler. It raises no asynchronous exception across native
+commit. Pre/between-job cancellation stops scheduling; actual completed job facts
+stay unchanged. The final scheduling token observation is the batch completion
+boundary. A later interrupt cannot relabel a completed batch. Single-job exit
+comes from its actual report; a late token cannot erase committed success.
+
+Each detached report must fit 16 MiB, including an honest fallback. Completed
+maps may legitimately exceed that allowance. If a truthful attempted row cannot
+be produced within it, stop scheduling and release remaining owners. Return no
+aggregate; raise delivery failure with exit 130 for actually observed cancellation,
+otherwise 2. Never relabel an attempted job, truncate correspondence, relax v1 or
+emit a misleading partial aggregate. There is no emergency OOM report promise.
+Previously committed bundles and their receipts remain true.
+
+Stdout contains one UTF-8 JSON document and newline, with no progress text. Short
+write/flush failure produces a path-free stderr diagnostic and exit 2, preserving
+actual cancellation's 130 precedence. Never retry partial stdout or mutate native
+receipts to describe delivery failure. Physical partial writes are possible; they
+are not claimed as valid JSON. Prevent a second shutdown flush from replacing the
+chosen process exit. Shell redirection is caller-owned, not atomic report storage.
+
+Exit meanings/precedence are 130 cancellation, 2 execution/delivery failure,
+1 rejection or failed/incomplete required profile, 0 successful processing, as
+owned by Geometry's [report contract](https://github.com/Meshvale/meshvale-geometry/blob/48298b24be7c132816fb5580d22d58bde61558d0/docs/reports.md).
+Native ledger limits, Python allocation and report-wire ceilings remain distinct.

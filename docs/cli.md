@@ -9,6 +9,10 @@
 
 Install the optional `assets` extra with the exact public candidates in [pyproject.toml](../pyproject.toml). `meshvale-repair` and `python -m meshvale_repair` select the same front end. Native-only and primitive Python consumption remain independent of those optional dependencies. Commands use [the existing file workflow](obj-workflow.md); they do not implement a second repair algorithm, preservation profile or exporter. There is no package-index release yet.
 
+The separately selected [glTF command interface](gltf-commands.md) owns its
+explicit primitive policies, prepared native operation, receipt availability and
+bounded batch behavior. Its implementation and qualification remain pending.
+
 ## Single asset
 
 ```sh
