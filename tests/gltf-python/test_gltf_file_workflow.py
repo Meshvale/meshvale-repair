@@ -131,7 +131,7 @@ class CommonChecks(unittest.TestCase):
     def setUp(self):
         self.scratch = tempfile.TemporaryDirectory(prefix="meshvale-gltf-python-")
         self.addCleanup(self.scratch.cleanup)
-        self.root = Path(self.scratch.name)
+        self.root = Path(self.scratch.name).resolve()
 
     def enum(self, value, member, domain=None):
         if domain is not None:

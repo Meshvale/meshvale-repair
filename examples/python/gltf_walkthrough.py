@@ -55,7 +55,7 @@ def main():
                         help="prove the configured native numerical refusal explicitly")
     options = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="meshvale-installed-gltf-") as scratch:
-        root = Path(scratch) / "\u8d44\u4ea7-\U0001f9ca"
+        root = Path(scratch).resolve() / "\u8d44\u4ea7-\U0001f9ca"
         for glb in (False, True):
             for changed in (True, False):
                 case = root / f"{'glb' if glb else 'json'}-{'changed' if changed else 'unchanged'}"
