@@ -108,6 +108,7 @@ def inspect(path):
                          "python/gltf_presets.h", "python/gltf_presets.cpp",
                          "python/meshvale_repair/gltf_workflow.py", "docs/gltf-python.md",
                          "tests/gltf-python/test_gltf_file_workflow.py", "examples/python/gltf_walkthrough.py",
+                         "tests/gltf-python/test_retained_facts.py",
                          "python/meshvale_repair/workflow.py","tests/workflow/test_workflow.py","docs/workflow.md","examples/python/reported_duplicate.py",
                          "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
                          "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",
