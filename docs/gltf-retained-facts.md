@@ -72,7 +72,9 @@ Shared copies and overlapping result counters are not additive process totals.
 Retained payload keeps its original execution ledger and allocation backend.
 Several failed results can consume later operation headroom. Dropping the last
 owning copy releases its charges; dropping only the execution session does not.
-Inline result/state growth remains real storage subject to existing admission.
+Larger charged workflow state remains subject to its original request admission.
+Caller result slots and Python prepared-object storage retain their original
+exclusion scopes; no new charge is claimed for stack storage or Python objects.
 
 ## GRF-RECEIPT-001: Unchanged result meanings
 
