@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "meshvale/repair/gltf_workflow.h"
 
+#include <meshvale/repair/materialized_duplicates.h>
+
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -14,6 +16,7 @@
 #include <span>
 #include <stop_token>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -296,6 +299,11 @@ bool ValidUtf8(std::string_view value) {
 void ValidateRequest(const GltfDuplicateWorkflowRequest& r,
                      const GltfDuplicateWorkflowLimits& l,
                      bool retained = false) {
+  if (r.report_failure_retention != GltfReportFailureRetention::kRelease &&
+      r.report_failure_retention !=
+          GltfReportFailureRetention::kRetainCompletedRepair)
+    Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
+         Code::kConfigurationExtent);
   if (!r.primitive_ordinal)
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
          Code::kPrimitiveSelection);
@@ -872,6 +880,23 @@ void ValidateRetained(const RetainedSourceInitialization& retained) {
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
          Code::kConfigurationExtent);
 }
+void RetainCompletedRepair(const GltfDuplicateWorkflowRequest& request,
+                           const detail::WorkflowState* state,
+                           GltfDuplicateWorkflowResult& result) noexcept {
+  if (request.report_failure_retention ==
+          GltfReportFailureRetention::kRetainCompletedRepair &&
+      !result.record && state && state->repair)
+    result.retained_repair = state->repair;
+}
+static_assert(std::is_nothrow_copy_constructible_v<
+              std::optional<MaterializedDuplicateRepair>>);
+static_assert(std::is_nothrow_copy_assignable_v<
+              std::optional<MaterializedDuplicateRepair>>);
+static_assert(
+    std::is_nothrow_move_constructible_v<GltfDuplicateWorkflowResult>);
+static_assert(std::is_nothrow_move_assignable_v<GltfDuplicateWorkflowResult>);
+static_assert(std::is_nothrow_destructible_v<GltfDuplicateWorkflowResult>);
+
 GltfDuplicateWorkflowResult RunWorkflow(
     const GltfDuplicateWorkflowRequest& request,
     const GltfDuplicateWorkflowLimits& limits,
@@ -946,6 +971,7 @@ GltfDuplicateWorkflowResult RunWorkflow(
       ComputeOutcomes(*state, result.status);
       result.outcomes = state->outcomes;
       result.execution = state->execution;
+      RetainCompletedRepair(request, state.get(), result);
       return result;
     }
     state->UpdateDelegates();
@@ -978,6 +1004,7 @@ GltfDuplicateWorkflowResult RunWorkflow(
     result.outcomes.execution = GltfWorkflowExecutionOutcome::kCanceled;
     result.outcomes.exit = GltfWorkflowExitMeaning::kCanceled;
   }
+  RetainCompletedRepair(request, state.get(), result);
   return result;
 }
 }  // namespace

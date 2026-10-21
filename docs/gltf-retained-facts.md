@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-GLTF-FACTS-001 |
 | Version | 0.1.0 |
-| Status | Selected development interface; implementation and qualification pending |
+| Status | Development implementation; public qualification pending |
 | Owner | Repair workflow result ownership and live requested-byte attribution |
 
 This additive interface lets a caller retain an actually completed duplicate

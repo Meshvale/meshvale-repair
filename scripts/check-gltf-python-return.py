@@ -66,11 +66,22 @@ def main():
     module, = build.glob("_repair_gltf_return_test*.pyd")
     run("actual-return", [sys.executable, "-I", source / "tests/python_native/test_gltf_return.py",
                           module, output / "actual"], 120)
+    actual = json.loads((output / "actual/receipt.json").read_text(encoding="utf-8"))
+    inventory = {"publication_return_cases": len(actual["cases"]),
+                 "lazy_report_refusals": sum(row["lazy"]["refusal_attempts"] for row in actual["cases"]),
+                 "pre_capture_instance_refusals": actual["pre_capture_instance_refusals"],
+                 "retained_failure_returns": len(actual["retained_failure_returns"]),
+                 "retained_lazy_refusals": actual["retained_lazy_refusals"],
+                 "strict_bool_refusals": len(actual["strict_bool_refusals"])}
+    assert inventory == {"publication_return_cases": 12, "lazy_report_refusals": 12,
+                         "pre_capture_instance_refusals": 2, "retained_failure_returns": 8,
+                         "retained_lazy_refusals": 4, "strict_bool_refusals": 4}
     assert inputs == hashes(), "Source changed during compiled observer qualification"
     (output / "receipt.json").write_text(json.dumps({
         "scope": "Isolated test variant; production compile commands configured but production module execution is separately qualified",
         "module_sha256": hashlib.sha256(module.read_bytes()).hexdigest(), "inputs": inputs,
         "native_entry": "Own Repair same-engine ForTest with original request observers; actual publisher unchanged",
+        "inventory": inventory,
         "nanobind": version("nanobind"), "python": sys.version,
         "commands": commands}, indent=2) + "\n", encoding="utf-8")
     print("Compiled glTF Python return observer passed")

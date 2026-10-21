@@ -82,6 +82,12 @@ function(meshvale_add_gltf_file_workflow_tests)
     meshvale_warnings(meshvale_gltf_file_workflow_request_tests)
     meshvale_strict_floating_point(meshvale_gltf_file_workflow_request_tests)
     add_test(NAME gltf_file_workflow_requests COMMAND meshvale_gltf_file_workflow_request_tests)
+    add_executable(meshvale_gltf_retained_facts_tests tests/gltf_retained_facts.cpp)
+    target_include_directories(meshvale_gltf_retained_facts_tests PRIVATE src)
+    target_link_libraries(meshvale_gltf_retained_facts_tests PRIVATE meshvale::gltf_file_workflow)
+    meshvale_warnings(meshvale_gltf_retained_facts_tests)
+    meshvale_strict_floating_point(meshvale_gltf_retained_facts_tests)
+    add_test(NAME gltf_retained_facts COMMAND meshvale_gltf_retained_facts_tests)
     # Bound complete original wrapper/report/hash allocation sweeps separately.
     set(_MESHVALE_REPAIR_GLTF_FILE_REQUEST_TIMEOUT_SECONDS 600)
     set_tests_properties(gltf_file_workflow_requests PROPERTIES

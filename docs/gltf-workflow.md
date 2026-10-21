@@ -19,8 +19,8 @@ Native implementation does not establish complete asset-workflow or release
 qualification.
 
 The additive [completed-facts retention interface](gltf-retained-facts.md)
-selects an explicit opt-in policy for missing-report results. Its implementation
-and qualification are pending; default release and receipt meanings stay intact.
+provides an explicit opt-in policy for missing-report results. Public
+qualification remains pending; default release and receipt meanings stay intact.
 
 Geometry owns [report envelopes](https://github.com/Meshvale/meshvale-geometry/blob/main/docs/reports.md)
 and [charged immutable storage](https://github.com/Meshvale/meshvale-geometry/blob/main/docs/materialization.md).

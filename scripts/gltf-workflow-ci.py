@@ -372,7 +372,7 @@ def qualify(root, profile_name, file_workflow=False):
     runner.configure(root, rb, "-DBUILD_TESTING=ON", *repair_options)
     runner.build(rb)
     qualified = profile.materialization == "qualified"
-    native_count = (9 if qualified else 6) if file_workflow else (6 if qualified else 4)
+    native_count = (10 if qualified else 6) if file_workflow else (6 if qualified else 4)
     tests = runner.inventory(rb, "repair", native_count)
     runner.check_inventory(root, rb, "--gltf-workflow", "ON", "--gltf-file-workflow",
                            "ON" if file_workflow else "OFF")

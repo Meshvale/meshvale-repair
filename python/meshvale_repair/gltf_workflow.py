@@ -20,6 +20,7 @@ def repair_gltf_file(
     primitive_ordinal, triangles, values,
     input_id="source", resource_root=None, row_local_attributes=(),
     report_path="receipts/report.json", execution=None, cancellation=None,
+    retain_failure_facts=False,
 ):
     """Run one explicit native primitive repair, optionally publishing its bundle.
 
@@ -34,6 +35,7 @@ def repair_gltf_file(
         row_local_attributes=row_local_attributes, report_path=report_path,
         execution=_DEFAULT_EXECUTION if execution is None else execution,
         cancellation=cancellation,
+        retain_failure_facts=retain_failure_facts,
     )
     return _repair._run_gltf_file(prepared)
 

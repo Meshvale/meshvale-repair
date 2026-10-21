@@ -7,14 +7,18 @@
 #include <array>
 #include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <exception>
 #include <new>
+#include <optional>
 #include <span>
+#include <stop_token>
 #include <string_view>
 
 #include "gltf_binding_allocation.h"
 #include "gltf_file_workflow_test_internal.h"
 #include "materialized_duplicate_allocation.h"
+#include "materialized_duplicate_workers.h"
 
 namespace meshvale::repair::python::binding_test {
 namespace {
@@ -26,6 +30,7 @@ enum class Mode {
   kNormal,
   kPositive,
   kPositiveRefused,
+  kReportCanceled,
   kInstance,
   kReport
 };
@@ -42,6 +47,7 @@ constexpr std::array<PyMemAllocatorDomain, kDomainCount> kDomains{
 constexpr std::string_view kNormalMode = "normal";
 constexpr std::string_view kPositiveMode = "positive-wrapper";
 constexpr std::string_view kPositiveRefusedMode = "positive-wrapper-refused";
+constexpr std::string_view kReportCanceledMode = "report-canceled";
 constexpr std::string_view kInstanceMode = "instance-refused";
 constexpr std::string_view kReportMode = "report-refused";
 struct Domain {
@@ -96,6 +102,54 @@ struct OriginalRequests {
 OriginalRequests wrapper;
 OriginalRequests memory;
 std::size_t prepared_reports = 0;
+std::optional<std::stop_source> observed_stop;
+constexpr std::size_t kFaultWorkerCapacity = 64;
+struct ReportWorkers {
+  struct Slot {
+    own::NativeWorkerRecord wrapped;
+    own::NativeWorkerRecord* original = nullptr;
+    ReportWorkers* owner = nullptr;
+  };
+  std::array<Slot, kFaultWorkerCapacity> slots{};
+  std::size_t launched = 0;
+  std::size_t joined = 0;
+  std::atomic<std::size_t> entered{0};
+  std::atomic<bool> stop_requested{false};
+  std::atomic<bool> stop_accepted{false};
+  static void Entry(own::NativeWorkerRecord& record) noexcept {
+    auto& slot = *static_cast<Slot*>(record.state);
+    auto& self = *slot.owner;
+    if (!self.stop_requested.exchange(true)) {
+      self.stop_accepted = observed_stop && observed_stop->request_stop();
+      // The real report worker records are already admitted. Freeze only the
+      // named Repair backends; the publisher is never replaced or invoked.
+      wrapper.frozen = memory.frozen = true;
+    }
+    ++self.entered;
+    slot.original->entry(*slot.original);
+  }
+  static std::uintptr_t Launch(own::NativeWorkerRecord* record, void* opaque) {
+    auto& self = *static_cast<ReportWorkers*>(opaque);
+    if (self.launched == self.slots.size())
+      throw nb::value_error("report worker observer capacity exhausted");
+    auto& slot = self.slots[self.launched];
+    slot.original = record;
+    slot.owner = &self;
+    slot.wrapped = {Entry, &slot, record->ordinal};
+    const auto original = own::DefaultNativeWorkerBackend();
+    const auto handle = original.launch(&slot.wrapped, original.state);
+    ++self.launched;
+    return handle;
+  }
+  static void Join(std::uintptr_t handle, void* opaque) noexcept {
+    auto& self = *static_cast<ReportWorkers*>(opaque);
+    const auto original = own::DefaultNativeWorkerBackend();
+    original.join(handle, original.state);
+    ++self.joined;
+  }
+  own::NativeWorkerBackend Backend() noexcept { return {Launch, Join, this}; }
+};
+ReportWorkers report_workers;
 bool Request(Domain& domain) noexcept {
   if (!counting.load(std::memory_order_relaxed)) return false;
   domain.requests.fetch_add(1, std::memory_order_relaxed);
@@ -179,6 +233,8 @@ void Setup(std::string_view selected) {
     mode = Mode::kPositive;
   else if (selected == kPositiveRefusedMode)
     mode = Mode::kPositiveRefused;
+  else if (selected == kReportCanceledMode)
+    mode = Mode::kReportCanceled;
   else if (selected == kInstanceMode)
     mode = Mode::kInstance;
   else if (selected == kReportMode)
@@ -194,10 +250,14 @@ void Setup(std::string_view selected) {
   wrapper.after_freeze = memory.after_freeze = 0;
   wrapper.frozen = memory.frozen = false;
   prepared_reports = 0;
+  observed_stop.reset();
+  report_workers.launched = report_workers.joined = 0;
+  report_workers.entered = 0;
+  report_workers.stop_requested = report_workers.stop_accepted = false;
   counting = false;
   fail_next = false;
   if (mode == Mode::kNormal || mode == Mode::kPositive ||
-      mode == Mode::kPositiveRefused)
+      mode == Mode::kPositiveRefused || mode == Mode::kReportCanceled)
     Install();
 }
 void Prepared(std::span<const std::byte>, void*) {
@@ -224,6 +284,26 @@ nb::dict Finish(nb::handle) {
   result["refusal_attempts"] = refusal_attempts;
   result["probe"] = static_cast<int>(probe);
   result["restored"] = !installed;
+  result["report_workers_launched"] = report_workers.launched;
+  result["report_workers_joined"] = report_workers.joined;
+  result["report_workers_entered"] = report_workers.entered.load();
+  result["report_stop_requested"] = report_workers.stop_requested.load();
+  result["report_stop_accepted"] = report_workers.stop_accepted.load();
+  return result;
+}
+nb::object RefuseProperty(nb::handle value, nb::handle name) {
+  if (!PyUnicode_Check(name.ptr()))
+    throw nb::type_error("property name must be Unicode");
+  Install();
+  mode = Mode::kIdle;
+  cpp_before = allocation::Calls();
+  counting = true;
+  fail_next = true;
+  // Name and call arguments are already owned before arming. This exercises
+  // real lazy property delivery without inserting a production getter hook.
+  nb::object result = nb::steal(PyObject_GetAttr(value.ptr(), name.ptr()));
+  Restore();
+  if (!result.is_valid()) throw nb::python_error();
   return result;
 }
 }  // namespace
@@ -231,7 +311,10 @@ void Restore() noexcept {
   allocation::Refuse(false);
   counting = false;
   fail_next = false;
-  if (!installed) return;
+  if (!installed) {
+    observed_stop.reset();
+    return;
+  }
   if (!PyGILState_Check()) std::terminate();
   cpp_delta = allocation::Calls() - cpp_before;
   for (std::size_t i = 0; i < domains.size(); ++i)
@@ -240,6 +323,7 @@ void Restore() noexcept {
   for (std::size_t i = domains.size(); i > 0; --i)
     PyMem_SetAllocator(kDomains[i - 1], &domains[i - 1].original);
   installed = false;
+  observed_stop.reset();
 }
 AllocationScope::~AllocationScope() noexcept {
   if (active_) Restore();
@@ -269,12 +353,17 @@ AllocationScope BeforeReportBytes() {
 gltf_file_workflow_detail::FileWorkflowTestOptions WorkflowOptions() {
   gltf_file_workflow_detail::FileWorkflowTestOptions options;
   if (mode == Mode::kNormal || mode == Mode::kPositive ||
-      mode == Mode::kPositiveRefused) {
+      mode == Mode::kPositiveRefused || mode == Mode::kReportCanceled) {
     options.allocation_backend = wrapper.Backend();
     options.memory.allocation_backend = memory.Backend();
     options.prepared_report = Prepared;
+    if (mode == Mode::kReportCanceled)
+      options.memory.report_worker_backend = report_workers.Backend();
   }
   return options;
+}
+void ObserveStopSource(const std::stop_source& source) noexcept {
+  if (mode == Mode::kReportCanceled) observed_stop = source;
 }
 void AfterNativeReturn() noexcept {
   if (!installed) return;
@@ -282,7 +371,7 @@ void AfterNativeReturn() noexcept {
   cpp_before = allocation::Calls();
   return_armed = true;
   counting = true;
-  allocation::Refuse(mode == Mode::kNormal);
+  allocation::Refuse(mode == Mode::kNormal || mode == Mode::kReportCanceled);
 }
 void BeforeReturn(nb::handle prepared) noexcept {
   if (mode != Mode::kPositive && mode != Mode::kPositiveRefused) return;
@@ -313,6 +402,7 @@ void RegisterObserverBindings(nb::module_& module) {
   module.def("_observer_setup", &Setup);
   module.def("_observer_finish", &Finish);
   module.def("_observer_restore", &Restore);
+  module.def("_observer_refuse_property", &RefuseProperty);
   module.def("_observer_live_blocks",
              [] { return wrapper.live.load() + memory.live.load(); });
   module.attr("_probe_not_attempted") =
