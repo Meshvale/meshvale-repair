@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-WORKFLOW-001 |
-| Version | 0.1.3 |
+| Version | 0.1.4 |
 | Status | Development native implementation; qualification pending |
 | Owner | Repair orchestration, resolved policy, observations and report translation |
 | Interface | [gltf_workflow.h](../include/meshvale/repair/gltf_workflow.h) |
@@ -17,6 +17,10 @@ The ordinary reader/writer cohort alone does not satisfy that dependency.
 Filesystem publication, Python bindings and commands remain separate work.
 Native implementation does not establish complete asset-workflow or release
 qualification.
+
+The additive [completed-facts retention interface](gltf-retained-facts.md)
+selects an explicit opt-in policy for missing-report results. Its implementation
+and qualification are pending; default release and receipt meanings stay intact.
 
 Geometry owns [report envelopes](https://github.com/Meshvale/meshvale-geometry/blob/main/docs/reports.md)
 and [charged immutable storage](https://github.com/Meshvale/meshvale-geometry/blob/main/docs/materialization.md).

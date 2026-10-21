@@ -3,6 +3,10 @@
 This development C++20 interface composes an immutable Interchange file capture,
 the targeted duplicate-face operation and verified same-format JSON glTF or GLB
 bundle publication.
+The additive [completed-facts retention interface](gltf-retained-facts.md)
+selects explicit opt-in ownership after a missing memory receipt. Its
+implementation and qualification are pending; ordinary receipt semantics remain
+those below.
 It has no stable release yet. Enable `MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON` and
 link `meshvale::gltf_file_workflow`; the supplied-memory workflow option must also
 be ON. Install Geometry and Interchange with the public `meshvale::gltf_files`
