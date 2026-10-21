@@ -8,7 +8,7 @@
 
 ### Added
 
-- Optional native [`meshvale::gltf_file_workflow`](docs/gltf-file-workflow.md) for retained glTF file duplicate repair and verified JSON bundle publication. Its bundled report records retained-source and staged-artifact SHA-256 hashes, preserves actual diagnostics and shares the existing memory repair engine. An installed example exercises publication after source-file removal. Qualification remains pending; its pinned dependency explicitly refuses requested GLB publication, and Python bindings and commands remain forthcoming.
+- Optional native [`meshvale::gltf_file_workflow`](docs/gltf-file-workflow.md) for retained glTF file duplicate repair and verified same-format JSON glTF/GLB bundle publication. Its bundled report records retained-source and staged-artifact SHA-256 hashes, preserves actual diagnostics and shares the existing memory repair engine. GLB publication retains complete ordered BIN/opaque chunks and preserves the complete original wire for unchanged output. An installed example exercises both formats after source-file removal. Qualification remains pending; Python bindings and commands remain forthcoming.
 
 - Optional native [`meshvale::gltf_workflow`](docs/gltf-workflow.md) for supplied-memory glTF duplicate repair, checked writing, independent reload/preservation inspection and owned report/1 output. It retains accepted candidate facts across later failures and uses explicit stage/aggregate request caps. Native qualification remains pending; filesystem publication, GLB workflow composition, Python bindings, commands and stable releases remain separate work.
 

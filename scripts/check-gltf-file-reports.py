@@ -6,6 +6,7 @@ Python hashlib and Geometry's schema/reference/exit validator, never Repair's
 native SHA, writer, serializer, or a generated-report patcher.
 """
 import argparse
+import base64
 import hashlib
 import json
 from pathlib import Path
@@ -22,6 +23,33 @@ STATIC_BYTES = b"literal static receipt input\n"
 FILE_EXTENSION = "meshvale.repair.gltf.file"
 MEMORY_PROFILE = ("gltf-static-duplicate-preservation", "1")
 FILE_PROFILE = ("gltf-static-duplicate-publication", "1")
+GLB_PUBLICATION_CASES = {"glb-changed-published", "glb-unchanged-published"}
+GLB_JSON_TYPE = 0x4E4F534A
+GLB_BIN_TYPE = 0x004E4942
+GLB_SOURCE_JSON = (
+    br'{"asset":{"version":"2.0"},"buffers":[{"byteLength":49},{"uri":"mesh.bin","byteLength":48}],'
+    br'"bufferViews":[{"buffer":0,"byteLength":36},{"buffer":0,"byteOffset":36,"byteLength":12}],'
+    br'"accessors":[{"bufferView":0,"componentType":5126,"count":3,"type":"VEC3","min":[0,0,0],"max":[1,1,0]},'
+    br'{"bufferView":1,"componentType":5123,"count":6,"type":"SCALAR"}],'
+    br'"images":[{"uri":"texture.bin","mimeType":"image/png"}],"materials":[{"name":"authored-material"}],'
+    br'"meshes":[{"primitives":[{"attributes":{"POSITION":0},"indices":1,"material":0}]}],'
+    br'"nodes":[{"mesh":0},{"mesh":0}],"scenes":[{"nodes":[0,1]}],'
+    br'"extras":{"number":1.2300e+04,"string":"keep\u0020lexeme"}}' + b" \t\n"
+)
+# Literal float32 position bits and UInt16 duplicate indices, one unused logical
+# byte, then exactly three physical BIN padding bytes. No native assembler,
+# captured source or generated report supplies these expected bytes.
+GLB_BIN_BYTES = bytes.fromhex(
+    "00000080 00000000 00000000 0000803f 00000000 00000000 "
+    "00000000 0000803f 00000000 000001000200000001000200 d3 000000"
+)
+GLB_NON_JSON_CHUNKS = (
+    (GLB_BIN_TYPE, GLB_BIN_BYTES),
+    (0x12345678, bytes.fromhex("7f00dead")),
+    (0xDECAFBAD, bytes.fromhex("0102030480ff00aa")),
+    (0x12345678, bytes.fromhex("000102ff")),
+)
+GLB_CHANGED_INDEX_URI = "data:application/octet-stream;base64,AAAAAAEAAAACAAAA"
 READBACK_CASE = "staged-byte-readback-failure"
 READBACK_OUTCOMES = ("failed", "export", "accepted", 2, "failed", True)
 # Independent literals from the pinned public enum wire projection. The opaque
@@ -46,8 +74,10 @@ CASES = {
     "changed-no-export": ("completed", "complete", "accepted", 0, "not-requested", True),
     "unchanged-no-export": ("completed", "complete", "unchanged", 0, "not-requested", False),
     "glb-no-export": ("completed", "complete", "accepted", 0, "not-requested", True),
+    "glb-changed-published": ("completed", "complete", "accepted", 0, "published", True),
+    "glb-unchanged-published": ("completed", "complete", "unchanged", 0, "published", False),
     "rejected": ("completed", "complete", "rejected", 1, "not-attempted", None),
-    "glb-unsupported-export": ("failed", "export", "accepted", 2, "failed", True),
+    "glb-destination-exists": ("failed", "export", "accepted", 2, "failed", True),
     "destination-exists": ("failed", "export", "accepted", 2, "failed", True),
     "static-collision": ("failed", "export", "accepted", 2, "failed", True),
     "report-collision": ("failed", "export", "accepted", 2, "failed", True),
@@ -101,6 +131,84 @@ def source_hash(root):
         update_file(stream, path)
         work += 8 + len(relative) + 8 + size
     return stream.hexdigest(), work, format_name.decode("ascii")
+
+
+def glb_chunks(wire):
+    require(len(wire) >= 12, "complete GLB header")
+    magic, version, total = struct.unpack_from("<III", wire)
+    require((magic, version, total) == (0x46546C67, 2, len(wire)),
+            "literal GLB magic/version and exact physical extent")
+    chunks = []
+    cursor = 12
+    while cursor < total:
+        require(total - cursor >= 8, "complete physical chunk header")
+        size, kind = struct.unpack_from("<II", wire, cursor)
+        cursor += 8
+        require(size % 4 == 0 and size <= total - cursor,
+                "aligned physical chunk extent within actual wire")
+        chunks.append((kind, wire[cursor:cursor + size]))
+        cursor += size
+    require(chunks and chunks[0][0] == GLB_JSON_TYPE and
+            all(kind != GLB_JSON_TYPE for kind, _ in chunks[1:]),
+            "one leading JSON chunk, no second JSON chunk")
+    return chunks
+
+
+def check_glb_publication(case, changed):
+    original = (case / "source" / ENTRY).read_bytes()
+    published = (case / "bundle" / ENTRY).read_bytes()
+    require((case / "source/mesh.bin").read_bytes() ==
+            GLB_BIN_BYTES[:48] + bytes.fromhex("deadbeefcafebabe"),
+            "literal complete external buffer including its unused physical tail")
+    before = glb_chunks(original)
+    after = glb_chunks(published)
+    padded_json = GLB_SOURCE_JSON + b" " * (-len(GLB_SOURCE_JSON) % 4)
+    require(before == [(GLB_JSON_TYPE, padded_json), *GLB_NON_JSON_CHUNKS],
+            "literal full source JSON/BIN/ordered opaque chunks including duplicate type")
+    require(after[1:] == list(GLB_NON_JSON_CHUNKS),
+            "published non-JSON order/types/full bytes, unused logical byte and BIN padding")
+    if not changed:
+        require(published == original, "no-op GLB retains complete original wire identity")
+        return
+    require(after[0][1] != before[0][1], "changed GLB actually replaces JSON")
+    text = after[0][1].decode("ascii")
+    document, end = json.JSONDecoder().raw_decode(text)
+    # The lexical writer retains the complete original JSON trailing bytes,
+    # including the source's original alignment; only new space alignment may
+    # follow that prefix. Determine the prefix without asking the native writer.
+    retained_suffix = padded_json[len(GLB_SOURCE_JSON) - len(b" \t\n"):]
+    expected_suffix = retained_suffix + b" " * (-(end + len(retained_suffix)) % 4)
+    require(after[0][1][end:] == expected_suffix,
+            "changed JSON retains authored whitespace and adds only exact GLB space padding")
+    require(br'"number":1.2300e+04' in after[0][1] and
+            br'"string":"keep\u0020lexeme"' in after[0][1],
+            "authored numeric and escaped-string lexemes remain exact")
+    source = json.loads(GLB_SOURCE_JSON)
+    require(len(document["buffers"]) == 3 and len(document["bufferViews"]) == 3 and
+            len(document["accessors"]) == 3, "exact appended topology table extents")
+    buffer = document["buffers"].pop()
+    view = document["bufferViews"].pop()
+    accessor = document["accessors"].pop()
+    require(buffer == {"uri": GLB_CHANGED_INDEX_URI, "byteLength": 12} and
+            base64.b64decode(buffer["uri"].split(",", 1)[1], validate=True) ==
+            bytes.fromhex("000000000100000002000000"),
+            "independent inline little-endian UINT32 survivor indices")
+    require(view.get("buffer") == 2 and view.get("byteLength") == 12 and
+            view.get("byteOffset", 0) == 0 and view.get("target", 34963) == 34963 and
+            set(view) <= {"buffer", "byteLength", "byteOffset", "target"},
+            "appended view references only the new inline index buffer")
+    require(accessor.get("bufferView") == 2 and accessor.get("componentType") == 5125 and
+            accessor.get("count") == 3 and accessor.get("type") == "SCALAR" and
+            accessor.get("byteOffset", 0) == 0 and accessor.get("normalized", False) is False and
+            set(accessor) <= {"bufferView", "componentType", "count", "type", "byteOffset", "normalized"},
+            "appended unnormalized SCALAR/UINT32 three-corner accessor")
+    primitive = document["meshes"][0]["primitives"][0]
+    require(primitive["indices"] == 2 and primitive.get("mode", 4) == 4,
+            "actual selected primitive binds new TRIANGLES indices")
+    primitive["indices"] = 1
+    primitive.pop("mode", None)
+    require(document == source,
+            "every preexisting table, URI, material, shared instance and unrelated JSON value retained")
 
 
 def check_meshes(report, changed):
@@ -174,6 +282,9 @@ def validate_case(root, name, model, schema_validator):
     require((case / "source/mesh.bin").read_bytes()[-8:] == bytes.fromhex("deadbeefcafebabe"), "unused buffer tail")
     require((case / "source/texture.bin").read_bytes() == bytes.fromhex("89504e470d0a1a0a") + bytes([0x5A]) * (4096 - 8), "full opaque image input")
     require((case / "source/notes/original.bin").read_bytes() == bytes([0xA7]) * 65536, "full explicit opaque input")
+    if name in GLB_PUBLICATION_CASES:
+        require(source_format == "glb", "publication fixture has actual GLB magic")
+        check_glb_publication(case, changed)
     extension = report["extensions"].get(FILE_EXTENSION)
     if requested:
         require(extension is not None and extension["version"] == "1", "owning file extension version")

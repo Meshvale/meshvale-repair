@@ -27,7 +27,9 @@ provider, in addition to the installed `meshvale::gltf_files` target. The
 `--file-workflow`. Its configured native inventories contain nine tests in
 qualified profiles and six in unsupported profiles, with four installed
 consumers. Qualified profiles also independently validate the report from an
-actual staged-byte readback failure after receipt preparation. The file header
+actual staged-byte readback failure after receipt preparation. The semantic
+oracle validates fourteen reports, including changed/no-op GLB publication with
+embedded BIN, opaque chunks and external resources. The file header
 and target are installed only when enabled. Actual
 execution, physical artifact hash checks and shared report-schema validation
 are required before a qualification claim; configured jobs alone do not establish
