@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-COMMANDS-001 |
-| Version | 0.1.0 |
-| Status | Selected development interface; implementation and qualification pending |
+| Version | 0.1.1 |
+| Status | Implemented development interface; final platform qualification pending |
 | Owner | Command admission, ordered scheduling, receipt framing and delivery |
 
 These commands use the same [prepared file operation](gltf-python.md), native
@@ -12,6 +12,21 @@ policies, execution presets and verified publisher as the Python interface.
 Install the declared `workflow` extra for Geometry's report reader/validator;
 the glTF path does not require the Interchange Python extension. There is no
 package-index release or supported compatibility matrix yet.
+
+With the [matched development wheels](python.md) installed, run the
+[self-contained walkthrough](../examples/python/gltf_walkthrough.py) from outside
+the source tree:
+
+```sh
+python -I examples/python/gltf_walkthrough.py --commands
+```
+
+Use the example's absolute path when running elsewhere. It creates small JSON
+glTF and embedded-BIN GLB inputs, runs single console/module commands and ordered
+API/CLI batches, and checks physical receipts, resource hashes and exact
+correspondence. The default mode demonstrates the file API. The selected
+qualified profile is Windows x64 MSVC Release; `--unsupported-profile` checks
+explicit native refusal on other currently unqualified numerical profiles.
 
 ## GLC-INVOCATION-001: Explicit operation
 
@@ -68,6 +83,8 @@ prepared result, and admit `16 MiB * job_count` of arithmetic report allowance
 (at most 256 MiB), plus the separate 8 MiB framing allowance. These are wire-byte
 ceilings, not preallocated storage, Python heap limits, native payload totals or
 RSS guarantees. Report validation and lazy parsing can temporarily expand JSON.
+The actual command also preflights its declared report reader and JSON-schema
+runtime before capture. Help/version retain their optional-import independence.
 
 CLI paths resolve from cwd; batch paths resolve from the request file's parent.
 The API's base defaults to cwd. Use canonical existing ancestors for comparison,
@@ -129,8 +146,10 @@ successful publication requires its genuine native receipt.
 Continue mode attempts all admitted jobs despite nonzero results. Fail-fast stops
 after the first nonzero result, preserving its opaque ID in unscheduled reasons.
 Attempted batch rows always contain complete reports. Unattempted rows carry the
-known ID, null hash, null report and explicit reason. Empty batches complete with
-exit 0. Use Geometry's actual batch/1 consistency and exit rules.
+known ID, null hash, null report and explicit reason. Uncancelled empty batches
+complete with exit 0; an already cancelled token yields 130 at the same final
+observation as every other batch. Use Geometry's actual batch/1 consistency and
+exit rules.
 
 The CLI temporarily handles SIGINT by requesting the shared native token and
 restores the caller's handler. It raises no asynchronous exception across native

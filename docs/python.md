@@ -54,6 +54,15 @@ Windows candidates require the [official x64 Microsoft Visual C++ v14 runtime](h
 
 Clean installed checks exercise the existing Repair and producer test suites, all six product import orders with canonical Mesh identity, independent native record consumers and the [textured API/single/batch walkthrough](quickstart.md). The walkthrough retains independently reloaded bundles, source/resource bytes, correspondence, receipts and a rejected request that publishes nothing. The report reader is also checked with all native product imports blocked, and `pip check` verifies installed dependencies. The dedicated [glTF suite](../tests/gltf-python/test_gltf_file_workflow.py) uses explicit numerical profiles: qualified Windows MSVC Release checks actual JSON/GLB publication; the Linux portable lane checks actual unsupported native outcomes. Neither profile silently skips the other. The [glTF walkthrough](../examples/python/gltf_walkthrough.py) follows that same profile selection.
 
+The [glTF commands](gltf-commands.md) also run through the installed `workflow`
+extra before the optional Interchange Python package is installed. Their separate
+suite checks admission, ordered jobs, exact receipts, fallback facts and delivery.
+The walkthrough's `--commands` mode compares console/module commands and API/CLI
+batches. In the Windows portable lane, a separate compiled observer child checks
+real report-worker cancellation against the installed command code; it retains
+its original native compile proof and never loads the production extension in
+that test child. Production-wheel tests remain separate.
+
 To inspect a matching cohort, download one lane's artifact from its passing workflow run. Select a **new** `CANDIDATE_WHEELS` directory containing one Repair wheel plus that lane's Geometry and Interchange wheels from `upstream/`; avoid mixing source/archive alternatives or runs. Create a fresh environment matching the candidate's interpreter and platform, satisfy the recorded platform runtime prerequisite, then install:
 
 ```sh
