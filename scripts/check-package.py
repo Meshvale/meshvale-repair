@@ -22,7 +22,7 @@ def inspect(path):
                 assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
                 continue
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py","gltf_workflow.py","gltf_commands.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
             else:
                 assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
@@ -67,6 +67,23 @@ def inspect(path):
                          "tests/python_native/gltf_binding_allocation.cpp",
                          "tests/python_native/test_gltf_return.py",
                          "include/meshvale/repair/materialized_duplicates.h",
+                         "include/meshvale/repair/off_workflow.h", "cmake/OffWorkflow.cmake",
+                         "src/off_workflow.cpp", "src/off_workflow_internal.h",
+                         "src/off_workflow_report.cpp", "src/off_workflow_test_internal.h",
+                         "tests/off_workflow.cpp", "tests/off_workflow_requests.cpp",
+                         "tests/off_workflow_fixture.h", "tests/header_off_workflow.cpp",
+                         "examples/consumer/off_workflow.cpp", "docs/off-workflow.md",
+                         "examples/python/off_walkthrough.py", "docs/off-quickstart.md",
+                         "docs/off-presets.md", "docs/off-presets.json",
+                         "python/off_presets.h", "python/off_presets.cpp",
+                         "python/off_bindings.h", "python/off_bindings.cpp",
+                         "python/meshvale_repair/off_workflow.py",
+                         "python/meshvale_repair/off_commands.py",
+                         "tests/off-python/off_test_fixture.py",
+                         "tests/off-python/test_off_workflow.py",
+                         "tests/off-cli/off_command_fixture.py",
+                         "tests/off-cli/test_off_commands.py",
+                         "scripts/check-off-workflow-reports.py",
                          "include/meshvale/repair/gltf_workflow.h", "docs/gltf-workflow.md",
                          "cmake/GltfWorkflow.cmake", "src/gltf_workflow.cpp",
                          "cmake/GltfFileWorkflow.cmake",

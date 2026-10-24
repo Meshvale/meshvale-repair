@@ -39,6 +39,21 @@ Documentation and portability checks need Git and Python 3.10 or newer, with no 
 
 Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml) and ordinary GIL-enabled CPython. The default wheel also enables the charged, memory and retained-file modules: supply compatible installed Geometry, Interchange and tinyobjloader prefixes. The native Interchange producer must enable its glTF writer, workflow support and file interfaces. See [Python packaging and ownership requirements](docs/python.md) and the [glTF Python contract](docs/gltf-python.md). Native-only legacy builds remain selectable separately. Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.
 
+The optional [reported OFF workflow](docs/off-workflow.md) requires
+`MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON`, charged Repair and an installed
+Interchange `meshvale::off_files` target. Its
+[dedicated qualification workflow](.github/workflows/off-workflow.yml) pins the
+public Geometry and Interchange producers. The existing helper selects this
+independent cohort with `--off-file-workflow`: optional glTF modules are disabled,
+qualified native inventories contain seven tests, unsupported inventories six,
+and both use three installed consumers. The report oracle checks 15 qualified
+reports or four genuine empty reports on unsupported producers. Two selected
+development profiles also build wheels and run the installed OFF API/commands
+with `--off-python`; those checks are separate from portable redistribution.
+The OFF Python module is opt-in at wheel build time and requires the declared
+workflow extra for command report validation, without Interchange's Python
+extension. Configured jobs alone do not establish qualification or a release.
+
 ```sh
 python scripts/check-portability.py
 python scripts/check-docs.py

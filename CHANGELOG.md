@@ -4,9 +4,13 @@
 
 ### Fixed
 
+- OFF commands preserve logical source, destination and batch-base path spellings, including partial Windows anchors and trailing separators, so native path validation determines each attempted outcome.
+
 - Reported workflows independently fail input/candidate storage coverage for nonfinite authored floating channel rows. Missing backing values remain permitted and unchanged.
 
 ### Added
+
+- Optional reported [OFF repair workflow](docs/off-quickstart.md): native file composition, `repair_off_file`, `off` and `off-batch` commands with explicit targets and text/edge-count policies. Canonical write/reload verification retains indexed polygons and unused vertex rows, records correspondence and raw-source/artifact hashes, and publishes a new two-member bundle without replacing an existing destination. Independent preset limits and ordered exact-receipt scheduling are exposed through the same prepared operation. Development qualification remains in progress.
 
 - Development [`gltf` and `gltf-batch` commands](docs/gltf-commands.md) and reusable ordered scheduling over the same file operation. Whole-invocation admission precedes capture; native receipts remain byte-exact, absent receipts use actual retained facts with explicit incomplete coverage, and oversized truthful reports fail delivery without emitting a partial aggregate. The installed walkthrough covers JSON glTF and GLB console/module/API batches; platform qualification remains in progress.
 

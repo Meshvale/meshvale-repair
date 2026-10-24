@@ -40,9 +40,16 @@ releases the GIL for native work, and retains actual diagnostics, maps and the
 verified bundled receipt. The [installed walkthrough](examples/python/gltf_walkthrough.py)
 exercises changed and unchanged JSON glTF and GLB files. Initial qualification
 targets Windows x64 MSVC Release CPython 3.13; other profiles expose their actual
-native unsupported outcomes. glTF commands remain forthcoming.
+native unsupported outcomes.
 
 The [Python interface](docs/python.md) accepts immutable Geometry snapshots and returns an owned candidate, rejection diagnostics and readonly correspondence maps. It uses the same native operation and preserves whole-request rejection. See the [installed Python example](examples/python/remove_duplicate.py).
+
+The optional [OFF workflow](docs/off-quickstart.md) applies the same targeted
+repair to indexed polygons, verifies canonical write/reload and publishes a new
+OFF entry with its hashed receipt. Its native interface, opt-in Python path API,
+single command and ordered batch share actual outcomes and correspondence maps.
+The walkthrough checks cyclic quads, unrelated faces and unused signed-zero
+vertices. Qualification remains in progress.
 
 The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.
 

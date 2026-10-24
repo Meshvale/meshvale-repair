@@ -20,6 +20,8 @@ if __name__ == "__main__":
     parser.add_argument("--workflow",action="store_true",help="Install the declared validator extra and test reported operations")
     parser.add_argument("--gltf", choices=["qualified", "unsupported"],
                         help="Exercise the installed glTF API with an explicit numerical profile")
+    parser.add_argument("--off", choices=["qualified", "unsupported"],
+                        help="Exercise the installed OFF API and commands with an explicit numerical profile")
     parser.add_argument("--interchange-wheel",type=Path,help="Also install and exercise the optional asset workflow")
     options = parser.parse_args(); root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="meshvale-repair-installed-") as scratch:
@@ -38,7 +40,7 @@ if __name__ == "__main__":
                     "import meshvale_repair; import meshvale_geometry")
             code += "; assert meshvale_repair.Mesh is meshvale_geometry.Mesh; assert meshvale_repair.remove_duplicate_faces(meshvale_geometry.Mesh(), []).outcome == 'unchanged'; print('Installed import order passed: "+order+"')"
             run(python,"-I","-c",code,cwd=directory)
-        if options.workflow or options.gltf:
+        if options.workflow or options.gltf or options.off:
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[workflow]",cwd=directory)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/workflow","-v",cwd=directory)
             run(python,"-I",root/"examples/python/reported_duplicate.py",cwd=directory)
@@ -60,6 +62,18 @@ if __name__ == "__main__":
             inspector_arguments = ["--scene-inspector", inspector] if inspector else []
             run(python,"-I",root/"examples/python/gltf_scene_walkthrough.py",*profile_arguments,*inspector_arguments,
                 cwd=directory,env=gltf_environment)
+        if options.off:
+            off_environment = os.environ.copy()
+            off_environment["MESHVALE_OFF_PYTHON_PROFILE"] = options.off
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/off-python","-v",
+                cwd=directory,env=off_environment)
+            profile_arguments = ["--unsupported-profile"] if options.off == "unsupported" else []
+            run(python,"-I",root/"examples/python/off_walkthrough.py",*profile_arguments,
+                cwd=directory,env=off_environment)
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/off-cli","-v",
+                cwd=directory,env=off_environment)
+            run(python,"-I",root/"examples/python/off_walkthrough.py","--commands",*profile_arguments,
+                cwd=directory,env=off_environment)
         if options.interchange_wheel:
             run(python,"-m","pip","install","--no-index",options.interchange_wheel.resolve(),cwd=directory)
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)

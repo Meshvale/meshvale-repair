@@ -21,11 +21,11 @@ Geometry and Interchange must match Repair's exact requirements in
 
 | Product | Public source revision | Python candidate |
 |---|---|---|
-| Geometry | `ec38fabd783a578947d43856b0c7a7fd54ce8533` | `0.0.1.dev69+gec38fabd7` |
-| Interchange | `8d5823272b576052553608dbff26685ba56b4dea` | `0.0.1.dev62+g8d5823272` |
+| Geometry | `48298b24be7c132816fb5580d22d58bde61558d0` | `0.0.1.dev134+g48298b24b` |
+| Interchange | `5b9b695ba1fef166baa8c7cf9ad21a5630691f70` | `0.0.1.dev179+g5b9b695ba` |
 
 Choose absolute paths for `GEOMETRY_SOURCE`, `INTERCHANGE_SOURCE`, this
-`REPAIR_SOURCE` checkout, `GEOMETRY_PREFIX`, `TINYOBJLOADER_PREFIX`,
+`REPAIR_SOURCE` checkout, `GEOMETRY_PREFIX`, `INTERCHANGE_PREFIX`, `TINYOBJLOADER_PREFIX`,
 `CANDIDATE_WHEELS` and `VENV`. Keep build directories outside tracked source.
 The following commands use POSIX shell variables; PowerShell callers use
 `$env:NAME` for environment variables and activate with
@@ -36,9 +36,9 @@ derived, then check out the exact revisions:
 
 ```sh
 git clone https://github.com/Meshvale/meshvale-geometry.git "$GEOMETRY_SOURCE"
-git -C "$GEOMETRY_SOURCE" checkout ec38fabd783a578947d43856b0c7a7fd54ce8533
+git -C "$GEOMETRY_SOURCE" checkout 48298b24be7c132816fb5580d22d58bde61558d0
 git clone https://github.com/Meshvale/meshvale-interchange.git "$INTERCHANGE_SOURCE"
-git -C "$INTERCHANGE_SOURCE" checkout 8d5823272b576052553608dbff26685ba56b4dea
+git -C "$INTERCHANGE_SOURCE" checkout 5b9b695ba1fef166baa8c7cf9ad21a5630691f70
 python -m venv "$VENV"
 . "$VENV/bin/activate"
 python -m pip install jsonschema==4.26.0
@@ -53,13 +53,28 @@ cmake --install "$GEOMETRY_SOURCE/.local/native" --config Release --prefix "$GEO
 ```
 
 Interchange also needs **double-precision tinyobjloader `2.0.0rc13`**. Follow its
-[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/ENVIRONMENT.md)
+[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/ENVIRONMENT.md)
 using the pinned vcpkg manifest, and set `TINYOBJLOADER_PREFIX` to the resulting
 installed target-triplet prefix. Retain the same compiler/runtime and Release
-configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/THIRD_PARTY.md)
+configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/THIRD_PARTY.md)
 owns the parser revision and notices; the
-[binding build contract](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/docs/python.md#build-installation-and-example)
+[binding build contract](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/docs/python.md#build-installation-and-example)
 owns its package requirements.
+
+The default Repair wheel also enables its native glTF workflows. Build and
+install the compatible Interchange native interfaces before building that wheel;
+the separate Interchange Python wheel alone does not supply CMake targets:
+
+```sh
+cmake -S "$INTERCHANGE_SOURCE" -B "$INTERCHANGE_SOURCE/.local/workflow-native" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON -DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON -DMESHVALE_INTERCHANGE_GLTF_FILES=ON "-DCMAKE_PREFIX_PATH=$GEOMETRY_PREFIX;$TINYOBJLOADER_PREFIX"
+cmake --build "$INTERCHANGE_SOURCE/.local/workflow-native" --config Release
+cmake --install "$INTERCHANGE_SOURCE/.local/workflow-native" --config Release --prefix "$INTERCHANGE_PREFIX"
+```
+
+Supply all three installed prefixes to Repair. They must use matching compiler,
+configuration and runtime settings, as described in
+[Python installation](python.md#build-and-consumption). Native snapshot package
+versions remain `0.0.0`, separately from the Python development versions above.
 
 Build the three local wheels, then install Repair with its asset dependencies
 from that directory. Python build tools come from the pinned build requirements
@@ -69,7 +84,7 @@ local wheels:
 ```sh
 python -m pip wheel "$GEOMETRY_SOURCE" --no-deps --wheel-dir "$CANDIDATE_WHEELS"
 python -m pip wheel "$INTERCHANGE_SOURCE" --no-deps --wheel-dir "$CANDIDATE_WHEELS" --config-settings=cmake.define.CMAKE_PREFIX_PATH="$GEOMETRY_PREFIX;$TINYOBJLOADER_PREFIX"
-python -m pip wheel "$REPAIR_SOURCE" --no-deps --wheel-dir "$CANDIDATE_WHEELS" --config-settings=cmake.define.CMAKE_PREFIX_PATH="$GEOMETRY_PREFIX"
+python -m pip wheel "$REPAIR_SOURCE" --no-deps --wheel-dir "$CANDIDATE_WHEELS" --config-settings=cmake.define.CMAKE_PREFIX_PATH="$INTERCHANGE_PREFIX;$GEOMETRY_PREFIX;$TINYOBJLOADER_PREFIX"
 python -m pip install --no-index --find-links "$CANDIDATE_WHEELS" "meshvale-repair[assets]"
 python -m pip check
 ```
@@ -127,5 +142,8 @@ correctly fail because it already exists. See [the command contract](cli.md) for
 request fields and exit meanings.
 
 This workflow performs selected exact duplicate-face removal. It does not select
-duplicates automatically, close holes or offer general mesh repair. OBJ/MTL is
-the implemented file adapter; glTF/GLB support remains forthcoming.
+duplicates automatically, close holes or offer general mesh repair. This example
+owns OBJ/MTL behavior. Separate [glTF/GLB commands](gltf-commands.md) and the
+[OFF workflow](off-quickstart.md) have their own development interfaces,
+build options and qualification limits; this OBJ example does not establish
+their support.
