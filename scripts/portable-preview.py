@@ -40,6 +40,24 @@ def interchange():
     return module
 
 
+def scene_inspector_executable():
+    build = Path(os.environ["MESHVALE_PREVIEW_DIR"]) / "scene-inspector"
+    name = "meshvale_gltf_scene_inspector.exe" if sys.platform == "win32" else "meshvale_gltf_scene_inspector"
+    for executable in (build / "Release" / name, build / name):
+        if executable.is_file():
+            return executable
+    raise AssertionError("Independent scene inspector is unavailable")
+
+
+def scene_inspector(prefixes):
+    build = Path(os.environ["MESHVALE_PREVIEW_DIR"]) / "scene-inspector"
+    run("cmake", "-S", PACKAGE / "examples/scene-consumer", "-B", build,
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DCMAKE_PREFIX_PATH=" + prefixes)
+    run("cmake", "--build", build, "--config", "Release", "--verbose")
+    return scene_inspector_executable()
+
+
 def prepare():
     root = dependency_root()
     root.mkdir(parents=True, exist_ok=True)
@@ -75,6 +93,7 @@ def prepare():
     wheel, = (root / "interchange-raw").glob("meshvale_interchange-*.whl")
     assert wheel.name.startswith("meshvale_interchange-" + INTERCHANGE_VERSION + "-cp313-cp313-"), wheel.name
     output = Path(os.environ["MESHVALE_PREVIEW_DIR"])
+    scene_inspector(str(root / "interchange-prefix") + ";" + prefixes)
     if sys.platform == "win32":
         run(sys.executable, "-m", "pip", "install", "nanobind==3.1.0")
         run(sys.executable, PACKAGE / "scripts/check-gltf-python-return.py",
@@ -135,13 +154,17 @@ def test():
     producer.test()
     profile = "qualified" if sys.platform == "win32" else "unsupported"
     os.environ["MESHVALE_GLTF_PYTHON_PROFILE"] = profile
-    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/gltf-python", "tests/gltf-cli"]:
+    inspector = scene_inspector_executable()
+    os.environ["MESHVALE_GLTF_SCENE_INSPECTOR"] = str(inspector.resolve())
+    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/gltf-python", "tests/gltf-cli", "tests/gltf-scene"]:
         run(sys.executable, "-I", "-m", "unittest", "discover", "-s", PACKAGE / directory, "-v")
     for example in ["remove_duplicate.py", "reported_duplicate.py", "repair_obj_bundle.py", "obj_commands.py"]:
         run(sys.executable, "-I", PACKAGE / "examples/python" / example)
     profile_arguments = ["--unsupported-profile"] if profile == "unsupported" else []
     run(sys.executable, "-I", PACKAGE / "examples/python/gltf_walkthrough.py", *profile_arguments)
     run(sys.executable, "-I", PACKAGE / "examples/python/gltf_walkthrough.py", "--commands", *profile_arguments)
+    run(sys.executable, "-I", PACKAGE / "examples/python/gltf_scene_walkthrough.py", *profile_arguments,
+        "--scene-inspector", inspector, "--output", Path(os.environ["MESHVALE_PREVIEW_DIR"]) / "scene-walkthrough")
     if sys.platform == "win32":
         command_fallback()
     products = ("meshvale_geometry", "meshvale_interchange", "meshvale_repair")
