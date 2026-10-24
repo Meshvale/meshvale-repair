@@ -10,6 +10,8 @@
 
 ### Added
 
+- Installed OBJ preservation cases check a common mixed-polygon asset family through the API, console command and ordered batch, including three material bindings, exact/cyclic targets, attribute refusals, source protection and malformed-input scheduling.
+
 - A [static shared-scene walkthrough](docs/gltf-scene-walkthrough.md) compares API, commands and batches on two transformed instances of one mesh plus unrelated geometry. Original red/blue PNG textures, materials, resource bytes and authored transforms remain intact. A separate installed C++ inspector checks published scene views; source and portable-package checks exercise the example. This demonstrates the existing shared-primitive operation and retains its development limits.
 
 - Optional reported [OFF repair workflow](docs/off-quickstart.md): native file composition, `repair_off_file`, `off` and `off-batch` commands with explicit targets and text/edge-count policies. Canonical write/reload verification retains indexed polygons and unused vertex rows, records correspondence and raw-source/artifact hashes, and publishes a new two-member bundle without replacing an existing destination. Independent preset limits and ordered exact-receipt scheduling are exposed through the same prepared operation. Development qualification remains in progress.

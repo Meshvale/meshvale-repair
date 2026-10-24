@@ -80,6 +80,7 @@ if __name__ == "__main__":
             run(python,"-I","-m","unittest","discover","-s",root/"tests/assets","-v",cwd=directory)
             run(python,"-I",root/"examples/python/repair_obj_bundle.py",cwd=directory)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/cli","-v",cwd=directory)
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/obj-corpus","-v",cwd=directory)
             run(python,"-I",root/"examples/python/obj_commands.py",cwd=directory)
             import itertools
             for order in itertools.permutations(("meshvale_geometry", "meshvale_interchange", "meshvale_repair")):

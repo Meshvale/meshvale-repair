@@ -33,4 +33,14 @@ Use Interchange's `Cancellation` token for import/publication and the in-memory 
 
 ## Consumption
 
+The [installed OBJ preservation cases](../tests/obj-corpus/test_obj_corpus.py)
+exercise the API, single console command and ordered module batch against original
+mixed triangle/quad/pentagon assets with three material bindings. They check exact
+and cyclic duplicates, winding, UV values and missingness, normals, group labels,
+coincident positions with distinct vertex IDs and atomic target refusal. Literal
+expected loops/channels/maps, reloaded bundles, source protection and physical
+receipt hashes qualify these cases. The mixed clean/repair/malformed batch checks
+continuation and fail-fast. Group labels are the adapter's supported part binding;
+this does not add arbitrary custom channels, extra UV sets or skin export.
+
 Install the `assets` extra with the exact public Geometry/Interchange candidates in [pyproject.toml](../pyproject.toml); neither is a package-index release yet. Native-only Repair and its primitive Python API do not acquire Interchange. The [installed original tests](../tests/assets/test_obj_workflow.py) and [runnable example](../examples/python/repair_obj_bundle.py) prove the file interface. The [command owner](cli.md) defines single-asset/batch consumers and their shared pure invocation validation; glTF/GLB conversion and supported release packages remain subsequent work.
