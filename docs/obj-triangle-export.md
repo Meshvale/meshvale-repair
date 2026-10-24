@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-OBJ-TRIANGLES-001 |
-| Version | 0.1.0 |
+| Version | 0.1.1 |
 | Status | Selected development contract; implementation and qualification pending |
 | Owner | Optional conversion/publication composition in the OBJ workflow |
 
@@ -166,14 +166,37 @@ reconstructed from triangles.
 
 Triangle reports use `meshvale.repair.obj` extension version `2`; default reports
 retain version `1`. The input hash remains `meshvale.obj-snapshot/1` over the
-owned imported snapshot. Triangle operation options record `output_topology`,
-resolved native options and context budgets. Extension `triangulation` records
-the actual native `workers_used`, `serial_reason` and
-`peak_tracked_payload_bytes`, with `budget_scope="native-conversion"`. No second
-copy of full correspondence arrays is required there. V2 batch reports use
-command extension version `2` and identify their request schema; v1 reports keep
-their existing defaults. The common `meshvale.report/1`/`meshvale.batch/1`
-envelopes are unchanged.
+owned imported snapshot. For every admitted triangle invocation,
+`operation.options` retains `row_local_attributes` and adds exactly
+`output_topology="triangles"` and `triangulation`. The latter has exactly
+`max_corners_per_face`, `minimum_parallel_faces`, `worker_budget` and
+`tracked_payload_budget_bytes`. Record validated options and genuine context
+properties; a zero requested worker budget is resolved by context construction
+before import. These are configuration values, not evidence of executed work.
+Allocation failure during admission remains a typed exception in the file
+interface and command exit2 before any asset capture.
+
+The v2 OBJ extension retains `input_hash_convention`, `adapter_version`,
+`report_path` and `artifacts`, and adds exactly this `triangulation` object:
+
+```json
+{"budget_scope":"native-conversion","native":null}
+```
+
+`native` remains null until a genuine Geometry result is returned. Import or
+Repair failure, a stop before conversion and an exception without a returned
+native result do not invent zero counters. When a result returns, `native` is an
+object with exactly `status`, `workers_used`, `serial_reason` and
+`peak_tracked_payload_bytes`, copied from that result. Native status keeps its
+own `accepted`/`blocked`/`canceled` spelling. Actual returned zero metrics remain
+valid on a blocked/canceled result. A later projection/publication failure does
+not erase returned native facts. No second copy of full correspondence arrays
+is required there; optional existing `report_delivery` retains its owner.
+
+V2 batch reports have
+`extensions["meshvale.repair.commands"]={"version":"2","request_schema":"meshvale.repair.obj-jobs/2"}`.
+V1 keeps its existing version1 object. The common `meshvale.report/1` and
+`meshvale.batch/1` envelopes are unchanged.
 
 Prepare the converted immutable asset, then publish only that asset. The verified
 content callback constructs, validates, serializes and preallocates the success
@@ -188,8 +211,8 @@ failure can report execution failure while retaining a committed publication.
 |---|---|---|
 | Invalid invocation/options/token | No asset capture | 2 in commands; typed exception in file interface |
 | Input failure or rejected repair | Existing facts retained; conversion not reached | Existing2/1 rules |
-| Native geometric/corner-cap refusal | Completed Repair candidate retained; conversion check failed, publication not attempted | 1 |
-| Native payload admission/size overflow/invalid candidate, allocation or projection failure | Repair candidate retained; execution failed at conversion, publication not attempted | 2 |
+| Native geometric/corner-cap refusal | Completed Repair candidate retained; conversion check failed, execution completed/complete, publication not attempted | 1 |
+| Native payload admission/size overflow/invalid candidate, allocation or projection failure | Repair candidate retained; execution failed/export, publication not attempted before publisher entry | 2 |
 | Cancellation before publication | Actual completed Repair facts retained; no converted partial output published | 130 |
 | Export/receipt/readback failure | Repair candidate retained; actual failed publication/report stage | 2 |
 | Verified native commit | Committed output/receipt remains a publication fact | Existing postcommit rules |
@@ -202,6 +225,24 @@ programming exceptions retain the existing propagation contract. Report checks
 that were not reached remain skipped with reasons; no failure obtains a prepared
 success receipt or output snapshot. A later conversion refusal does not relabel
 an accepted Repair candidate as a rejected repair.
+
+Conversion is part of the existing wire `export` stage; it does not add a new
+stage enum. Before publisher entry, use these exact outcome tuples:
+
+| Situation | Execution outcome/stage/reason | Profile | Publication outcome |
+|---|---|---|---|
+| Native geometric refusal | completed / complete / null | failed: export.triangulation performed/failed; later export checks skipped | not-attempted |
+| Native resource/size/invalid candidate or conversion preparation failure | failed / export / nonempty actual reason | failed or incomplete from actual required coverage | not-attempted |
+| Stop after completed Repair and before publisher entry | cancelled / export / nonempty actual reason | actual required coverage, with unreached checks skipped | not-attempted |
+
+For every unpublished tuple, publication is requested, snapshot is null,
+artifacts are empty, verified is false and reason is nonempty. No output snapshot
+or export maps are attached before verified reload. Original Repair maps remain
+when that stage completed. Cancellation during import/inspect/repair keeps its
+actual existing stage; after publisher entry the existing export/report failed
+or cancelled publication rules apply. Completed geometric refusal has a null
+execution reason even though diagnostics, coverage and publication retain their
+specific reasons. The profile is always derived from actual required checks.
 
 One ObjCancellation synchronously requests both owned native stop sources;
 native calls receive their genuine token types. Stage transitions recheck stop.
