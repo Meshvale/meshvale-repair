@@ -57,6 +57,13 @@ The optional [OBJ asset workflow](docs/obj-workflow.md) imports OBJ/MTL and refe
 
 The [OBJ commands](docs/cli.md) use that same workflow for one asset or an ordered batch. They validate the entire invocation before processing, isolate source/resource and destination domains, retain every actual job outcome, and support explicit fail-fast and cooperative cancellation. Reports go to stdout; published bundles retain their own verified receipts. The [installed command example](examples/python/obj_commands.py) runs both entry points.
 
+The opt-in [OBJ triangle export](docs/obj-triangle-export.md) composes existing
+native triangulation with that file workflow. Reports retain the accepted Repair
+polygon state and map it to the actual verified triangular output. The
+[runnable example](examples/python/obj_triangle_export.py) checks three materials,
+UV seams, source/resource bytes and API/console/batch agreement, with explicit
+refusal/cancellation outcomes. Package and hosted qualification remain in progress.
+
 ## Planned capabilities
 
 - Conservative repair operations with stated preconditions.
