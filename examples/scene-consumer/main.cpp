@@ -25,6 +25,9 @@ using Transform = ic::GltfLocalTransformLayout;
 // Deliberately bounded example budgets, independent of workflow presets. The
 // fixture's largest native array contains only six triangle indices.
 constexpr std::uint64_t kFileBytes = 1024 * 1024;
+constexpr std::uint64_t kAccessorElements = 1024 * 1024;
+constexpr std::uint64_t kExtractionComponents = 1024 * 1024;
+constexpr std::uint64_t kTriangleCorners = 1024 * 1024;
 constexpr std::uint64_t kStageBytes = 16 * kFileBytes;
 constexpr std::size_t kLedgerBytes = 64 * kFileBytes;
 constexpr std::uint64_t kDocumentNodes = 4096;
@@ -41,9 +44,11 @@ constexpr std::uint64_t kBindings = 64;
 constexpr std::uint64_t kPathBytes = 1024;
 constexpr std::uint64_t kAllPathBytes = 8192;
 constexpr std::uint64_t kNativePathUnits = 4096;
-constexpr std::uint64_t kParallelMinimum = 128;
+constexpr std::uint64_t kParallelMinimumBytes = 128;
+constexpr std::uint64_t kParallelMinimumComponents = 128;
 constexpr std::uint64_t kPartitionBytes = 256;
-constexpr std::uint64_t kCancellationBlock = 32;
+constexpr std::uint64_t kChannelPartitionElements = 256;
+constexpr std::uint64_t kCancellationBlockBytes = 32;
 constexpr std::uint64_t kMaximumJobs = 64;
 constexpr std::size_t kWorkers = 2;
 constexpr std::uint64_t kTriangleMode = 4;
@@ -86,10 +91,10 @@ void Require(bool condition, const char* message) {
 
 ic::GltfFileReadLimits ReadLimits() {
   const ic::GltfReadLimits asset{
-      kFileBytes,      kFileBytes,   kStageBytes,        kDocumentNodes,
-      kDocumentDepth,  kStringBytes, kNumericTokenBytes, kCoefficientDigits,
-      kExponentDigits, kTableRows,   kGraphEdges,        kInstances,
-      kFileBytes,      kStageBytes};
+      kFileBytes,        kFileBytes,   kStageBytes,        kDocumentNodes,
+      kDocumentDepth,    kStringBytes, kNumericTokenBytes, kCoefficientDigits,
+      kExponentDigits,   kTableRows,   kGraphEdges,        kInstances,
+      kAccessorElements, kStageBytes};
   return {{kFiles, kBindings, kFileBytes, kStageBytes, kPathBytes,
            kAllPathBytes, kNativePathUnits, kStageBytes},
           {asset, kStageBytes},
@@ -97,11 +102,11 @@ ic::GltfFileReadLimits ReadLimits() {
 }
 
 ic::GltfFileReadWorkPolicy ReadWork() {
-  return {
-      {kPartitionBytes, kParallelMinimum, kPartitionBytes, kCancellationBlock,
-       kMaximumJobs},
-      {kParallelMinimum, kPartitionBytes, kParallelMinimum, kPartitionBytes},
-      {kParallelMinimum, kPartitionBytes}};
+  return {{kPartitionBytes, kParallelMinimumBytes, kPartitionBytes,
+           kCancellationBlockBytes, kMaximumJobs},
+          {kParallelMinimumBytes, kPartitionBytes, kParallelMinimumComponents,
+           kChannelPartitionElements},
+          {kParallelMinimumBytes, kPartitionBytes}};
 }
 
 ic::GltfFileAsset Capture(const std::filesystem::path& entry,
@@ -200,7 +205,7 @@ void CheckPrimitive(const ic::GltfAsset& asset, std::uint64_t ordinal,
   const auto result = ic::ExtractGltfPrimitiveCapped(
       asset, *handle,
       {ic::GltfTriangleRequest::kRequireTriangles, ic::GltfValueRequest::kRaw},
-      {kFileBytes, kFileBytes, kStageBytes});
+      {kExtractionComponents, kTriangleCorners, kStageBytes});
   Require(result.extraction.has_value(), "Native primitive extraction failed");
   const auto& extraction = *result.extraction;
   Require(extraction.SourceMode() == kTriangleMode &&
