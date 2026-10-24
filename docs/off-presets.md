@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-OFF-PRESETS-001 |
 | Version | 0.1.0 |
-| Status | Selected development values; new file/workflow implementation pending |
+| Status | Development values implemented; qualification in progress |
 
 The [complete JSON table](off-presets.json) owns every one of183 native leaf
 values for `balanced-v1` and `serial-reference-v1` used by the

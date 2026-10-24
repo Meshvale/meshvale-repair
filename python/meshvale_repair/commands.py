@@ -153,7 +153,19 @@ def _parser():
     gltf_batch = commands.add_parser("gltf-batch", help="Process a versioned explicit glTF job request")
     gltf_batch.add_argument("request")
     gltf_batch.add_argument("--fail-fast", action="store_true")
-    for command in (gltf, gltf_batch):
+    off = commands.add_parser("off", help="Repair indexed OFF polygons into a verified new bundle")
+    off.add_argument("input"); off.add_argument("destination")
+    off.add_argument("--text", required=True, choices=("canonical-ascii",))
+    off.add_argument("--edge-count", required=True, choices=("unknown-zero",))
+    off_selection = off.add_mutually_exclusive_group(required=True)
+    off_selection.add_argument("--target", action="append", metavar="KEEP:REMOVE")
+    off_selection.add_argument("--unchanged", action="store_true")
+    off.add_argument("--input-id", default="source")
+    off.add_argument("--report-path", default="meshvale-report.json")
+    off_batch = commands.add_parser("off-batch", help="Process a versioned indexed OFF job request")
+    off_batch.add_argument("request")
+    off_batch.add_argument("--fail-fast", action="store_true")
+    for command in (gltf, gltf_batch, off, off_batch):
         command.add_argument("--preset", default="balanced-v1",
                              choices=("balanced-v1", "serial-reference-v1"))
     return parser
@@ -218,7 +230,7 @@ def _quiet_shutdown_stdout(stdout):
             sys.stdout = None
 
 
-def _deliver_gltf(result, stdout, stderr):
+def _deliver_gltf(result, stdout, stderr, cancellation=None):
     try:
         payload = result.report_json + b"\n"
         if stdout is sys.stdout and getattr(stdout, "buffer", None) is not None:
@@ -231,7 +243,7 @@ def _deliver_gltf(result, stdout, stderr):
     except Exception:
         _diagnostic(stderr, "Report delivery failed; completed publication facts are retained.")
         _quiet_shutdown_stdout(stdout)
-        return 130 if result.exit_code == 130 else 2
+        return 130 if result.exit_code == 130 or cancellation is not None and cancellation.cancelled else 2
     return result.exit_code
 
 
@@ -283,6 +295,36 @@ def _main_gltf(options, stdout, stderr):
         return error.exit_code
 
 
+def _main_off(options, stdout, stderr):
+    from .off_commands import (
+        OffCommandDeliveryError, _read_off_request, _run_off_single, run_off_jobs,
+    )
+    from .off_workflow import OffCancellation, OffExecution
+    token = OffCancellation()
+    execution = OffExecution(preset=options.preset)
+    try:
+        with _gltf_interrupt(token):
+            if options.command == "off":
+                job = {"id": options.input_id, "input": options.input,
+                       "destination": options.destination,
+                       "targets": _pairs(options.target or [], True),
+                       "text": options.text, "edge_count": options.edge_count,
+                       "report_path": options.report_path}
+                result = _run_off_single(job, base=Path.cwd(), execution=execution,
+                                         cancellation=token)
+            else:
+                path = Path(options.request)
+                if not path.is_absolute():
+                    path = Path.cwd() / path
+                request = _read_off_request(path)
+                result = run_off_jobs(request, base=path.parent, fail_fast=options.fail_fast,
+                                      execution=execution, cancellation=token)
+            return _deliver_gltf(result, stdout, stderr, token)
+    except OffCommandDeliveryError as error:
+        _diagnostic(stderr, "Report delivery failed; completed publication facts are retained.")
+        return error.exit_code
+
+
 def _deliver(report, stdout, stderr):
     from meshvale_reports import exit_code, validate
     validate(report)
@@ -321,6 +363,8 @@ def main(argv=None, *, stdout=None, stderr=None):
     try:
         if options.command in {"gltf", "gltf-batch"}:
             return _main_gltf(options, stdout, stderr)
+        if options.command in {"off", "off-batch"}:
+            return _main_off(options, stdout, stderr)
         import meshvale_interchange as io
         from .obj_workflow import repair_obj_file
         token = io.Cancellation()
@@ -341,7 +385,7 @@ def main(argv=None, *, stdout=None, stderr=None):
     except InvocationError:
         _diagnostic(stderr, "Invalid invocation; no assets processed.")
     except ImportError:
-        if options.command in {"gltf", "gltf-batch"}:
+        if options.command in {"gltf", "gltf-batch", "off", "off-batch"}:
             _diagnostic(stderr, "Report runtime unavailable; install the declared workflow extra and candidates.")
         else:
             _diagnostic(stderr, "Asset runtime unavailable; install the declared assets extra and candidates.")

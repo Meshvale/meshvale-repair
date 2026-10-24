@@ -4,8 +4,8 @@
 |---|---|
 | ID | REPAIR-OFF-FILE-001 |
 | Version | 0.1.0 |
-| Status | Selected development contract; implementation and qualification pending |
-| Interface | Planned `meshvale/repair/off_workflow.h` and `meshvale_repair.off_workflow` |
+| Status | Development implementation; qualification in progress |
+| Interface | `meshvale/repair/off_workflow.h` and `meshvale_repair.off_workflow` |
 | Target | Optional `meshvale::off_file_workflow` |
 
 This workflow applies the existing [charged duplicate-face operation](materialized_duplicates.md)
@@ -13,8 +13,9 @@ to one retained indexed OFF file, verifies its canonical output and optionally
 publishes a new directory containing that OFF file and its report. The same
 prepared operation serves the reusable Python API, single command and ordered
 batch. No target discovery, welding, triangulation or additional repair algorithm
-is selected. This document specifies development work; it is not an executable
-walkthrough or supported release claim.
+is selected. This document owns the development contract; the
+[quickstart](off-quickstart.md) provides build instructions and an executable
+walkthrough. Supported releases remain separate work.
 
 ## OFW-DEPENDENCY-001: Independently selectable native module
 
@@ -212,7 +213,7 @@ capture/workflow/publisher outcomes, maps/counters and optional bytes remain
 inspectable. Commands create one invocation session and token; supplied
 execution/cancellation must be actual OFF types and `fail_fast` a real bool.
 
-Selected command forms (pending implementation):
+Development command forms:
 
 ```sh
 meshvale-repair off source.off output/new --text canonical-ascii --edge-count unknown-zero --target 0:1

@@ -8,6 +8,8 @@
 
 ### Added
 
+- Optional reported [OFF repair workflow](docs/off-quickstart.md): native file composition, `repair_off_file`, `off` and `off-batch` commands with explicit targets and text/edge-count policies. Canonical write/reload verification retains indexed polygons and unused vertex rows, records correspondence and raw-source/artifact hashes, and publishes a new two-member bundle without replacing an existing destination. Independent preset limits and ordered exact-receipt scheduling are exposed through the same prepared operation. Development qualification remains in progress.
+
 - Development [`gltf` and `gltf-batch` commands](docs/gltf-commands.md) and reusable ordered scheduling over the same file operation. Whole-invocation admission precedes capture; native receipts remain byte-exact, absent receipts use actual retained facts with explicit incomplete coverage, and oversized truthful reports fail delivery without emitting a partial aggregate. The installed walkthrough covers JSON glTF and GLB console/module/API batches; platform qualification remains in progress.
 
 - Python [`repair_gltf_file`](docs/gltf-python.md) for explicit targeted repair of one captured JSON glTF or GLB primitive, with owned execution/cancellation, lazy typed native observations, correspondence and exact bundled receipt bytes. The final Python result is prepared before capture; installed examples cover changed/no-op publication in both formats. Initial Windows x64 MSVC Release CPython 3.13 qualification is in progress; stable releases remain separate work.
