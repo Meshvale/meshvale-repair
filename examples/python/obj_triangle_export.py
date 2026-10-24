@@ -176,7 +176,7 @@ def main():
     write_json(root / "summary.json", {"observations": observations, "published": len(bundles),
         "source_sha256": {name: hashlib.sha256(data).hexdigest() for name, data in before.items()},
         "repair_faces": [4, 3], "export_faces": [3, 6]})
-    print("Verified Repair4→3 polygons and explicit export3→6 triangles; original resources and separate maps retained.")
+    print("Verified Repair 4 -> 3 polygons and explicit export 3 -> 6 triangles; original resources and separate maps retained.")
     print("Inspect the source, bundles, reports and refusal/cancellation outcomes in:", root)
 
 
