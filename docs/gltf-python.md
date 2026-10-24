@@ -136,8 +136,8 @@ token. System errors expose the actual category and integer value. No numeric
 cross-version native ABI is promised.
 
 Capture failure exposes its diagnostic and execution, with no workflow outcome
-or report. It is not assigned a fabricated report or exit code. A future command
-adapter must describe only those reached facts. Existing genuine native failure
+or report. It is not assigned a fabricated report or exit code. The separate
+[command adapter](gltf-commands.md) describes only those reached facts. Existing genuine native failure
 reports are never replaced by an adapter. A successful publication's report bytes
 remain the actual verified bundled receipt; no Python serialization or mandatory
 reread follows commit.

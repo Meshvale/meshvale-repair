@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Validated OBJ commands and a sequential scheduler using the file workflow."""
+"""Validated file commands using the owning native workflows."""
 import argparse
 from contextlib import contextmanager
 from copy import deepcopy
@@ -123,7 +123,7 @@ class _Parser(argparse.ArgumentParser):
 
 
 def _parser():
-    parser = _Parser(prog="meshvale-repair", description="Verified targeted OBJ duplicate repair")
+    parser = _Parser(prog="meshvale-repair", description="Verified targeted duplicate repair")
     parser.add_argument("--version", action="version", version=__version__)
     commands = parser.add_subparsers(dest="command", required=True, parser_class=_Parser)
     single = commands.add_parser("obj", help="Repair one OBJ into a verified new bundle")
@@ -137,6 +137,25 @@ def _parser():
     single.add_argument("--report-path", default="meshvale-report.json")
     batch = commands.add_parser("obj-batch", help="Process a versioned JSON job request")
     batch.add_argument("request"); batch.add_argument("--fail-fast", action="store_true")
+    gltf = commands.add_parser("gltf", help="Repair one explicit glTF primitive into a new bundle")
+    gltf.add_argument("input"); gltf.add_argument("destination")
+    gltf.add_argument("--primitive-ordinal", required=True)
+    gltf.add_argument("--triangles", required=True,
+                      choices=("require-triangles", "convert-strip-or-fan"))
+    gltf.add_argument("--values", required=True, choices=("raw", "raw-and-normalized"))
+    selection = gltf.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--target", action="append", metavar="KEEP:REMOVE")
+    selection.add_argument("--unchanged", action="store_true")
+    gltf.add_argument("--input-id", default="source")
+    gltf.add_argument("--resource-root")
+    gltf.add_argument("--row-local", action="append", default=[], metavar="DOMAIN:NAME")
+    gltf.add_argument("--report-path", default="receipts/report.json")
+    gltf_batch = commands.add_parser("gltf-batch", help="Process a versioned explicit glTF job request")
+    gltf_batch.add_argument("request")
+    gltf_batch.add_argument("--fail-fast", action="store_true")
+    for command in (gltf, gltf_batch):
+        command.add_argument("--preset", default="balanced-v1",
+                             choices=("balanced-v1", "serial-reference-v1"))
     return parser
 
 
@@ -186,6 +205,84 @@ def _diagnostic(stream, message):
         pass
 
 
+def _quiet_shutdown_stdout(stdout):
+    if stdout is sys.stdout:
+        # A second failed shutdown flush would replace the chosen exit with120.
+        try:
+            descriptor = os.open(os.devnull, os.O_WRONLY)
+            try:
+                os.dup2(descriptor, stdout.fileno())
+            finally:
+                os.close(descriptor)
+        except (OSError, ValueError, AttributeError):
+            sys.stdout = None
+
+
+def _deliver_gltf(result, stdout, stderr):
+    try:
+        payload = result.report_json + b"\n"
+        if stdout is sys.stdout and getattr(stdout, "buffer", None) is not None:
+            target, data = stdout.buffer, payload
+        else:
+            target, data = stdout, payload.decode("utf-8")
+        if target.write(data) != len(data):
+            raise OSError("Incomplete report write")
+        target.flush()
+    except Exception:
+        _diagnostic(stderr, "Report delivery failed; completed publication facts are retained.")
+        _quiet_shutdown_stdout(stdout)
+        return 130 if result.exit_code == 130 else 2
+    return result.exit_code
+
+
+@contextmanager
+def _gltf_interrupt(token):
+    previous = signal.signal(signal.SIGINT, lambda signum, frame: token.cancel())
+    try:
+        yield
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+
+def _main_gltf(options, stdout, stderr):
+    from .gltf_commands import (
+        GltfCommandDeliveryError, _read_gltf_request, _run_gltf_single, run_gltf_jobs,
+    )
+    from .gltf_workflow import GltfCancellation, GltfExecution
+    token = GltfCancellation()
+    execution = GltfExecution(preset=options.preset)
+    try:
+        with _gltf_interrupt(token):
+            if options.command == "gltf":
+                ordinal = options.primitive_ordinal
+                if not ordinal.isascii() or not ordinal.isdecimal():
+                    raise InvocationError("Invalid primitive ordinal.")
+                try:
+                    ordinal = int(ordinal)
+                except ValueError as error:
+                    raise InvocationError("Invalid primitive ordinal.") from error
+                job = {"id": options.input_id, "input": options.input,
+                       "destination": options.destination,
+                       "targets": _pairs(options.target or [], True),
+                       "primitive_ordinal": ordinal, "triangles": options.triangles,
+                       "values": options.values, "resource_root": options.resource_root,
+                       "row_local_attributes": _pairs(options.row_local),
+                       "report_path": options.report_path}
+                result = _run_gltf_single(job, base=Path.cwd(), execution=execution,
+                                           cancellation=token)
+            else:
+                path = Path(options.request)
+                if not path.is_absolute():
+                    path = Path.cwd() / path
+                request = _read_gltf_request(path)
+                result = run_gltf_jobs(request, base=path.parent, fail_fast=options.fail_fast,
+                                       execution=execution, cancellation=token)
+            return _deliver_gltf(result, stdout, stderr)
+    except GltfCommandDeliveryError as error:
+        _diagnostic(stderr, "Report delivery failed; completed publication facts are retained.")
+        return error.exit_code
+
+
 def _deliver(report, stdout, stderr):
     from meshvale_reports import exit_code, validate
     validate(report)
@@ -207,16 +304,7 @@ def _deliver(report, stdout, stderr):
             if report["execution"]["outcome"] != "cancelled":
                 report["execution"] = {"outcome": "failed", "stage": "report", "reason": reason}
         _diagnostic(stderr, "Report delivery failed; completed publication facts are retained.")
-        if stdout is sys.stdout:
-            # A second flush during interpreter shutdown would override exit 2/130 with 120.
-            try:
-                descriptor = os.open(os.devnull, os.O_WRONLY)
-                try:
-                    os.dup2(descriptor, stdout.fileno())
-                finally:
-                    os.close(descriptor)
-            except (OSError, ValueError, AttributeError):
-                sys.stdout = None
+        _quiet_shutdown_stdout(stdout)
     return exit_code(report)
 
 
@@ -231,6 +319,8 @@ def main(argv=None, *, stdout=None, stderr=None):
         _diagnostic(stderr, "Invalid invocation; no assets processed.")
         return 2
     try:
+        if options.command in {"gltf", "gltf-batch"}:
+            return _main_gltf(options, stdout, stderr)
         import meshvale_interchange as io
         from .obj_workflow import repair_obj_file
         token = io.Cancellation()
@@ -251,7 +341,10 @@ def main(argv=None, *, stdout=None, stderr=None):
     except InvocationError:
         _diagnostic(stderr, "Invalid invocation; no assets processed.")
     except ImportError:
-        _diagnostic(stderr, "Asset runtime unavailable; install the declared assets extra and candidates.")
+        if options.command in {"gltf", "gltf-batch"}:
+            _diagnostic(stderr, "Report runtime unavailable; install the declared workflow extra and candidates.")
+        else:
+            _diagnostic(stderr, "Asset runtime unavailable; install the declared assets extra and candidates.")
     except Exception as error:
         _diagnostic(stderr, "Command execution failed: " + type(error).__name__ + "; no success report fabricated.")
     return 2
