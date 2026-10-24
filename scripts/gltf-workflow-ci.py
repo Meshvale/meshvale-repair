@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Qualify the optional native glTF workflow against pinned public dependencies.
+"""Qualify optional glTF and OFF workflows against pinned public dependencies.
 
 Run from a clean public checkout after populating .local/gw/{g,i,v} with the
 Geometry, Interchange, and vcpkg revisions below. Windows needs an x64 MSVC
@@ -9,6 +9,7 @@ Failures remain failures, including sanitizer process startup failures.
 """
 import argparse
 from dataclasses import dataclass
+from email.parser import BytesParser
 import hashlib
 import json
 import os
@@ -20,17 +21,22 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import zipfile
 
 
 GEOMETRY_REVISION = "48298b24be7c132816fb5580d22d58bde61558d0"
+GEOMETRY_PYTHON_VERSION = "0.0.1.dev134+g48298b24b"
 INTERCHANGE_REVISION = "916c45f742feadbf9bbb608af3576c8d12db045d"
 INTERCHANGE_FILE_REVISION = "b8e81599d6f08c3b55060c75e76d6b7e75144561"
+INTERCHANGE_OFF_FILE_REVISION = "b577263107403e65643fdcfc1b8af3faa5c9fff4"
 VCPKG_REVISION = "cb5a41b03cde4086d554b3f3e2eac39206b16eda"
 BUILD_WORKERS = 2
 TEST_TIMEOUT_SECONDS = 120
 FILE_TEST_TIMEOUT_SECONDS = 600
 FILE_SUITE_TIMEOUT_SECONDS = 1800
 FILE_REPORT_CASE_COUNT = 14
+OFF_REPORT_CASE_COUNT = 15
+OFF_UNSUPPORTED_REPORT_CASE_COUNT = 4
 
 
 @dataclass(frozen=True)
@@ -277,7 +283,50 @@ class Runner:
                     "compiler_record_sha256": sha256(records[0])})
 
 
-def qualify(root, profile_name, file_workflow=False):
+def qualify_off_python(runner, geometry, source, relocated, dependencies, triplet):
+    """Build real wheels and run installed OFF tests on the selected producer."""
+    profile = runner.profile
+    runner.environment["CMAKE_PREFIX_PATH"] = os.pathsep.join((str(relocated), str(dependencies / triplet)))
+    output = runner.work / "python-wheels"
+    configuration = [f"-Ccmake.define.CMAKE_BUILD_TYPE={profile.configuration}",
+                     f"-Ccmake.define.CMAKE_CXX_FLAGS={profile.flags}"]
+    runner.run(sys.executable, "-m", "build", "--wheel", "--no-isolation",
+               "--outdir", output / "geometry", *configuration, geometry)
+    geometry_wheels = list((output / "geometry").glob("*.whl"))
+    if len(geometry_wheels) != 1:
+        raise RuntimeError("Expected one fresh Geometry wheel")
+    required = re.findall(r'"meshvale-geometry==([^"\s]+)"', (source / "pyproject.toml").read_text(encoding="utf-8"))
+    if required != [GEOMETRY_PYTHON_VERSION]:
+        raise RuntimeError("Repair's declared Geometry dependency differs from the selected Python producer")
+    with zipfile.ZipFile(geometry_wheels[0]) as archive:
+        names = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
+        if len(names) != 1:
+            raise RuntimeError("Expected one Geometry wheel metadata document")
+        metadata = BytesParser().parsebytes(archive.read(names[0]))
+    if metadata["Name"] != "meshvale-geometry" or metadata["Version"] != GEOMETRY_PYTHON_VERSION:
+        raise RuntimeError("Geometry wheel metadata differs from Repair's exact dependency; use full pinned history")
+    runner.run(sys.executable, geometry / "scripts/check-package.py", geometry_wheels[0])
+    runner.run(sys.executable, "-m", "build", "--wheel", "--no-isolation",
+               "--outdir", output / "repair", *configuration,
+               "-Ccmake.define.MESHVALE_REPAIR_GLTF_WORKFLOW=OFF",
+               "-Ccmake.define.MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=OFF",
+               "-Ccmake.define.MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON", source)
+    repair_wheels = list((output / "repair").glob("*.whl"))
+    if len(repair_wheels) != 1:
+        raise RuntimeError("Expected one fresh OFF Repair wheel")
+    runner.run(sys.executable, source / "scripts/check-package.py", repair_wheels[0])
+    runner.run(sys.executable, source / "scripts/test-installed.py",
+               "--geometry-wheel", geometry_wheels[0], "--repair-wheel", repair_wheels[0],
+               "--off", profile.materialization, timeout=FILE_SUITE_TIMEOUT_SECONDS)
+    write_json(runner.evidence / "off-python-wheels.json", {
+        "profile": profile.materialization,
+        "geometry_wheel": {"path": str(geometry_wheels[0]), "sha256": sha256(geometry_wheels[0])},
+        "repair_wheel": {"path": str(repair_wheels[0]), "sha256": sha256(repair_wheels[0])},
+        "source_archive_build": True, "interchange_python_required": False,
+        "scope": "Current-run installed development wheels; portable redistribution remains a separate gate"})
+
+
+def qualify(root, profile_name, file_workflow=False, off_file_workflow=False, off_python=False):
     profile = PROFILES[profile_name]
     if platform.system() != profile.system:
         raise RuntimeError(f"{profile_name} requires {profile.system}")
@@ -285,9 +334,11 @@ def qualify(root, profile_name, file_workflow=False):
     runner = Runner(root, work, profile)
     geometry, interchange, vcpkg = (work / name for name in ("g", "i", "v"))
     inputs = {"profile": profile_name, "configuration": vars(profile),
-              "file_workflow": file_workflow, "sources": {}}
+              "file_workflow": file_workflow, "off_file_workflow": off_file_workflow, "off_python": off_python,
+              "sources": {}}
     for name, source, revision in (("geometry", geometry, GEOMETRY_REVISION),
                                     ("interchange", interchange,
+                                     INTERCHANGE_OFF_FILE_REVISION if off_file_workflow else
                                      INTERCHANGE_FILE_REVISION if file_workflow else INTERCHANGE_REVISION),
                                     ("vcpkg", vcpkg, VCPKG_REVISION)):
         actual = runner.run("git", "-C", source, "rev-parse", "HEAD").strip()
@@ -350,9 +401,10 @@ def qualify(root, profile_name, file_workflow=False):
     runner.configure(interchange, ib, *toolchain, f"-DCMAKE_PREFIX_PATH={prefix}",
                      "-DBUILD_TESTING=ON", "-DMESHVALE_INTERCHANGE_PYTHON=OFF",
                      "-DMESHVALE_INTERCHANGE_USD=OFF", "-DMESHVALE_INTERCHANGE_FBX=OFF",
-                     "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON",
-                     "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON",
+                     f"-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE={'OFF' if off_file_workflow else 'ON'}",
+                     f"-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT={'OFF' if off_file_workflow else 'ON'}",
                      f"-DMESHVALE_INTERCHANGE_GLTF_FILES={'ON' if file_workflow else 'OFF'}",
+                     *(["-DMESHVALE_INTERCHANGE_OFF_FILES=ON"] if off_file_workflow else []),
                      f"-DMESHVALE_INTERCHANGE_MATERIALIZATION_TEST_PROFILE={profile.materialization}")
     runner.build(ib)
     # Audit the parser's actual compiler too; sanitizer triplets expose databases.
@@ -360,24 +412,39 @@ def qualify(root, profile_name, file_workflow=False):
     parser_database = vcpkg / "buildtrees" / "tinyobjloader" / f"{triplet}-{port_suffix}" / "compile_commands.json"
     runner.compilation(parser_database)
     runner.inventory(ib, "interchange")
-    runner.check_inventory(interchange, ib, "--topology-write", "ON", "--workflow-support", "ON")
-    runner.test(ib, file_workflow)
+    runner.check_inventory(interchange, ib, "--topology-write", "OFF" if off_file_workflow else "ON",
+                           "--workflow-support", "OFF" if off_file_workflow else "ON")
+    runner.test(ib, file_workflow or off_file_workflow)
     runner.install(ib, prefix)
     package_prefix = f"{prefix};{dependencies}/{triplet}"
     repair_options = [f"-DCMAKE_PREFIX_PATH={package_prefix}", "-DMESHVALE_REPAIR_PYTHON=OFF",
                       "-DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON",
-                      "-DMESHVALE_REPAIR_GLTF_WORKFLOW=ON",
+                      f"-DMESHVALE_REPAIR_GLTF_WORKFLOW={'OFF' if off_file_workflow else 'ON'}",
                       f"-DMESHVALE_REPAIR_GLTF_FILE_WORKFLOW={'ON' if file_workflow else 'OFF'}",
+                      *(["-DMESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON"] if off_file_workflow else []),
                       f"-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE={profile.materialization}"]
     runner.configure(root, rb, "-DBUILD_TESTING=ON", *repair_options)
     runner.build(rb)
     qualified = profile.materialization == "qualified"
-    native_count = (10 if qualified else 6) if file_workflow else (6 if qualified else 4)
+    native_count = ((7 if qualified else 6) if off_file_workflow else
+                    (10 if qualified else 6) if file_workflow else (6 if qualified else 4))
     tests = runner.inventory(rb, "repair", native_count)
-    runner.check_inventory(root, rb, "--gltf-workflow", "ON", "--gltf-file-workflow",
-                           "ON" if file_workflow else "OFF")
-    runner.test(rb, file_workflow)
-    if qualified:
+    runner.check_inventory(root, rb, "--gltf-workflow", "OFF" if off_file_workflow else "ON", "--gltf-file-workflow",
+                           "ON" if file_workflow else "OFF",
+                           *(["--off-file-workflow", "ON"] if off_file_workflow else []))
+    runner.test(rb, file_workflow or off_file_workflow)
+    if off_file_workflow:
+        reports = runner.evidence / "off-reports"
+        test = next(test for test in tests if test["name"] == "off_workflow_semantics")
+        runner.run(*test["command"], "--write-reports", reports, timeout=FILE_TEST_TIMEOUT_SECONDS)
+        receipt = runner.evidence / "off-report-validation.json"
+        runner.run(sys.executable, root / "scripts/check-off-workflow-reports.py", reports,
+                   "--geometry-python", geometry / "python", "--receipt", receipt,
+                   *([] if qualified else ["--unsupported-profile"]))
+        expected = OFF_REPORT_CASE_COUNT if qualified else OFF_UNSUPPORTED_REPORT_CASE_COUNT
+        if len(json.loads(receipt.read_text(encoding="utf-8"))["reports"]) != expected:
+            raise RuntimeError("OFF report oracle did not validate its exact fixture count")
+    if qualified and not off_file_workflow:
         reports = runner.evidence / "reports"
         test = next(test for test in tests if test["name"] == "gltf_workflow")
         runner.run(*test["command"], reports, timeout=TEST_TIMEOUT_SECONDS)
@@ -427,10 +494,12 @@ def qualify(root, profile_name, file_workflow=False):
                   "sha256": sha256(path)} for path in sorted(prefix.rglob("*")) if path.is_file()]
     if any("test_internal" in item["path"] or item["path"].startswith("include/src/") for item in inventory):
         raise RuntimeError("Private workflow test seams leaked into installed headers")
-    if not (prefix / "include/meshvale/repair/gltf_workflow.h").is_file():
-        raise RuntimeError("Installed workflow public header is absent")
+    if (prefix / "include/meshvale/repair/gltf_workflow.h").is_file() == off_file_workflow:
+        raise RuntimeError("Installed glTF workflow header differs from selected module")
     if (prefix / "include/meshvale/repair/gltf_file_workflow.h").is_file() != file_workflow:
         raise RuntimeError("Installed file workflow header differs from selected module")
+    if (prefix / "include/meshvale/repair/off_workflow.h").is_file() != off_file_workflow:
+        raise RuntimeError("Installed OFF workflow header differs from selected module")
     write_json(runner.evidence / "package.json", {"source_archive_sha256": sha256(archives[0]),
                                                 "installed_files": inventory})
     relocated = work / "q"
@@ -439,22 +508,28 @@ def qualify(root, profile_name, file_workflow=False):
     prefix.rename(relocated)
     runner.configure(source / "examples/consumer", cb,
                      f"-DCMAKE_PREFIX_PATH={relocated};{dependencies}/{triplet}",
-                     "-DMESHVALE_REPAIR_TEST_GLTF_WORKFLOW=ON",
+                     f"-DMESHVALE_REPAIR_TEST_GLTF_WORKFLOW={'OFF' if off_file_workflow else 'ON'}",
                      f"-DMESHVALE_REPAIR_TEST_GLTF_FILE_WORKFLOW={'ON' if file_workflow else 'OFF'}",
+                     *(["-DMESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW=ON"] if off_file_workflow else []),
                      f"-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE={profile.materialization}")
     runner.build(cb)
     installed_count = 4 if file_workflow else 3
     runner.inventory(cb, "installed", installed_count)
-    runner.check_inventory(root, rb, "--gltf-workflow", "ON", "--gltf-file-workflow",
-                           "ON" if file_workflow else "OFF", "--installed-build-dir", cb)
-    runner.test(cb, file_workflow)
+    runner.check_inventory(root, rb, "--gltf-workflow", "OFF" if off_file_workflow else "ON", "--gltf-file-workflow",
+                           "ON" if file_workflow else "OFF", "--installed-build-dir", cb,
+                           *(["--off-file-workflow", "ON"] if off_file_workflow else []))
+    runner.test(cb, file_workflow or off_file_workflow)
+    if off_python:
+        qualify_off_python(runner, geometry, source, relocated, dependencies, triplet)
     write_json(runner.evidence / "result.json", {"gate_passed": True, "profile": profile_name,
                "materialization_profile": profile.materialization,
                "native_tests": native_count, "installed_tests": installed_count,
-               "reports_validated": 12 if qualified else 0,
+               "reports_validated": 12 if qualified and not off_file_workflow else 0,
                "file_reports_validated": FILE_REPORT_CASE_COUNT if qualified and file_workflow else 0,
                "file_readback_reports_validated": 1 if qualified and file_workflow else 0,
-               "file_workflow": file_workflow, "production_tests": 0})
+               "off_reports_validated": (OFF_REPORT_CASE_COUNT if qualified else OFF_UNSUPPORTED_REPORT_CASE_COUNT) if off_file_workflow else 0,
+               "file_workflow": file_workflow, "off_file_workflow": off_file_workflow,
+               "off_python": off_python, "production_tests": 0})
 
 
 def main():
@@ -462,6 +537,10 @@ def main():
     parser.add_argument("--profile", choices=PROFILES)
     parser.add_argument("--file-workflow", action="store_true",
                         help="Qualify retained file publication against its pinned Interchange producer")
+    parser.add_argument("--off-file-workflow", action="store_true",
+                        help="Qualify reported OFF repair with optional glTF modules disabled")
+    parser.add_argument("--off-python", action="store_true",
+                        help="Also build and exercise OFF wheels in the selected development profiles")
     parser.add_argument("--validate-reports", type=Path,
                         help="Validate existing fixture JSON without configuring native builds")
     parser.add_argument("--geometry-source", type=Path)
@@ -469,11 +548,15 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.validate_reports:
-        if args.profile or args.file_workflow or args.geometry_source is None or args.receipt is None:
+        if args.profile or args.file_workflow or args.off_file_workflow or args.off_python or args.geometry_source is None or args.receipt is None:
             parser.error("Report-only validation requires --geometry-source and --receipt, without --profile")
         validate_reports(args.geometry_source.resolve(), args.validate_reports.resolve(), args.receipt.resolve())
     elif args.profile:
-        qualify(root, args.profile, args.file_workflow)
+        if args.file_workflow and args.off_file_workflow:
+            parser.error("Select one file-workflow qualification cohort")
+        if args.off_python and (not args.off_file_workflow or args.profile not in ("msvc-release", "gnu-unsupported")):
+            parser.error("OFF Python qualification requires the OFF workflow and msvc-release or gnu-unsupported")
+        qualify(root, args.profile, args.file_workflow, args.off_file_workflow, args.off_python)
     else:
         parser.error("Select --profile or --validate-reports")
 
