@@ -4,6 +4,8 @@
 
 ### Fixed
 
+- OFF commands preserve logical source, destination and batch-base path spellings, including partial Windows anchors and trailing separators, so native path validation determines each attempted outcome.
+
 - Reported workflows independently fail input/candidate storage coverage for nonfinite authored floating channel rows. Missing backing values remain permitted and unchanged.
 
 ### Added

@@ -310,7 +310,7 @@ def _shape(request, limits):
         receipt = _report_path(row.get("report_path", _DEFAULT_REPORT_PATH), limits.report_path_bytes)
         # Check portable name collisions before native capture. The logical
         # path itself still reaches native preparation and the actual reader.
-        basename = Path(row["input"]).name
+        basename = os.path.basename(row["input"])
         if receipt.translate(_ASCII_FOLD) == basename.translate(_ASCII_FOLD):
             raise _invocation_error()
         pairs = []
@@ -324,8 +324,9 @@ def _shape(request, limits):
 
 
 def _path(value, base):
-    path = Path(value)
-    return path if path.is_absolute() else base / path
+    # Keep native IO spelling, including partial Windows anchors and trailing
+    # separators/dots. Path objects normalize some of these into accepted paths.
+    return value if Path(value).anchor else os.path.join(base, value)
 
 
 def _overlap(first, second):
@@ -356,9 +357,9 @@ def _admit(request, base, execution, cancellation):
         _preflight_reports()
         base_text = os.fspath(Path.cwd() if base is None else base)
         _text(base_text, max_chars=min(limits.path_units - 1, _MAX_PATH_BYTES), max_bytes=_MAX_PATH_BYTES)
-        directory = Path(base_text)
-        if not directory.is_absolute():
-            directory = Path.cwd() / directory
+        directory = base_text
+        if not Path(directory).anchor:
+            directory = os.path.join(os.getcwd(), directory)
         for row in rows:
             source = _path(row["input"], directory)
             destination = _path(row["destination"], directory)
@@ -367,8 +368,8 @@ def _admit(request, base, execution, cancellation):
                          "report_path": row.get("report_path", _DEFAULT_REPORT_PATH),
                          "execution": session, "cancellation": token}
             jobs.append(_Job(row, arguments))
-        destinations = [job.arguments["destination"].resolve() for job in jobs]
-        protected = [job.arguments["source"].resolve() for job in jobs]
+        destinations = [Path(job.arguments["destination"]).resolve() for job in jobs]
+        protected = [Path(job.arguments["source"]).resolve() for job in jobs]
         for i, destination in enumerate(destinations):
             if any(_overlap(destination, previous) for previous in destinations[:i]):
                 raise _invocation_error()
@@ -656,7 +657,7 @@ def _read_off_request(path):
         raise _invocation_error()
 
     try:
-        with Path(path).open("rb") as stream:
+        with open(path, "rb") as stream:
             raw = stream.read(_MAX_REQUEST_BYTES + 1)
         if len(raw) > _MAX_REQUEST_BYTES:
             raise _invocation_error()

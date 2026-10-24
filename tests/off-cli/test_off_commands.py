@@ -97,6 +97,73 @@ class Base(unittest.TestCase):
             run.assert_not_called()
         self.assertEqual(self.source.read_bytes(), SOURCE)
         self.assertEqual(list((self.root / "outputs").iterdir()), [])
+    def path_native_facts(self, result):
+        publication = result.publication
+        return {"capture": result.capture_status.name,
+                "capture_code": result.capture_diagnostic.code.name,
+                "started": result.workflow_started,
+                "status": None if result.status is None else result.status.name,
+                "publication": None if publication is None else publication.outcome.name,
+                "publication_code": None if publication is None else publication.diagnostic.code.name,
+                "counts": result.candidate_snapshot_counts,
+                "face_map": result.face_map, "corner_map": result.corner_map,
+                "source_faces": result.source_faces, "source_corners": result.source_corners}
+    def path_attempt(self, row, frontend, session, base=None):
+        observed, original = [], workflow._run_off_request
+        def observe(prepared):
+            actual = original(prepared)
+            observed.append(self.path_native_facts(actual))
+            return actual
+        if frontend == "api":
+            result = workflow.repair_off_file(row["input"], row["destination"], row["targets"],
+                input_id=row["id"], execution=session, **POLICIES)
+            try:
+                observed.append(self.path_native_facts(result))
+                raw = result.report_json
+                value = None if raw is None else self.checked(reports.load(raw))
+            finally:
+                result = None
+        elif frontend in ("single", "batch"):
+            with patch.object(workflow, "_run_off_request", new=observe):
+                result = (off._run_off_single(row, base=self.root if base is None else base, execution=session)
+                          if frontend == "single" else
+                          off.run_off_jobs(request(row), base=self.root if base is None else base, execution=session))
+            value = self.parsed(result)
+            if frontend == "batch":
+                self.assertEqual(value["jobs"][0]["outcome"], "attempted")
+                value = value["jobs"][0]["report"]
+        else:
+            # Preserve exact raw operands: Base.single intentionally makes its
+            # ordinary fixtures absolute and would mask this regression.
+            arguments = ["off", row["input"], row["destination"], "--input-id", row["id"],
+                         "--text", "canonical-ascii", "--edge-count", "unknown-zero"]
+            if row["targets"]:
+                for keep, remove in row["targets"]:
+                    arguments += ["--target", f"{keep}:{remove}"]
+            else:
+                arguments += ["--unchanged"]
+            process = self.invoke(*arguments, console=frontend == "console", cwd=self.root)
+            self.assertTrue(process.stdout, process.stderr)
+            value = self.checked(reports.load(process.stdout))
+            self.assertEqual(process.returncode, reports.exit_code(value))
+        gc.collect()
+        if frontend in ("api", "single", "batch"):
+            self.assertEqual((session.active_tracked_payload, session.active_workers), (0, 0))
+        # Child frontends expose actual joined phase counters; a separate
+        # parent session cannot witness a child process's retained ledger.
+        def joined(value):
+            if isinstance(value, dict):
+                if "launched_workers" in value:
+                    self.assertEqual(value["launched_workers"], value["joined_workers"])
+                for child in value.values():
+                    joined(child)
+            elif isinstance(value, list):
+                for child in value:
+                    joined(child)
+        if value is not None:
+            joined(value["extensions"])
+        self.assertEqual(self.source.read_bytes(), SOURCE)
+        return value, observed
     def maps(self, report, changed, empty=False):
         snapshots = {row["role"]: row["meshes"][0] for row in report["snapshots"]}
         for role, counts in (("input", (0, 0, 0) if empty else (8, 3, 11)),
@@ -240,6 +307,130 @@ raise SystemExit('missing dependency was not preflighted')
 
 
 class CommonTests(Base):
+    def test_source_and_destination_suffixes_remain_native_attempts(self):
+        source = fixture(self.root / "sources/suffix", EMPTY)
+        previous = Path.cwd()
+        try:
+            os.chdir(self.root)
+            for field in ("source", "destination"):
+                for suffix, label in (("/.", "dot"), ("/", "separator")):
+                    for frontend in ("api", "single", "batch", "module", "console"):
+                        with self.subTest(field=field, suffix=label, frontend=frontend):
+                            identity = "suffix-" + field + "-" + label + "-" + frontend
+                            absolute = self.root / "outputs" / identity
+                            row = job(identity, source=str(source) + (suffix if field == "source" else ""),
+                                      destination=str(absolute) + (suffix if field == "destination" else ""),
+                                      changed=False)
+                            value, observed = self.path_attempt(row, frontend, workflow.OffExecution())
+                            if field == "source":
+                                if observed:
+                                    self.assertEqual((observed[0]["capture"], observed[0]["capture_code"],
+                                                      observed[0]["started"]),
+                                                     ("kUnsupportedProfile", "kNameUnsupported", False))
+                                if value is not None:
+                                    self.assertEqual((value["publication"]["outcome"], reports.exit_code(value)),
+                                                     ("not-attempted", 2))
+                                    extension = self.fallback(value, False)
+                                    self.assertEqual(extension["capture"]["diagnostic"]["code"],
+                                                     {"domain": "OffFileDiagnosticCode", "member": "kNameUnsupported"})
+                            else:
+                                code = "kOpen" if label == "dot" else "kPathUnsupported"
+                                if observed:
+                                    fact = observed[0]
+                                    self.assertEqual((fact["capture"], fact["started"], fact["publication"],
+                                                      fact["publication_code"]),
+                                                     ("kSuccess", True, "kFailed", code))
+                                    self.assertEqual((fact["counts"], fact["face_map"], fact["corner_map"],
+                                                      fact["source_faces"], fact["source_corners"]),
+                                                     ((0, 0, 0), (), (), (), ()))
+                                self.assertEqual((value["candidate"]["outcome"], value["publication"]["outcome"],
+                                                  reports.exit_code(value)), ("unchanged", "failed", 2))
+                                self.maps(value, False, True)
+                                extension = value["extensions"][EXTENSION]
+                                self.assertEqual(extension["publisher"]["diagnostic"]["code"],
+                                                 getattr(workflow._repair.OffFileDiagnosticCode, code).value)
+                                self.assertEqual((extension["source_faces"], extension["source_corners"]), ([], []))
+                                self.assertNotIn("output", {snapshot["role"] for snapshot in value["snapshots"]})
+                            self.assertFalse(absolute.exists())
+                            self.assertEqual(source.read_bytes(), EMPTY)
+            request_path = self.root / "suffix-jobs.json"
+            for suffix, label in (("/.", "dot"), ("/", "separator")):
+                reader_value = request(job("reader-" + label,
+                    source=str(source.relative_to(self.root)), changed=False))
+                request_path.write_bytes(canonical(reader_value))
+                # Request files use bounded Python IO, not the native asset
+                # profile. Windows accepts file/., whose raw logical parent
+                # must then remain a regular file during native capture.
+                reader_accepts = os.name == "nt" and label == "dot"
+                with self.subTest(reader_suffix=label):
+                    if reader_accepts:
+                        self.assertEqual(off._read_off_request(str(request_path) + suffix), reader_value)
+                    else:
+                        with self.assertRaises(commands.InvocationError):
+                            off._read_off_request(str(request_path) + suffix)
+                for frontend in ("inprocess", "module", "console"):
+                    with self.subTest(request_suffix=label, frontend=frontend):
+                        row = job("request-suffix-" + label + "-" + frontend,
+                                  source=str(source.relative_to(self.root)), changed=False)
+                        request_path.write_bytes(canonical(request(row)))
+                        arguments = ["off-batch", str(request_path) + suffix]
+                        if frontend == "inprocess":
+                            calls, observed = [], []
+                            original_prepare, original_run = workflow._prepare_off_request, workflow._run_off_request
+                            def prepare(*args, **kwargs):
+                                calls.append("prepare")
+                                return original_prepare(*args, **kwargs)
+                            def run(prepared):
+                                calls.append("run")
+                                actual = original_run(prepared)
+                                observed.append(self.path_native_facts(actual))
+                                return actual
+                            output, error = io.StringIO(), io.StringIO()
+                            with patch.object(workflow, "_prepare_off_request", new=prepare), \
+                                 patch.object(workflow, "_run_off_request", new=run):
+                                code = commands.main(arguments, stdout=output, stderr=error)
+                            self.assertEqual(code, 2)
+                            raw = output.getvalue()
+                            self.assertEqual(calls, ["prepare", "run"] if reader_accepts else [])
+                            if reader_accepts:
+                                self.assertEqual((observed[0]["capture"], observed[0]["capture_code"],
+                                                  observed[0]["started"], observed[0]["counts"],
+                                                  observed[0]["face_map"], observed[0]["publication"]),
+                                                 ("kUnsupportedProfile", "kNotRegular", False, None, None, None))
+                        else:
+                            process = self.invoke(*arguments, console=frontend == "console", cwd=self.root)
+                            self.assertEqual(process.returncode, 2)
+                            raw = process.stdout
+                        if reader_accepts:
+                            batch = self.checked(reports.load(raw))
+                            self.assertEqual(batch["jobs"][0]["outcome"], "attempted")
+                            value = batch["jobs"][0]["report"]
+                            self.assertEqual((value["candidate"]["outcome"], value["publication"]["outcome"],
+                                              value["snapshots"], value["maps"]),
+                                             ("not-attempted", "not-attempted", [], []))
+                            extension = self.fallback(value, False)
+                            self.assertEqual(extension["capture"]["diagnostic"]["code"],
+                                             {"domain": "OffFileDiagnosticCode", "member": "kNotRegular"})
+                        else:
+                            self.assertFalse(raw)
+                        self.assertFalse((self.root / row["destination"]).exists())
+                        self.assertEqual(source.read_bytes(), EMPTY)
+            relative = str(source.relative_to(self.root))
+            controls = [os.path.join(".", relative),
+                        os.path.join(os.path.dirname(relative), ".", source.name),
+                        os.path.dirname(relative) + os.sep + os.sep + source.name]
+            for index, spelling in enumerate(controls):
+                for frontend in ("api", "single", "batch", "module", "console"):
+                    with self.subTest(ordinary=index, frontend=frontend):
+                        row = job(f"ordinary-suffix-{index}-{frontend}", source=spelling, changed=False)
+                        value, _ = self.path_attempt(row, frontend, workflow.OffExecution())
+                        self.assertEqual((value["candidate"]["outcome"], value["publication"]["outcome"],
+                                          reports.exit_code(value)), ("unchanged", "published", 0))
+                        self.maps(value, False, True)
+                        check_output(self, (self.root / row["destination"] / ENTRY).read_bytes(), False, True)
+                        self.assertEqual(source.read_bytes(), EMPTY)
+        finally:
+            os.chdir(previous)
     def test_empty_batch_final_token_boundary_and_sixteen_real_missing_attempts(self):
         result = off.run_off_jobs(request(), base=self.root)
         self.assertEqual((self.parsed(result)["jobs"], result.exit_code), ([], 0))
@@ -524,6 +715,133 @@ class QualifiedTests(Base):
         self.assertEqual((result.exit_code, self.parsed(result)["publication"]["outcome"]), (0, "published"))
 
 
+class WindowsAnchoredTests(Base):
+    """Ordinary Windows anchored spellings remain real native attempts."""
+    def anchored(self, absolute, drive_relative):
+        return (self.root.drive + str(absolute.relative_to(self.root)) if drive_relative
+                else str(absolute)[len(self.root.drive):])
+    def ordinary(self, frontend, label):
+        row = job(label + "-ordinary-" + frontend,
+                  source=str(self.source.relative_to(self.root)))
+        value, observed = self.path_attempt(row, frontend, workflow.OffExecution())
+        self.assertEqual((value["candidate"]["outcome"], value["publication"]["outcome"],
+                          reports.exit_code(value)), ("accepted", "published", 0))
+        self.maps(value, True)
+        check_output(self, (self.root / row["destination"] / ENTRY).read_bytes(), True)
+        if observed:
+            self.assertEqual((observed[0]["capture"], observed[0]["status"]), ("kSuccess", "kSuccess"))
+    def test_drive_and_root_relative_sources_remain_native_refusals(self):
+        previous = Path.cwd()
+        try:
+            os.chdir(self.root)
+            for drive_relative in (True, False):
+                form = "drive" if drive_relative else "root"
+                for frontend in ("api", "single", "batch", "module", "console"):
+                    with self.subTest(form=form, frontend=frontend):
+                        row = job("source-" + form + "-" + frontend,
+                                  source=self.anchored(self.source, drive_relative))
+                        value, observed = self.path_attempt(row, frontend, workflow.OffExecution())
+                        if observed:
+                            self.assertEqual((observed[0]["capture"], observed[0]["capture_code"],
+                                              observed[0]["started"]),
+                                             ("kUnsupportedProfile", "kPathUnsupported", False))
+                        if value is not None:
+                            self.assertEqual((value["execution"]["outcome"], value["publication"]["outcome"],
+                                              reports.exit_code(value)), ("failed", "not-attempted", 2))
+                            extension = self.fallback(value, False)
+                            self.assertEqual(extension["capture"]["diagnostic"]["code"],
+                                             {"domain": "OffFileDiagnosticCode", "member": "kPathUnsupported"})
+                            self.assertEqual((value["candidate"]["outcome"], reports.exit_code(value)),
+                                             ("not-attempted", 2))
+                        self.assertFalse((self.root / row["destination"]).exists())
+            for form, base in (("drive", self.root.drive),
+                               ("root", str(self.root)[len(self.root.drive):])):
+                for frontend in ("single", "batch"):
+                    with self.subTest(anchored_base=form, frontend=frontend):
+                        row = job("base-" + form + "-" + frontend,
+                                  source=str(self.source.relative_to(self.root)))
+                        value, observed = self.path_attempt(row, frontend, workflow.OffExecution(), base=base)
+                        self.assertEqual((observed[0]["capture"], observed[0]["capture_code"],
+                                          observed[0]["started"]),
+                                         ("kUnsupportedProfile", "kPathUnsupported", False))
+                        self.assertEqual((value["publication"]["outcome"], reports.exit_code(value)),
+                                         ("not-attempted", 2))
+                        self.fallback(value, False)
+                        self.assertFalse((self.root / row["destination"]).exists())
+            for drive_relative in (True, False):
+                form = "drive" if drive_relative else "root"
+                for frontend in ("module", "console"):
+                    with self.subTest(request_anchor=form, frontend=frontend):
+                        row = job("request-anchor-" + form + "-" + frontend,
+                                  source=str(self.source.relative_to(self.root)))
+                        path = self.root / (row["id"] + ".json")
+                        path.write_bytes(canonical(request(row)))
+                        spelling = self.root.drive + path.name if drive_relative else self.anchored(path, False)
+                        process = self.invoke("off-batch", spelling, console=frontend == "console", cwd=self.root)
+                        value = self.checked(reports.load(process.stdout))
+                        self.assertEqual((process.returncode, value["jobs"][0]["outcome"]), (2, "attempted"))
+                        report = value["jobs"][0]["report"]
+                        extension = self.fallback(report, False)
+                        self.assertEqual(extension["capture"]["diagnostic"]["code"],
+                                         {"domain": "OffFileDiagnosticCode", "member": "kPathUnsupported"})
+                        self.assertFalse((self.root / row["destination"]).exists())
+                        self.assertEqual(self.source.read_bytes(), SOURCE)
+            for frontend in ("module", "console"):
+                with self.subTest(ordinary_request=frontend):
+                    row = job("ordinary-request-" + frontend,
+                              source=str(self.source.relative_to(self.root)))
+                    path = self.root / (row["id"] + ".json")
+                    path.write_bytes(canonical(request(row)))
+                    process = self.invoke("off-batch", os.path.join(".", path.name),
+                                          console=frontend == "console", cwd=self.root)
+                    value = self.checked(reports.load(process.stdout))
+                    report = value["jobs"][0]["report"]
+                    self.assertEqual((process.returncode, report["publication"]["outcome"]), (0, "published"))
+                    self.maps(report, True)
+                    self.assertEqual(self.source.read_bytes(), SOURCE)
+            for frontend in ("api", "single", "batch", "module", "console"):
+                with self.subTest(ordinary=frontend):
+                    self.ordinary(frontend, "source")
+        finally:
+            os.chdir(previous)
+    def test_drive_and_root_relative_destinations_retain_repair_and_refuse_publication(self):
+        previous = Path.cwd()
+        try:
+            os.chdir(self.root)
+            for drive_relative in (True, False):
+                form = "drive" if drive_relative else "root"
+                for frontend in ("api", "single", "batch", "module", "console"):
+                    with self.subTest(form=form, frontend=frontend):
+                        absolute = self.root / "outputs" / ("destination-" + form + "-" + frontend)
+                        row = job("destination-" + form + "-" + frontend,
+                                  source=str(self.source), destination=self.anchored(absolute, drive_relative))
+                        value, observed = self.path_attempt(row, frontend, workflow.OffExecution())
+                        if observed:
+                            fact = observed[0]
+                            self.assertEqual((fact["capture"], fact["started"], fact["publication"],
+                                              fact["publication_code"]),
+                                             ("kSuccess", True, "kFailed", "kPathUnsupported"))
+                            self.assertEqual((fact["counts"], fact["face_map"], fact["corner_map"],
+                                              fact["source_faces"], fact["source_corners"]),
+                                             ((8, 2, 7), FACE_MAP, CORNER_MAP, SOURCE_FACES, SOURCE_CORNERS))
+                        self.assertEqual((value["candidate"]["outcome"], value["publication"]["outcome"],
+                                          reports.exit_code(value)), ("accepted", "failed", 2))
+                        self.maps(value, True)
+                        extension = value["extensions"][EXTENSION]
+                        self.assertEqual(extension["publisher"]["diagnostic"]["code"],
+                                         workflow._repair.OffFileDiagnosticCode.kPathUnsupported.value)
+                        self.assertEqual((extension["source_faces"], extension["source_corners"]),
+                                         (list(SOURCE_FACES), list(SOURCE_CORNERS)))
+                        self.assertEqual(value["input"]["sha256"], digest(SOURCE))
+                        self.assertNotIn("output", {row["role"] for row in value["snapshots"]})
+                        self.assertFalse(absolute.exists())
+            for frontend in ("api", "single", "batch", "module", "console"):
+                with self.subTest(ordinary=frontend):
+                    self.ordinary(frontend, "destination")
+        finally:
+            os.chdir(previous)
+
+
 class UnsupportedTests(Base):
     def test_genuine_nonempty_capture_profile_refusal_api_module_console(self):
         for console in (False, True):
@@ -543,6 +861,8 @@ def load_tests(loader, tests, pattern):
     suite = unittest.TestSuite()
     for group in (AdmissionTests, CommonTests, QualifiedTests if PROFILE == "qualified" else UnsupportedTests):
         suite.addTests(loader.loadTestsFromTestCase(group))
+    if os.name == "nt" and PROFILE == "qualified":
+        suite.addTests(loader.loadTestsFromTestCase(WindowsAnchoredTests))
     return suite
 
 

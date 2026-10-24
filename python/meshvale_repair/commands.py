@@ -297,7 +297,8 @@ def _main_gltf(options, stdout, stderr):
 
 def _main_off(options, stdout, stderr):
     from .off_commands import (
-        OffCommandDeliveryError, _read_off_request, _run_off_single, run_off_jobs,
+        OffCommandDeliveryError, _path as _off_path, _read_off_request,
+        _run_off_single, run_off_jobs,
     )
     from .off_workflow import OffCancellation, OffExecution
     token = OffCancellation()
@@ -313,11 +314,9 @@ def _main_off(options, stdout, stderr):
                 result = _run_off_single(job, base=Path.cwd(), execution=execution,
                                          cancellation=token)
             else:
-                path = Path(options.request)
-                if not path.is_absolute():
-                    path = Path.cwd() / path
+                path = _off_path(options.request, os.getcwd())
                 request = _read_off_request(path)
-                result = run_off_jobs(request, base=path.parent, fail_fast=options.fail_fast,
+                result = run_off_jobs(request, base=os.path.dirname(path), fail_fast=options.fail_fast,
                                       execution=execution, cancellation=token)
             return _deliver_gltf(result, stdout, stderr, token)
     except OffCommandDeliveryError as error:
