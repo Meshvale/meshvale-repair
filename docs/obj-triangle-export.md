@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-OBJ-TRIANGLES-001 |
-| Version | 0.1.1 |
-| Status | Selected development contract; implementation and qualification pending |
+| Version | 0.1.2 |
+| Status | Development implementation; package and hosted qualification pending |
 | Owner | Optional conversion/publication composition in the OBJ workflow |
 
 This opt-in profile composes the existing targeted repair, Geometry's
@@ -68,6 +68,19 @@ result = repair_obj_file(
 ```
 
 The destination is new and its parent must exist, as in the existing interface.
+
+The original [installed walkthrough](../examples/python/obj_triangle_export.py)
+retains sources, three material bindings, texture bytes, repaired polygons,
+triangular bundles and their separate correspondence. With the documented
+`assets` dependencies installed, run from this source checkout:
+
+```sh
+python examples/python/obj_triangle_export.py new-triangle-example --commands
+```
+
+Its parent is the current directory and must exist. The example also retains
+actual nonplanar refusal, native resource-budget refusal and pre-cancellation
+reports; none publishes a destination.
 
 ## Single command and ordered batch
 
@@ -249,6 +262,10 @@ native calls receive their genuine token types. Stage transitions recheck stop.
 Geometry releases the GIL for native work, allowing another Python thread to
 request cancellation; no Python worker callback or token-watcher thread is
 introduced. Existing I/O phase callbacks retain only their I/O meanings.
+A synchronous Python signal handler may run when native execution returns;
+prompt cancellation during native work uses another caller thread requesting
+the owned token. Commands recheck stop before publication and restore SIGINT
+handling after the invocation.
 
 Geometry's context bounds native conversion worker/payload reservations only.
 It does not bound OBJ import, existing copy-producing Repair, Python buffer/map/
@@ -258,3 +275,5 @@ allocation failure occurs before commit. No new application-wide memory cap or
 parallel speed claim is made. Native returned per-call metrics are distinct from
 context lifetime peaks. Joined workers/reservations must be released on every
 accepted, refused, canceled or exceptional path.
+`workers_used` counts created/joined native worker threads. Serial caller
+fallback therefore reports zero, including a one-worker budget.

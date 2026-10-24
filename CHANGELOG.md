@@ -10,6 +10,8 @@
 
 ### Added
 
+- Explicit [OBJ triangle export](docs/obj-triangle-export.md) through the file API, `obj --output-topology triangles` and separate v2 batch requests. Native conversion, coupled cancellation, scoped worker/payload options and actual one-to-many export maps retain the pre-export Repair candidate and publish one verified final bundle.
+
 - Installed OBJ preservation cases check a common mixed-polygon asset family through the API, console command and ordered batch, including three material bindings, exact/cyclic targets, attribute refusals, source protection and malformed-input scheduling.
 
 - A [static shared-scene walkthrough](docs/gltf-scene-walkthrough.md) compares API, commands and batches on two transformed instances of one mesh plus unrelated geometry. Original red/blue PNG textures, materials, resource bytes and authored transforms remain intact. A separate installed C++ inspector checks published scene views; source and portable-package checks exercise the example. This demonstrates the existing shared-primitive operation and retains its development limits.

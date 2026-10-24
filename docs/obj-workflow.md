@@ -3,19 +3,25 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-OBJ-WORKFLOW-001 |
-| Version | 0.1.1 |
+| Version | 0.2.0 |
 | Status | Development API; command consumers are documented separately; not released |
 | Owner | Repair's OBJ asset orchestration and report delivery |
 
-`meshvale_repair.obj_workflow.repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(), cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None)` imports an owned OBJ asset, calls the [reported in-memory repair](workflow.md), and publishes an accepted/unchanged candidate using Interchange's [verified bundle facility](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/docs/obj-files.md). No native duplicate algorithm or second exporter is implemented here. `destination` must be a new directory with an existing parent. The source is not overwritten.
+`meshvale_repair.obj_workflow.repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(), cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None, output_topology="preserve", triangulation_options=None, triangulation_execution=None)` imports an owned OBJ asset, calls the [reported in-memory repair](workflow.md), and publishes an accepted/unchanged candidate using Interchange's [verified bundle facility](https://github.com/Meshvale/meshvale-interchange/blob/8d5823272b576052553608dbff26685ba56b4dea/docs/obj-files.md). No native duplicate algorithm or second exporter is implemented here. `destination` must be a new directory with an existing parent. The source is not overwritten.
 
-The frozen `ObjWorkflowResult` has owned nullable `source`/`candidate` assets, a detached JSON `report`, derived `exit_code` and nullable relative published `entry`. A rejected operation returns the source snapshot, no accepted candidate and no bundle. A successful empty request still verifies/publishes an unchanged copy. The imported asset contains one mesh; OBJ object/group membership is binding data rather than separately guessed meshes/instances. Targets name source face rows and keep/remove pairs. Invocation representation errors, including path/native declaration text that cannot encode as UTF-8, raise before processing; supported defects/rejections and adapter execution failures produce reports.
+The default `output_topology="preserve"` uses this document's profile. The
+separate [explicit triangle export contract](obj-triangle-export.md) owns the
+opt-in `"triangles"` profile, native options/context, ObjCancellation and actual
+candidate-to-output conversion maps. Its [installed walkthrough](../examples/python/obj_triangle_export.py)
+keeps the Repair polygon candidate distinct from the published triangles.
+
+The frozen `ObjWorkflowResult` has owned nullable `source`/`candidate` assets, a detached JSON `report`, derived `exit_code` and nullable relative published `entry`. A rejected operation returns the source snapshot, no accepted candidate and no bundle. With default preserve output, a successful empty request still verifies/publishes an unchanged copy. The imported asset contains one mesh; OBJ object/group membership is binding data rather than separately guessed meshes/instances. Targets name source face rows and keep/remove pairs. Invocation representation errors, including path/native declaration text that cannot encode as UTF-8, raise before processing; supported defects/rejections and adapter execution failures produce reports.
 
 ## Profile, resources and reload
 
 The in-memory preservation profile remains authoritative for mesh edits. The file profile `obj-exact-duplicate-publication`, version `1`, additionally requires candidate asset metadata/resources unchanged and native verified reload/publication evidence. Material names/library bytes, ordered library references, object/group definitions, resource paths and opaque bytes are carried through `with_mesh`; their equality is checked before export. Existing non-manifold diagnostics remain visible without being relabeled as corrected. Optional unsupported geometry/solid checks remain unsupported.
 
-All mesh channels are verified before export. The OBJ adapter's explicit subset still rejects additional UV/skin/custom channels; this is not broader format support or a change to Geometry's flexible attributes. Output has identity vertex/face/corner correspondence because this adapter preserves ordered polygon loops, with its own numerical round-trip bound and semantic binding checks. Per-channel output declarations distinguish byte-exact preservation from checked serialization conversion; remapped part-table references and floating round trips must not be described as byte-exact storage. No triangulation occurs.
+All mesh channels are verified before export. The OBJ adapter's explicit subset still rejects additional UV/skin/custom channels; this is not broader format support or a change to Geometry's flexible attributes. Default preserve output has identity vertex/face/corner correspondence because this adapter preserves ordered polygon loops, with its own numerical round-trip bound and semantic binding checks. Per-channel output declarations distinguish byte-exact preservation from checked serialization conversion; remapped part-table references and floating round trips must not be described as byte-exact storage. This default profile performs no triangulation.
 
 ## Report and content hashes
 

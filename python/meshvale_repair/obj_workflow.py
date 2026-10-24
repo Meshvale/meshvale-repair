@@ -13,6 +13,8 @@ from meshvale_geometry import Mesh
 from meshvale_reports import profile_outcome, exit_code, validate
 from . import __version__
 from .workflow import repair_duplicate_mesh, _request, _snapshot, _scope, _check, _diagnostics
+from ._obj_export import (ObjCancellation, ExportPreparationError, io_cancellation,
+                          prepare_triangle_asset, resolve_export)
 
 
 @dataclass(frozen=True)
@@ -102,14 +104,17 @@ def _finish(source, candidate, report, entry, sink):
     return ObjWorkflowResult(source, candidate, report, exit_code(report), entry)
 
 
-def _output_report(report, candidate, reloaded, files):
+def _output_report(report, candidate, reloaded, files, export_plan=None):
     receipt = deepcopy(report)
     receipt["snapshots"].append(_snapshot(reloaded.document.mesh, "output"))
-    before, after = candidate.document.mesh, reloaded.document.mesh
+    expected = candidate if export_plan is None else export_plan.asset
+    before, after = expected.document.mesh, reloaded.document.mesh
     if (before.vertex_count, before.face_count, before.corner_count) != (after.vertex_count, after.face_count, after.corner_count):
         raise ValueError("verified adapter changed mesh row counts")
     for domain in ("vertex", "face", "corner"):
-        receipt["maps"].append({"id": "export-" + domain, "domain": domain, "kind": "identity", "entries": None,
+        entries = None if export_plan is None or domain == "vertex" else getattr(export_plan, domain + "_map")
+        receipt["maps"].append({"id": "export-" + domain, "domain": domain,
+                               "kind": "identity" if entries is None else "explicit", "entries": entries,
                                "from": {"snapshot": "candidate", "mesh": "surface"}, "to": {"snapshot": "output", "mesh": "surface"}})
     _check(receipt, "export.verified-reload", "output", finding="passed")
     artifacts = [{"id": "artifact-" + str(i), "sha256": hashlib.sha256(file.bytes).hexdigest()} for i, file in enumerate(files)]
@@ -120,9 +125,13 @@ def _output_report(report, candidate, reloaded, files):
     # The adapter owns checked semantic/numerical conversion; claims must name it.
     source_record, output_record = before.to_record(), after.to_record()
     exact = all(source_record[k].tobytes() == output_record[k].tobytes() for k in ("positions", "face_offsets", "corner_vertices"))
-    receipt["preservation"].append({"feature": {"kind": "geometry", "name": "OBJ polygon serialization", "domain": None, "set_index": None},
+    topology_changed = export_plan is not None and export_plan.topology_changed
+    exact = exact and not topology_changed
+    geometry_reason = ("Native exact planar triangulation changes polygon topology; verified OBJ numerical and binding round trip."
+                       if topology_changed else "Verified ordered loops and adapter numerical round-trip bound; serialized storage differs.")
+    receipt["preservation"].append({"feature": {"kind": "geometry", "name": "OBJ polygon serialization" if export_plan is None else "OBJ triangle export", "domain": None, "set_index": None},
         "from": _scope("candidate", "OBJ semantics"), "to": _scope("output", "OBJ semantics"), "outcome": "preserved" if exact else "converted",
-        "reason": None if exact else "Verified ordered loops and adapter numerical round-trip bound; serialized storage differs.",
+        "reason": None if exact else geometry_reason,
         "maps": ["export-vertex", "export-face", "export-corner"]})
     output_channels = {(r["domain"], r["name"]): r for r in output_record["attributes"]}
     for row in source_record["attributes"]:
@@ -160,24 +169,44 @@ def _validate_obj_request(input, destination, targets, *, input_id="source", res
     if (not receipt_name or receipt_name == "." or receipt_name.startswith("/") or receipt_path.is_absolute() or
             ":" in receipt_name or "\\" in receipt_name or ".." in receipt_path.parts):
         raise ValueError("report_path must be bundle-relative without parent traversal")
-    if cancellation is not None and not isinstance(cancellation, io.Cancellation):
-        raise TypeError("cancellation must be an Interchange Cancellation token")
+    if cancellation is not None and not isinstance(cancellation, (io.Cancellation, ObjCancellation)):
+        raise TypeError("cancellation must be an Interchange Cancellation or ObjCancellation token")
     if on_phase is not None and not callable(on_phase) or report_sink is not None and not callable(report_sink):
         raise TypeError("callbacks must be callable or None")
     return targets, declarations, receipt_path
 
 
 def repair_obj_file(input, destination, targets, *, input_id="source", resource_root=None, row_local_attributes=(),
-                    cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None):
+                    cancellation=None, on_phase=None, report_path="meshvale-report.json", report_sink=None,
+                    output_topology="preserve", triangulation_options=None, triangulation_execution=None):
     """Publish a verified accepted duplicate repair and its receipt in one new bundle."""
     targets, declarations, receipt_path = _validate_obj_request(input, destination, targets, input_id=input_id,
         resource_root=resource_root, row_local_attributes=row_local_attributes, cancellation=cancellation,
         on_phase=on_phase, report_path=report_path, report_sink=report_sink)
+    export_request = resolve_export(output_topology, triangulation_options, triangulation_execution, cancellation)
+    export_options = None if export_request is None else export_request.resolved_options()
+    native_fields = {"status": None, "workers_used": None, "serial_reason": None,
+                     "peak_tracked_payload_bytes": None} if export_request is not None else None
+    def configure_export(report):
+        if export_request is None:
+            return
+        report["profile"]["name"] = "obj-exact-duplicate-triangle-publication"
+        report["operation"]["options"].update(output_topology="triangles", triangulation=export_options)
+        extension = report["extensions"]["meshvale.repair.obj"]
+        extension["version"] = "2"
+        extension["triangulation"] = {"budget_scope": "native-conversion", "native": None}
+        for name in ("export.triangulation", "export.correspondence"):
+            report["profile"]["required_checks"].append(name)
+            _check(report, name, None, status="skipped", reason="Stage not reached.")
+    def conversion_failure(report, reason, *, cancelled=False):
+        report["execution"] = {"outcome": "cancelled" if cancelled else "failed", "stage": "export", "reason": reason}
+        report["publication"]["reason"] = reason
     receipt_name = receipt_path.as_posix()
     report = _empty_report(input_id, targets, declarations, receipt_name)
+    configure_export(report)
     source = candidate = None
     try:
-        imported = io.read_obj_file(input, resource_root=resource_root, cancellation=cancellation)
+        imported = io.read_obj_file(input, resource_root=resource_root, cancellation=io_cancellation(cancellation))
         source = imported.asset
     except (MemoryError, OSError) as error:
         _failure(report, "import", "Import failed: " + type(error).__name__)
@@ -200,6 +229,7 @@ def repair_obj_file(input, destination, targets, *, input_id="source", resource_
                                  "verified": False, "reason": "Publication not reached."}
         for name in ("asset.metadata-resources", "export.verified-reload"):
             _check(report, name, None, status="skipped", reason="Stage not reached.")
+        configure_export(report)
         _diagnostics(report, imported.diagnostics, "input", "warning")
         if workflow.candidate is None:
             return _finish(source, candidate, report, None, report_sink)
@@ -213,12 +243,58 @@ def repair_obj_file(input, destination, targets, *, input_id="source", resource_
     except MemoryError:
         _failure(report, "verify", "Allocation failed during asset verification.")
         return _finish(source, candidate, report, None, report_sink)
+    export_plan = None
+    publication_candidate = candidate
+    if export_request is not None:
+        if cancellation is not None and cancellation.stop_requested:
+            conversion_failure(report, "Triangle export cancelled before native conversion.", cancelled=True)
+            return _finish(source, candidate, report, None, report_sink)
+        try:
+            native = export_request.convert(candidate.document.mesh, cancellation)
+            native_fields["status"] = native.status
+            native_fields["workers_used"] = native.workers_used
+            native_fields["serial_reason"] = native.serial_reason
+            native_fields["peak_tracked_payload_bytes"] = native.peak_tracked_payload_bytes
+            report["extensions"]["meshvale.repair.obj"]["triangulation"]["native"] = native_fields
+            _diagnostics(report, [{"code": d.code, "subject": d.subject, "element": d.element}
+                                  for d in native.diagnostics], "candidate", "error" if native.status != "accepted" else "warning")
+        except (MemoryError, OSError, OverflowError) as error:
+            canceled = native_fields["status"] == "canceled"
+            reason = ("Diagnostic preparation failed after native cancellation: " if canceled else
+                      "Native triangle conversion failed: ") + type(error).__name__
+            _check(report, "export.triangulation", "candidate", status="failed", reason=reason)
+            conversion_failure(report, reason, cancelled=canceled)
+            return _finish(source, candidate, report, None, report_sink)
+        if native.status != "accepted":
+            resource_failure = any(d.code in {"conversion.payload_budget", "conversion.size_overflow",
+                                               "conversion.invalid_candidate"} for d in native.diagnostics)
+            reason = "Native triangle conversion was cancelled." if native.status == "canceled" else "Native triangle conversion did not accept this candidate."
+            if native.status == "canceled" or resource_failure:
+                _check(report, "export.triangulation", "candidate", status="failed", reason=reason)
+                conversion_failure(report, reason, cancelled=native.status == "canceled")
+            else:
+                _check(report, "export.triangulation", "candidate", finding="failed", reason=reason)
+                report["publication"]["reason"] = reason
+            return _finish(source, candidate, report, None, report_sink)
+        _check(report, "export.triangulation", "candidate", finding="passed")
+        try:
+            export_plan = prepare_triangle_asset(candidate, native)
+            publication_candidate = export_plan.asset
+            _check(report, "export.correspondence", "candidate", finding="passed")
+        except (ExportPreparationError, MemoryError, OSError, OverflowError) as error:
+            reason = "Triangle correspondence preparation failed: " + type(error).__name__
+            _check(report, "export.correspondence", "candidate", status="failed", reason=reason)
+            conversion_failure(report, reason)
+            return _finish(source, candidate, report, None, report_sink)
+        if cancellation is not None and cancellation.stop_requested:
+            conversion_failure(report, "Triangle export cancelled before publication.", cancelled=True)
+            return _finish(source, candidate, report, None, report_sink)
     prepared = success_result = None
     preparation_error = None
     def receipt(reloaded, files):
         nonlocal prepared, success_result, preparation_error
         try:
-            prepared = _output_report(report, candidate, reloaded, files)
+            prepared = _output_report(report, candidate, reloaded, files, export_plan)
             payload = _json(prepared) + b"\n"
             success_result = ObjWorkflowResult(source, candidate, prepared, exit_code(prepared), candidate.obj_path)
             return [io.ObjResource(receipt_path, payload)]
@@ -226,7 +302,8 @@ def repair_obj_file(input, destination, targets, *, input_id="source", resource_
             preparation_error = error
             raise
     try:
-        published = io.publish_obj_bundle(candidate, destination, cancellation=cancellation, on_phase=on_phase, on_verified=receipt)
+        published = io.publish_obj_bundle(publication_candidate, destination, cancellation=io_cancellation(cancellation),
+                                          on_phase=on_phase, on_verified=receipt)
     except (MemoryError, OSError) as error:
         _failure(report, "export", "Publication failed: " + type(error).__name__)
         return _finish(source, candidate, report, None, report_sink)

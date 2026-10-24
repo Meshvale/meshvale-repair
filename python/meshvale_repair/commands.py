@@ -28,17 +28,21 @@ def _overlap(first, second):
 
 
 def _jobs(request, base, token, phase):
-    from .obj_workflow import _validate_obj_request
+    from .obj_workflow import ObjCancellation, _validate_obj_request
+    from ._obj_export import resolve_export
     import meshvale_interchange as io
     if (type(request) is not dict or set(request) != {"schema", "jobs"} or
-            request["schema"] != "meshvale.repair.obj-jobs/1" or type(request["jobs"]) is not list):
+            request["schema"] not in ("meshvale.repair.obj-jobs/1", "meshvale.repair.obj-jobs/2") or type(request["jobs"]) is not list):
         raise InvocationError("Invalid batch request.")
-    if token is not None and not isinstance(token, io.Cancellation):
+    if token is not None and not isinstance(token, (io.Cancellation, ObjCancellation)):
         raise InvocationError("Invalid cancellation token.")
     if phase is not None and not callable(phase):
         raise InvocationError("Invalid phase callback.")
     required = {"id", "input", "destination", "targets"}
     optional = {"resource_root", "row_local_attributes", "report_path"}
+    version_two = request["schema"] == "meshvale.repair.obj-jobs/2"
+    if version_two:
+        optional |= {"output_topology", "triangulation"}
     jobs, identities = [], set()
     try:
         directory = Path(os.fsdecode(os.fspath(base))).resolve()
@@ -57,8 +61,27 @@ def _jobs(request, base, token, phase):
             targets, declarations, receipt = _validate_obj_request(source, destination, row["targets"],
                 input_id=row["id"], resource_root=root, row_local_attributes=row.get("row_local_attributes", []),
                 cancellation=token, report_path=row.get("report_path", "meshvale-report.json"))
-            jobs.append({"input": source, "destination": destination, "targets": targets,
-                "input_id": row["id"], "resource_root": root, "row_local_attributes": declarations, "report_path": receipt})
+            job = {"input": source, "destination": destination, "targets": targets,
+                   "input_id": row["id"], "resource_root": root, "row_local_attributes": declarations, "report_path": receipt}
+            if version_two:
+                topology = row.get("output_topology", "preserve")
+                options = execution = None
+                if "triangulation" in row:
+                    settings = row["triangulation"]
+                    fields = {"max_corners_per_face", "minimum_parallel_faces", "worker_budget", "tracked_payload_budget_bytes"}
+                    if (topology != "triangles" or type(settings) is not dict or set(settings) - fields or
+                            any(type(value) is not int for value in settings.values())):
+                        raise InvocationError("Invalid triangulation settings.")
+                    from meshvale_geometry import ExecutionContext, TriangulationOptions
+                    options = TriangulationOptions(**{name: value for name, value in settings.items()
+                                                       if name in {"max_corners_per_face", "minimum_parallel_faces"}})
+                    execution = ExecutionContext(**{name: value for name, value in settings.items()
+                                                     if name in {"worker_budget", "tracked_payload_budget_bytes"}})
+                resolved = resolve_export(topology, options, execution, token)
+                if resolved is not None:
+                    job.update(output_topology="triangles", triangulation_options=resolved.options,
+                               triangulation_execution=resolved.execution)
+            jobs.append(job)
             identities.add(row["id"])
         destinations = [job["destination"].resolve() for job in jobs]
         roots = [(job["resource_root"] or job["input"].parent).resolve() for job in jobs]
@@ -87,17 +110,22 @@ def run_obj_jobs(request, *, base=None, fail_fast=False, cancellation=None, on_j
     """Validate all requests, process isolated jobs in order and return a real batch report."""
     import meshvale_interchange as io
     from meshvale_reports import exit_code
-    from .obj_workflow import repair_obj_file
+    from .obj_workflow import ObjCancellation, repair_obj_file
     if type(fail_fast) is not bool:
         raise InvocationError("fail_fast must be boolean.")
     jobs = _jobs(request, Path.cwd() if base is None else base, cancellation, on_job_phase)
-    token = io.Cancellation() if cancellation is None else cancellation
+    if cancellation is None:
+        token = ObjCancellation() if any(job.get("output_topology") == "triangles" for job in jobs) else io.Cancellation()
+    else:
+        token = cancellation
     batch = {"schema": "meshvale.batch/1", "tool": {"name": "meshvale-repair", "version": __version__},
         "mode": "fail-fast" if fail_fast else "continue",
         "execution": {"outcome": "completed", "stage": "complete", "reason": None},
         "jobs": [{"id": job["input_id"], "input": {"id": job["input_id"], "sha256": None},
                   "outcome": "not-attempted", "report": None, "reason": "Scheduling not reached."} for job in jobs],
         "exit_code": 0, "extensions": {"meshvale.repair.commands": {"version": "1"}}}
+    if request["schema"] == "meshvale.repair.obj-jobs/2":
+        batch["extensions"]["meshvale.repair.commands"] = {"version": "2", "request_schema": request["schema"]}
     stop_reason = None
     for job, row in zip(jobs, batch["jobs"]):
         if token.stop_requested:
@@ -135,6 +163,11 @@ def _parser():
     single.add_argument("--resource-root")
     single.add_argument("--row-local", action="append", default=[], metavar="DOMAIN:NAME")
     single.add_argument("--report-path", default="meshvale-report.json")
+    single.add_argument("--output-topology", choices=("preserve", "triangles"), default="preserve")
+    single.add_argument("--triangulation-max-corners")
+    single.add_argument("--triangulation-minimum-parallel-faces")
+    single.add_argument("--triangulation-workers")
+    single.add_argument("--triangulation-payload-bytes")
     batch = commands.add_parser("obj-batch", help="Process a versioned JSON job request")
     batch.add_argument("request"); batch.add_argument("--fail-fast", action="store_true")
     gltf = commands.add_parser("gltf", help="Repair one explicit glTF primitive into a new bundle")
@@ -349,6 +382,48 @@ def _deliver(report, stdout, stderr):
     return exit_code(report)
 
 
+def _main_obj(options, stdout, stderr):
+    import meshvale_interchange as io
+    from .obj_workflow import ObjCancellation, repair_obj_file
+    if options.command == "obj":
+        row = {"id": options.input_id, "input": options.input, "destination": options.destination,
+               "targets": _pairs(options.target or [], True), "resource_root": options.resource_root,
+               "row_local_attributes": _pairs(options.row_local), "report_path": options.report_path}
+        settings = {}
+        for name, value in (("max_corners_per_face", options.triangulation_max_corners),
+                            ("minimum_parallel_faces", options.triangulation_minimum_parallel_faces),
+                            ("worker_budget", options.triangulation_workers),
+                            ("tracked_payload_budget_bytes", options.triangulation_payload_bytes)):
+            if value is not None:
+                if not value.isascii() or not value.isdecimal():
+                    raise InvocationError("Invalid triangulation integer argument.")
+                try:
+                    settings[name] = int(value)
+                except (ValueError, OverflowError) as error:
+                    raise InvocationError("Invalid triangulation integer argument.") from error
+        version_two = options.output_topology != "preserve" or bool(settings)
+        if version_two:
+            row["output_topology"] = options.output_topology
+            if settings:
+                row["triangulation"] = settings
+        request = {"schema": "meshvale.repair.obj-jobs/2" if version_two else "meshvale.repair.obj-jobs/1", "jobs": [row]}
+        directory = Path.cwd()
+    else:
+        path = Path(options.request)
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        request = _read_request(path)
+        directory = path.parent
+    token = ObjCancellation() if type(request) is dict and request.get("schema") == "meshvale.repair.obj-jobs/2" else io.Cancellation()
+    with _interrupt(token):
+        if options.command == "obj":
+            job = _jobs(request, directory, token, None)[0]
+            report = repair_obj_file(**job, cancellation=token).report
+        else:
+            report = run_obj_jobs(request, base=directory, fail_fast=options.fail_fast, cancellation=token)
+        return _deliver(report, stdout, stderr)
+
+
 def main(argv=None, *, stdout=None, stderr=None):
     """Command entry point; return its derived process exit without unsafe path diagnostics."""
     stdout, stderr = sys.stdout if stdout is None else stdout, sys.stderr if stderr is None else stderr
@@ -364,23 +439,7 @@ def main(argv=None, *, stdout=None, stderr=None):
             return _main_gltf(options, stdout, stderr)
         if options.command in {"off", "off-batch"}:
             return _main_off(options, stdout, stderr)
-        import meshvale_interchange as io
-        from .obj_workflow import repair_obj_file
-        token = io.Cancellation()
-        with _interrupt(token):
-            if options.command == "obj":
-                request = {"schema": "meshvale.repair.obj-jobs/1", "jobs": [{"id": options.input_id,
-                    "input": options.input, "destination": options.destination, "targets": _pairs(options.target or [], True),
-                    "resource_root": options.resource_root, "row_local_attributes": _pairs(options.row_local), "report_path": options.report_path}]}
-                job = _jobs(request, Path.cwd(), token, None)[0]
-                report = repair_obj_file(**job, cancellation=token).report
-            else:
-                path = Path(options.request)
-                if not path.is_absolute():
-                    path = Path.cwd() / path
-                request = _read_request(path)
-                report = run_obj_jobs(request, base=path.parent, fail_fast=options.fail_fast, cancellation=token)
-            return _deliver(report, stdout, stderr)
+        return _main_obj(options, stdout, stderr)
     except InvocationError:
         _diagnostic(stderr, "Invalid invocation; no assets processed.")
     except ImportError:

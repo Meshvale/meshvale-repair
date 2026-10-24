@@ -156,7 +156,7 @@ def test():
     os.environ["MESHVALE_GLTF_PYTHON_PROFILE"] = profile
     inspector = scene_inspector_executable()
     os.environ["MESHVALE_GLTF_SCENE_INSPECTOR"] = str(inspector.resolve())
-    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/obj-corpus", "tests/gltf-python", "tests/gltf-cli", "tests/gltf-scene"]:
+    for directory in ["tests/python", "tests/workflow", "tests/assets", "tests/cli", "tests/obj-corpus", "tests/obj-export", "tests/gltf-python", "tests/gltf-cli", "tests/gltf-scene"]:
         run(sys.executable, "-I", "-m", "unittest", "discover", "-s", PACKAGE / directory, "-v")
     for example in ["remove_duplicate.py", "reported_duplicate.py", "repair_obj_bundle.py", "obj_commands.py"]:
         run(sys.executable, "-I", PACKAGE / "examples/python" / example)
@@ -178,6 +178,8 @@ def test():
         run(sys.executable, "-I", "-c", code)
     walkthrough = Path(os.environ["MESHVALE_PREVIEW_DIR"]) / "walkthrough"
     run(sys.executable, "-I", PACKAGE / "examples/python/obj_walkthrough.py", walkthrough)
+    run(sys.executable, "-I", PACKAGE / "examples/python/obj_triangle_export.py",
+        Path(os.environ["MESHVALE_PREVIEW_DIR"]) / "triangle-walkthrough", "--commands")
     lazy = """import importlib.abc, sys
 class BlockNative(importlib.abc.MetaPathFinder):
     def find_spec(self, fullname, path=None, target=None):

@@ -22,7 +22,7 @@ def inspect(path):
                 assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
                 continue
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","_obj_export.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
             else:
                 assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
@@ -136,6 +136,9 @@ def inspect(path):
                          "python/meshvale_repair/obj_workflow.py","tests/assets/test_obj_workflow.py","docs/obj-workflow.md","examples/python/repair_obj_bundle.py",
                          "python/meshvale_repair/commands.py","python/meshvale_repair/__main__.py","docs/cli.md","tests/cli/test_cli.py","examples/python/obj_commands.py",
                          "tests/obj-corpus/test_obj_corpus.py",
+                         "python/meshvale_repair/_obj_export.py", "docs/obj-triangle-export.md",
+                         "tests/obj-export/test_preparation.py", "tests/obj-export/test_obj_export.py",
+                         "examples/python/obj_triangle_export.py",
                          "scripts/portable-preview.py","examples/python/obj_walkthrough.py","docs/quickstart.md"]:
             assert required in names,required
         for license in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt", "meshvale-geometry-notice.txt", "meshvale-interchange-notice.txt", "cgltf.txt", "jsoncons.txt", "tinyobjloader.txt"]:

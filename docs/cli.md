@@ -3,11 +3,17 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-CLI-001 |
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | Implemented development commands; installed desktop proofs; not released |
 | Owner | Invocation, sequential scheduling, cancellation and command report delivery |
 
 Install the optional `assets` extra with the exact public candidates in [pyproject.toml](../pyproject.toml). `meshvale-repair` and `python -m meshvale_repair` select the same front end. Native-only and primitive Python consumption remain independent of those optional dependencies. Commands use [the existing file workflow](obj-workflow.md); they do not implement a second repair algorithm, preservation profile or exporter. There is no package-index release yet.
+
+The [explicit OBJ triangle export interface](obj-triangle-export.md) owns
+`--output-topology triangles`, native conversion options and the separate closed
+`meshvale.repair.obj-jobs/2` request. The v1 fields and default preserve profile
+below remain unchanged. Triangle export reports pre-export Repair and actual
+triangular output as separate states.
 
 The separately selected [glTF command interface](gltf-commands.md) owns its
 explicit primitive policies, prepared native operation, receipt availability and
