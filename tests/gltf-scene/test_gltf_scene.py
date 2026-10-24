@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 """Installed static-scene entry points and independent literal fixture controls."""
 from copy import deepcopy
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zlib
 
 from meshvale_reports import load
 from meshvale_repair.gltf_workflow import repair_gltf_file
@@ -65,8 +67,25 @@ class SceneFixtureTests(Base):
             self.assertEqual(members["unused.bin"], bytes.fromhex("01020304deadbeefcafebabe"))
             self.assertEqual(document["buffers"][1], {"uri": "unused.bin", "byteLength": 4})
             self.assertEqual(document["buffers"][0]["byteLength"], 139 if glb else 138)
-            self.assertEqual(members["texture-red.png"], bytes.fromhex("89504e470d0a1a0a") + b"original red opaque bytes\0\xff")
-            self.assertEqual(members["texture-blue.png"], bytes.fromhex("89504e470d0a1a0a") + b"original blue opaque bytes\x80\0")
+            for name, rgba, expected_hash in (
+                    ("red", bytes((255, 0, 0, 255)), "49e1dad481e94dfab7c9573a9a81d56aa2ca629fe15a3f7a910aa4f47601c00d"),
+                    ("blue", bytes((0, 0, 255, 255)), "e4de9adb10f197cd553b011440c25c4cc0989ad642a0011c0006cd955d32be0c")):
+                image = members["texture-" + name + ".png"]
+                self.assertEqual(hashlib.sha256(image).hexdigest(), expected_hash)
+                self.assertEqual(image[:8], b"\x89PNG\r\n\x1a\n")
+                cursor, image_chunks = 8, []
+                while cursor < len(image):
+                    length, kind = struct.unpack_from(">I4s", image, cursor)
+                    payload = image[cursor + 8:cursor + 8 + length]
+                    crc, = struct.unpack_from(">I", image, cursor + 8 + length)
+                    self.assertEqual(crc, zlib.crc32(kind + payload))
+                    image_chunks.append((kind, payload))
+                    cursor += 12 + length
+                self.assertEqual(cursor, len(image))
+                self.assertEqual([kind for kind, _ in image_chunks], [b"IHDR", b"IDAT", b"IEND"])
+                self.assertEqual(struct.unpack(">IIBBBBB", image_chunks[0][1]), (1, 1, 8, 6, 0, 0, 0))
+                self.assertEqual(zlib.decompress(image_chunks[1][1]), b"\0" + rgba)
+                self.assertEqual(image_chunks[2][1], b"")
             if glb:
                 self.assertEqual(chunks[0][0], 0x004E4942)
                 self.assertEqual(chunks[1], (0x12345678, b"\x7f\0\xde\xad"))

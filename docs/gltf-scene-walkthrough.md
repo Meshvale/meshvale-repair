@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-SCENE-EXAMPLE-001 |
-| Version | 0.1.1 |
+| Version | 0.1.2 |
 | Status | Development example implemented; final integration/platform qualification pending |
 | Owner | Static shared-instance walkthrough and its literal preservation oracle |
 
@@ -57,6 +57,43 @@ literal batch slices, correspondence, physical artifact hashes and original
 source bytes. A mixed batch demonstrates an actual missing-resource failure,
 continuation and fail-fast without inventing successful publication.
 
+## Run the walkthrough
+
+Follow the [build recipe](quickstart.md) and install the declared workflow extra
+for the [glTF/GLB Python interface](gltf-python.md). Its initial qualified cohort
+is Windows x64 MSVC Release CPython3.13. Unsupported numerical profiles retain
+their actual native refusals.
+From this checkout, choose a new output directory to retain the original scene,
+published results, requests and reports:
+
+```sh
+python -I examples/python/gltf_scene_walkthrough.py --output .local/shared-scene
+```
+
+For independent native inspection, set `NATIVE_PREFIXES` to the compatible
+installed Interchange, Geometry and parser prefixes used for the wheel, then
+build the separate consumer:
+
+```sh
+cmake -S examples/scene-consumer -B .local/scene-inspector -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$NATIVE_PREFIXES"
+cmake --build .local/scene-inspector --config Release
+```
+
+Set `SCENE_INSPECTOR` to the built executable, including its configuration
+subdirectory and `.exe` suffix where applicable. Run again with a different new
+output directory:
+
+```sh
+python -I examples/python/gltf_scene_walkthrough.py --scene-inspector "$SCENE_INSPECTOR" --output .local/inspected-scene
+```
+
+The installed-test helper's `--gltf qualified|unsupported` selection also runs
+the scene tests and walkthrough. Its optional `MESHVALE_GLTF_SCENE_INSPECTOR`
+environment value selects the independent executable; repository Python CI
+builds it against the installed native dependencies.
+
+## What native inspection checks
+
 The separate installed C++ scene consumer accepts
 `SOURCE_ENTRY OUTPUT_ENTRY changed|unchanged`. It captures both actual assets
 through the installed Interchange file interface and inspects native node,
@@ -65,9 +102,9 @@ and before/after preservation independently of the workflow's own checks.
 The Python walkthrough accepts optional `--scene-inspector PATH` to run this
 consumer for each successful output. Without it, the walkthrough does not claim
 that this independent native consumer executed. JSON lexical-table checks
-remain separate from native scene-view inspection. The named image resources
-are opaque byte fixtures; image decoding and rendered appearance are outside
-these checks.
+remain separate from native scene-view inspection. The two original texture
+resources are valid one-pixel red and blue PNGs. The workflow retains them as
+opaque bytes; image decoding and rendered appearance are outside its checks.
 
 Qualified-profile success and actual unsupported numerical refusal are separate
 executions. An unsupported producer must return its genuine native result and

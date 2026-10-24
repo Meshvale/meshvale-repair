@@ -24,6 +24,12 @@ from meshvale_repair.gltf_workflow import repair_gltf_file
 ENTRY = "scene.gltf"  # Both formats deliberately share a suffix.
 RECEIPT = "receipts/report.json"
 REQUEST_SCHEMA = "meshvale.repair.gltf-jobs/1"
+RED_TEXTURE = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000d4944415478da63f8cfc0f01f00050001ff56c72f0d0000000049454e44ae426082")
+BLUE_TEXTURE = bytes.fromhex(
+    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+    "0000000d4944415478da636060f8ff1f00030201ff392919be0000000049454e44ae426082")
 
 
 def make_scene(root, glb=False):
@@ -77,8 +83,7 @@ def make_scene(root, glb=False):
         body = b"".join(struct.pack("<II", len(data), kind) + data for kind, data in chunks)
         text = struct.pack("<III", 0x46546C67, 2, 12 + len(body)) + body
     members = {ENTRY: text, "unused.bin": bytes.fromhex("01020304 deadbeefcafebabe"),
-               "texture-red.png": bytes.fromhex("89504e470d0a1a0a") + b"original red opaque bytes\0\xff",
-               "texture-blue.png": bytes.fromhex("89504e470d0a1a0a") + b"original blue opaque bytes\x80\0"}
+               "texture-red.png": RED_TEXTURE, "texture-blue.png": BLUE_TEXTURE}
     if not glb:
         members["geometry.bin"] = binary + bytes.fromhex("deadbeefcafebabe")
     for name, data in members.items():

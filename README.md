@@ -18,6 +18,12 @@ The optional [supplied-memory glTF workflow](docs/gltf-workflow.md) composes pub
 
 The development [glTF single and batch commands](docs/gltf-commands.md) use the same file operation for explicit JSON glTF or GLB targets. They prepare all jobs before capture, run in order and preserve exact native receipt bytes. The [installed walkthrough](examples/python/gltf_walkthrough.py) adds `--commands` to compare console, module and batch behavior, including unchanged copies and resource hashes. Final platform qualification remains pending.
 
+The [static shared-scene walkthrough](docs/gltf-scene-walkthrough.md) creates two
+transformed instances of one mesh and an unrelated mesh. It repairs the shared
+primitive through the API, commands and batches while checking transforms,
+materials, textures and correspondence. An optional installed C++ inspector
+independently reloads the published scene.
+
 The optional [retained-file glTF workflow](docs/gltf-file-workflow.md) uses an
 already captured file asset and the same repair engine. It can publish a new
 JSON glTF or GLB bundle with a report that records SHA-256 hashes of the retained
