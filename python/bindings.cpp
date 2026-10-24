@@ -12,6 +12,9 @@
 #if defined(MESHVALE_REPAIR_GLTF_PYTHON)
 #include "gltf_bindings.h"
 #endif
+#if defined(MESHVALE_REPAIR_OFF_PYTHON)
+#include "off_bindings.h"
+#endif
 
 namespace nb = nanobind;
 namespace geo = meshvale::geometry;
@@ -89,5 +92,9 @@ NB_MODULE(_repair, module) {
              nb::arg("targets"), nb::arg("row_local"));
 #if defined(MESHVALE_REPAIR_GLTF_PYTHON)
   repair::python::RegisterGltfBindings(module);
+#endif
+#if defined(MESHVALE_REPAIR_OFF_PYTHON)
+  // glTF registers shared enums first when both optional surfaces are enabled.
+  repair::python::RegisterOffBindings(module);
 #endif
 }

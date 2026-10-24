@@ -41,8 +41,7 @@ endfunction()
 meshvale_require_gltf_file_prerequisites()
 
 add_library(meshvale_repair_gltf_file_workflow STATIC
-  src/gltf_file_workflow.cpp src/gltf_file_workflow_report.cpp
-  src/gltf_file_sha256_internal.cpp)
+  src/gltf_file_workflow.cpp src/gltf_file_workflow_report.cpp)
 add_library(meshvale::gltf_file_workflow ALIAS meshvale_repair_gltf_file_workflow)
 set_target_properties(meshvale_repair_gltf_file_workflow PROPERTIES
   EXPORT_NAME gltf_file_workflow POSITION_INDEPENDENT_CODE ON)
@@ -50,7 +49,7 @@ target_compile_features(meshvale_repair_gltf_file_workflow PUBLIC cxx_std_20)
 target_compile_definitions(meshvale_repair_gltf_file_workflow PRIVATE
   MESHVALE_REPAIR_VERSION="${MESHVALE_REPAIR_VERSION}")
 target_link_libraries(meshvale_repair_gltf_file_workflow PUBLIC
-  meshvale::gltf_workflow meshvale::gltf_files)
+  meshvale::gltf_workflow meshvale::gltf_files PRIVATE meshvale::repair)
 target_include_directories(meshvale_repair_gltf_file_workflow PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include> PRIVATE src)

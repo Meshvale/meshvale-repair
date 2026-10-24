@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 @PACKAGE_INIT@
 include(CMakeFindDependencyMacro)
-if(@MESHVALE_REPAIR_GLTF_WORKFLOW@)
+if(@MESHVALE_REPAIR_GLTF_WORKFLOW@ OR @MESHVALE_REPAIR_OFF_FILE_WORKFLOW@)
   find_dependency(MeshvaleInterchange 0.0.0 EXACT CONFIG)
 endif()
 find_dependency(MeshvaleGeometry 0.0.0 EXACT CONFIG)
