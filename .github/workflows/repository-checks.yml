@@ -405,6 +405,18 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install .local/interchange-native --config Release --prefix .local/interchange-prefix
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build independent installed scene inspector
+        run: |
+          cmake -S examples/scene-consumer -B .local/scene-inspector -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/interchange-prefix;${{ github.workspace }}/.local/geometry-prefix;${{ github.workspace }}/.local/dependencies/$env:MESHVALE_TRIPLET"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cmake --build .local/scene-inspector --config Release --verbose
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $sceneName = if ($IsWindows) { "meshvale_gltf_scene_inspector.exe" } else { "meshvale_gltf_scene_inspector" }
+          $sceneRoot = "${{ github.workspace }}/.local/scene-inspector"
+          $inspector = "$sceneRoot/Release/$sceneName"
+          if (-not (Test-Path -LiteralPath $inspector -PathType Leaf)) { $inspector = "$sceneRoot/$sceneName" }
+          if (-not (Test-Path -LiteralPath $inspector -PathType Leaf)) { throw "Scene inspector executable was not built" }
+          "MESHVALE_GLTF_SCENE_INSPECTOR=$inspector" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Build source distributions and wheels
         run: |
           python -m pip install build==1.6.1
@@ -426,3 +438,12 @@ jobs:
       - name: Test installed OBJ and glTF workflows with all product import orders
         shell: bash
         run: python scripts/test-installed.py --geometry-wheel .local/geometry-wheels/*.whl --repair-wheel .local/dist/*.whl --workflow --interchange-wheel .local/interchange-wheels/*.whl --gltf "$MESHVALE_GLTF_PYTHON_PROFILE"
+      - name: Preserve independent scene inspector build
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: scene-inspector-${{ matrix.os }}-py${{ matrix.python }}
+          path: |
+            .local/scene-inspector
+          include-hidden-files: true
+          retention-days: 14

@@ -54,6 +54,12 @@ if __name__ == "__main__":
                 cwd=directory,env=gltf_environment)
             run(python,"-I",root/"examples/python/gltf_walkthrough.py","--commands",*profile_arguments,
                 cwd=directory,env=gltf_environment)
+            run(python,"-I","-m","unittest","discover","-s",root/"tests/gltf-scene","-v",
+                cwd=directory,env=gltf_environment)
+            inspector = gltf_environment.get("MESHVALE_GLTF_SCENE_INSPECTOR")
+            inspector_arguments = ["--scene-inspector", inspector] if inspector else []
+            run(python,"-I",root/"examples/python/gltf_scene_walkthrough.py",*profile_arguments,*inspector_arguments,
+                cwd=directory,env=gltf_environment)
         if options.interchange_wheel:
             run(python,"-m","pip","install","--no-index",options.interchange_wheel.resolve(),cwd=directory)
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)
