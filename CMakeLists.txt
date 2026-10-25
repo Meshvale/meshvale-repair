@@ -171,13 +171,15 @@ include(CMakePackageConfigHelpers)
 include(cmake/GltfWorkflow.cmake)
 include(cmake/GltfFileWorkflow.cmake)
 include(cmake/OffWorkflow.cmake)
+include(cmake/PlyWorkflow.cmake)
 install(TARGETS meshvale_repair EXPORT MeshvaleRepairTargets
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   PATTERN "materialized_duplicates.h" EXCLUDE
   PATTERN "gltf_workflow.h" EXCLUDE
   PATTERN "gltf_file_workflow.h" EXCLUDE
-  PATTERN "off_workflow.h" EXCLUDE)
+  PATTERN "off_workflow.h" EXCLUDE
+  PATTERN "ply_workflow.h" EXCLUDE)
 if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
   install(TARGETS meshvale_repair_materialized_duplicates EXPORT MeshvaleRepairTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
@@ -326,5 +328,8 @@ if(BUILD_TESTING)
   endif()
   if(MESHVALE_REPAIR_OFF_FILE_WORKFLOW)
     meshvale_add_off_workflow_tests()
+  endif()
+  if(MESHVALE_REPAIR_PLY_FILE_WORKFLOW)
+    meshvale_add_ply_workflow_tests()
   endif()
 endif()
