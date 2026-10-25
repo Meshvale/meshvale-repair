@@ -513,6 +513,111 @@ def ply_wheel(runner, source, label, version, prefixes):
     return wheels[0]
 
 
+def validate_ply_resource_observations(runner, fixture, validator, reports, literal):
+    """Read real results separately from a caught allocator exception witness."""
+    budget_name = "shared-budget-at-report"
+    allocation_name = "allocation-failure-at-report"
+    budget = fixture / budget_name
+    allocation = fixture / allocation_name
+    control_names = ("baseline", "pressure", "released-with-foreign")
+    if {p.name for p in budget.iterdir()} != set(control_names) | {"source.ply", "budget-witness.json"}:
+        raise RuntimeError("Budget resource fixture inventory differs")
+    if {p.name for p in allocation.iterdir()} != {"source.ply", "captured.ply", "exception-witness.json"}:
+        raise RuntimeError("Allocator exception must not fabricate native/report/publication files")
+
+    def witness(path):
+        if path.stat().st_size > 16 * 1024:
+            raise RuntimeError("Bounded resource witness exceeded")
+        return json.loads(path.read_text(encoding="utf8"))
+
+    b = witness(budget / "budget-witness.json")
+    budget_keys = {"schema", "workflow_calls", "source_baseline_bytes", "root_budget_bytes",
+                   "baseline_report_request_bytes", "wrapper_cap_bytes", "wrapper_live_bytes_at_report",
+                   "root_live_bytes_before_pressure", "shared_pressure_bytes", "foreign_pressure_bytes",
+                   "root_available_after_pressure", "shares_root", "foreign_shares_root",
+                   "pressure_backend_report_requests", "root_bytes_after_pressure_release",
+                   "root_bytes_after_all_owners", "foreign_bytes_after_all_owners", "report_bytes",
+                   "report_diagnostic_stage", "report_diagnostic_code"}
+    if set(b) != budget_keys or b["schema"] != "meshvale.repair.ply-budget-witness/1":
+        raise RuntimeError("Closed budget witness differs")
+    for key in budget_keys - {"schema", "shares_root", "foreign_shares_root"}:
+        if type(b[key]) is not int or b[key] < 0:
+            raise RuntimeError("Actual budget witness integer expected: " + key)
+    if (b["workflow_calls"] != 3 or b["source_baseline_bytes"] <= 0 or
+            b["shared_pressure_bytes"] <= 0 or b["shared_pressure_bytes"] != b["foreign_pressure_bytes"] or
+            b["shares_root"] is not True or b["foreign_shares_root"] is not False or
+            b["root_available_after_pressure"] >= b["baseline_report_request_bytes"] or
+            b["root_live_bytes_before_pressure"] + b["shared_pressure_bytes"] +
+            b["root_available_after_pressure"] != b["root_budget_bytes"] or
+            b["wrapper_live_bytes_at_report"] + 2 * b["baseline_report_request_bytes"] > b["wrapper_cap_bytes"] or
+            b["pressure_backend_report_requests"] != 0 or b["report_bytes"] != 0 or
+            b["report_diagnostic_stage"] != 7 or b["report_diagnostic_code"] != 8 or
+            b["root_bytes_after_all_owners"] != 0 or b["foreign_bytes_after_all_owners"] != 0):
+        raise RuntimeError("Real shared pressure, local headroom or release observations differ")
+    maps = literal["changed"]["maps"]
+    fields = dict(zip(("face_map", "corner_map", "source_faces", "source_corners"),
+                      ("FaceMap", "CornerMap", "SourceFaces", "SourceCorners")))
+    actual_source = (budget / "source.ply").read_bytes()
+    source_sha = hashlib.sha256(actual_source).hexdigest()
+    if source_sha != literal["source_hashes"]["ascii"]:
+        raise RuntimeError("Resource source differs from the literal original bytes")
+    final_reports, native_rows = [], []
+    for name in control_names:
+        directory = budget / name
+        native_path = directory / "native.json"
+        native = json.loads(native_path.read_text(encoding="utf8"))
+        if ((directory / "captured.ply").read_bytes() != actual_source or
+                any(native[key] != maps[value] for key, value in fields.items()) or
+                native["candidate_outcome"] != "accepted" or native["repair_completed"] is not True or
+                native["memory_output_verified"] is not True or native["publisher"] is not None or
+                native["publication_outcome"] != "not-requested" or
+                native["input_sha256"] != source_sha or native["reload_encoding"] != "binary_big_endian"):
+            raise RuntimeError("Real resource record lost completed facts or source provenance: " + name)
+        report_path = directory / "report.json"
+        if name == "pressure":
+            if (native["status"] != 4 or native["stage"] != "report" or native["exit_code"] != 2 or
+                    native["diagnostic"]["stage"] != 7 or native["diagnostic"]["code"] != 8 or
+                    report_path.exists()):
+                raise RuntimeError("Shared refusal must retain actual budget/report/no-JSON outcome")
+        else:
+            if native["status"] != 0 or native["stage"] != "complete" or native["exit_code"] != 0:
+                raise RuntimeError("Unchanged-cap positive control did not genuinely succeed")
+            raw = report_path.read_bytes()
+            report = reports.load(raw.decode("utf8"))
+            validator.validate(report)
+            ext = report["extensions"]["meshvale.repair.ply"]
+            if (reports.exit_code(report) != 0 or report["candidate"]["outcome"] != "accepted" or
+                    report["publication"]["outcome"] != "not-requested" or report["publication"]["artifacts"] or
+                    ext["native_stage"] != "report" or ext["native_status"] != 0 or
+                    ext["publisher"] is not None or ext["memory_output_verified"] is not True or
+                    report["input"]["sha256"] != source_sha or
+                    ext["source_faces"] != maps["SourceFaces"] or ext["source_corners"] != maps["SourceCorners"]):
+                raise RuntimeError("Real memory-control receipt or sampled report-stage facts differ")
+            final_reports.append({"case": budget_name + "/" + name,
+                                  "sha256": hashlib.sha256(raw).hexdigest(), "exit_code": 0})
+        native_rows.append({"case": budget_name + "/" + name, "sha256": sha256(native_path)})
+
+    e = witness(allocation / "exception-witness.json")
+    exception_keys = {"schema", "exception", "native_result_returned", "exception_observed",
+                      "workflow_calls", "after_repair_calls", "failed_requests", "failed_request_bytes",
+                      "failed_request_alignment", "actual_wrapper_allocations", "active_backend_bytes_after_unwind",
+                      "source_counts", "candidate_counts", "face_map", "corner_map", "source_faces",
+                      "source_corners", "root_bytes_after_all_owners"}
+    if (set(e) != exception_keys or e["schema"] != "meshvale.repair.ply-allocation-witness/1" or
+            e["exception"] != "std.bad_alloc" or e["native_result_returned"] is not False or
+            e["exception_observed"] is not True or e["workflow_calls"] != 1 or e["after_repair_calls"] != 1 or
+            e["failed_requests"] != 1 or e["failed_request_bytes"] <= 0 or e["failed_request_alignment"] <= 0 or
+            e["active_backend_bytes_after_unwind"] != 0 or e["root_bytes_after_all_owners"] != 0 or
+            e["source_counts"] != {"vertices": 8, "faces": 3, "corners": 11} or
+            e["candidate_counts"] != {"vertices": 8, "faces": 2, "corners": 7} or
+            any(e[key] != maps[value] for key, value in fields.items()) or
+            (allocation / "source.ply").read_bytes() != actual_source or
+            (allocation / "captured.ply").read_bytes() != actual_source):
+        raise RuntimeError("Actual allocator exception/retained-owner witness differs")
+    return final_reports, native_rows, [{"case": allocation_name,
+                                        "sha256": sha256(allocation / "exception-witness.json")}]
+
+
 def validate_ply_request_reports(runner, geometry, fixture):
     """Validate seven real request cases separately from the closed33 corpus."""
     sys.path.insert(0, str(geometry / "python"))
@@ -522,8 +627,8 @@ def validate_ply_request_reports(runner, geometry, fixture):
     rejections = {"face-property-difference", "opposite-winding", "distinct-coincident-ids"}
     publication_failures = {"existing-destination", "staged-entry-corruption"}
     expected = publication_failures | rejections | {"interior-stop", "point-only"}
-    if {path.name for path in fixture.iterdir()} != expected:
-        raise RuntimeError("PLY request fixture inventory differs from the seven selected cases")
+    if {path.name for path in fixture.iterdir()} != expected | {"shared-budget-at-report", "allocation-failure-at-report"}:
+        raise RuntimeError("PLY request fixture inventory differs from the nine selected groups")
     literal = json.loads((runner.root / "tests/fixtures/ply-workflow/literal-predicates.json").read_text(encoding="utf8"))
     maps = literal["changed"]["maps"]
     map_fields = ("face_map", "corner_map", "source_faces", "source_corners")
@@ -619,8 +724,11 @@ def validate_ply_request_reports(runner, geometry, fixture):
                 raise RuntimeError("Actual point-only binary bytes, hashes, receipt or unchanged writer facts differ")
         observed.append({"case": name, "sha256": hashlib.sha256(raw).hexdigest(),
                          "exit_code": meshvale_reports.exit_code(report)})
-    if len(observed) != 6:
-        raise RuntimeError("Expected exactly six available final request reports")
+    resource_reports, resource_native, exceptions = validate_ply_resource_observations(
+        runner, fixture, validator, meshvale_reports, literal)
+    observed.extend(resource_reports)
+    if len(observed) != 8:
+        raise RuntimeError("Expected exactly eight available final request reports")
     retained = runner.evidence / "ply-request-observations"
     source_signature = ply_signature(fixture)
     shutil.copytree(fixture, retained)
@@ -628,10 +736,11 @@ def validate_ply_request_reports(runner, geometry, fixture):
         raise RuntimeError("Retained request artifact bytes changed during copy")
     write_json(runner.evidence / "ply-request-checks.json", {
         "schema": "meshvale.repair.ply-request-checks/1", "passed": True,
-        "actual_cases": 7, "final_reports": observed, "native_sidecars": [
-            {"case": name, "sha256": sha256(fixture / name / "native.json")} for name in sorted(expected)],
+        "actual_cases": 9, "actual_workflow_calls": 11, "final_reports": observed, "native_sidecars": [
+            {"case": name, "sha256": sha256(fixture / name / "native.json")} for name in sorted(expected)] + resource_native,
+        "exception_witnesses": exceptions,
         "retained_raw_files": source_signature,
-        "scope": "One point-only publication, three comparison refusals, two failed publications and one typed interior stop; six final receipts; canceled JSON not required; closed33 unchanged"})
+        "scope": "Nine logical request groups, eleven actual workflows, ten real native sidecars, eight final reports and one separate allocator exception witness; canceled/budget JSON absent; closed33 unchanged"})
 
 def qualify_ply(root, profile_name):
     """One bounded qualified Windows route, independent of the older cohorts."""
@@ -780,7 +889,8 @@ def qualify_ply(root, profile_name):
         if installed["passed"] is not True:
             raise RuntimeError("Installed PLY integration did not pass")
         result.update(gate_passed=True, native_tests=6, native_cases=33, shared_reports=31,
-                      native_request_cases=7, native_request_reports=6,
+                      native_request_cases=9, native_request_workflow_calls=11, native_request_sidecars=10,
+                      native_request_reports=8, native_request_exception_witnesses=1,
                       journal_counts=installed["journal_counts"], bundles=installed["bundles"])
         result["completed"].append("installed-ply-and-full31")
     except BaseException as error:

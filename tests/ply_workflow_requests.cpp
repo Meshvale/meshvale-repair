@@ -22,9 +22,12 @@
 #include <ios>
 #include <iostream>
 #include <limits>
+#include <mutex>
+#include <new>
 #include <optional>
 #include <set>
 #include <span>
+#include <sstream>
 #include <stdexcept>
 #include <stop_token>
 #include <string>
@@ -32,6 +35,7 @@
 #include <variant>
 #include <vector>
 
+#include "materialized_duplicate_allocation.h"
 #include "ply_interchange_fixture.h"
 #include "ply_workflow_observations.h"
 #include "ply_workflow_test_internal.h"
@@ -761,6 +765,567 @@ void DistinctVertexIds(const fs::path& root) {
   ComparisonRejection(root, kCase, wire, {}, CheckDistinctSource);
 }
 
+namespace resources {
+namespace allocation = rep::materialized_duplicates_detail;
+// Fixture-only ledger, independent of every application preset and op cap.
+constexpr std::size_t kLedgerLimitBytes = 4 * kMiB;
+constexpr std::size_t kTrackedBlocks = 64;
+constexpr std::size_t kPositionComponents = 3;
+constexpr std::size_t kWitnessLimitBytes = 16 * 1024;
+constexpr std::size_t kReportHeadroomDivisor = 4;
+constexpr std::uint64_t kPressureCancellationScalars = 64;
+constexpr std::uint8_t kPressureValue = 0x5a;
+constexpr std::string_view kPressureAttribute = "resource_payload";
+constexpr std::string_view kBudgetCase = "shared-budget-at-report";
+constexpr std::string_view kAllocationCase = "allocation-failure-at-report";
+constexpr std::string_view kBaseline = "baseline";
+constexpr std::string_view kPressure = "pressure";
+constexpr std::string_view kReleased = "released-with-foreign";
+constexpr std::string_view kBudgetWitness = "budget-witness.json";
+constexpr std::string_view kExceptionWitness = "exception-witness.json";
+
+struct AllocationStats {
+  std::size_t calls = 0, frees = 0, live_bytes = 0;
+  std::size_t report_requests = 0, first_report_bytes = 0;
+  std::size_t first_report_alignment = 0, failures = 0;
+  bool bad_free = false;
+};
+struct Backend {
+  struct Block {
+    void* pointer = nullptr;
+    std::size_t bytes = 0, alignment = 0;
+  };
+  allocation::AllocationBackend original =
+      allocation::DefaultAllocationBackend();
+  std::array<Block, kTrackedBlocks> blocks{};
+  std::mutex mutex;
+  AllocationStats stats;
+  bool report = false, fail_report = false;
+  static void* Allocate(std::size_t bytes, std::size_t alignment,
+                        void* opaque) {
+    auto& self = *static_cast<Backend*>(opaque);
+    std::lock_guard guard(self.mutex);
+    ++self.stats.calls;
+    if (self.report) {
+      ++self.stats.report_requests;
+      if (self.stats.first_report_bytes == 0) {
+        self.stats.first_report_bytes = bytes;
+        self.stats.first_report_alignment = alignment;
+      }
+      if (self.fail_report) {
+        self.fail_report = false;
+        ++self.stats.failures;
+        throw std::bad_alloc{};
+      }
+    }
+    auto* pointer =
+        self.original.allocate(bytes, alignment, self.original.state);
+    for (auto& block : self.blocks)
+      if (!block.pointer) {
+        block = {pointer, bytes, alignment};
+        self.stats.live_bytes += bytes;
+        return pointer;
+      }
+    self.original.deallocate(pointer, bytes, alignment, self.original.state);
+    throw std::runtime_error("bounded resource allocation tracker exhausted");
+  }
+  static void Free(void* pointer, std::size_t bytes, std::size_t alignment,
+                   void* opaque) noexcept {
+    auto& self = *static_cast<Backend*>(opaque);
+    std::lock_guard guard(self.mutex);
+    bool found = false;
+    for (auto& block : self.blocks)
+      if (block.pointer == pointer) {
+        self.stats.bad_free |=
+            block.bytes != bytes || block.alignment != alignment;
+        self.stats.live_bytes -= block.bytes;
+        block = {};
+        found = true;
+        break;
+      }
+    self.stats.bad_free |= !found;
+    ++self.stats.frees;
+    self.original.deallocate(pointer, bytes, alignment, self.original.state);
+  }
+  allocation::AllocationBackend Options() { return {Allocate, Free, this}; }
+  void MarkReport() {
+    std::lock_guard guard(mutex);
+    report = true;
+  }
+  AllocationStats Snapshot() {
+    std::lock_guard guard(mutex);
+    return stats;
+  }
+  void Empty() {
+    const auto observed = Snapshot();
+    Require(observed.live_bytes == 0 && !observed.bad_free,
+            "actual original wrapper allocations all freed exactly once");
+  }
+};
+
+geo::MaterializedMesh MakePressure(const geo::ExecutionContext& context,
+                                   std::size_t count) {
+  Require(count > 0 && count <= kLedgerLimitBytes,
+          "bounded real pressure scalar input");
+  // This ordinary input vector is test preparation, outside native accounting.
+  // The returned native mesh, not this vector or a bare lease, occupies it.
+  const std::vector<std::uint8_t> values(count, kPressureValue);
+  constexpr std::array<double, 3> kPositions{0, 0, 0};
+  constexpr std::array<geo::index_t, 1> kFaceOffsets{0};
+  const std::array<geo::index_t, 2> offsets{0,
+                                            static_cast<geo::index_t>(count)};
+  const std::array attributes{geo::AttributeMaterializationInput{
+      .domain = geo::AttributeDomain::vertex,
+      .name = kPressureAttribute,
+      .semantic = {},
+      .set_index = {},
+      .components = 1,
+      .values = std::span<const std::uint8_t>(values),
+      .offsets = std::span<const geo::index_t>(offsets),
+      .present = {},
+      .metadata = {}}};
+  const geo::MeshMaterializationInput input{
+      std::span<const double>(kPositions),
+      geo::PolygonTopologyInput{kFaceOffsets, {}}, attributes};
+  const geo::MeshMaterializationLimits limits{
+      1, 1, 1, 1, 1, count, offsets.size(), 1, 1, kMiB, kLedgerLimitBytes};
+  const geo::MeshMaterializationWorkPolicy work{
+      kSerialMinBytes, kPartitionBytes, kPressureCancellationScalars, 1};
+  const auto result = geo::MaterializeMesh(input, limits, work, context);
+  Require(result.status == geo::MaterializationStatus::kSuccess && result.mesh,
+          "fixture pressure construction must genuinely succeed");
+  Joined(result.execution);
+  const auto& mesh = *result.mesh;
+  const auto view = mesh.View();
+  Require(geo::SharesExecutionBudget(context, mesh.ShareExecutionContext()) &&
+              std::ranges::equal(view.positions, kPositions) &&
+              std::ranges::equal(view.face_offsets, kFaceOffsets) &&
+              view.corner_vertices.empty() && view.attributes.size() == 1,
+          "real point mesh owns storage in its requested shared ledger");
+  const auto& attribute = view.attributes.front();
+  const auto* scalars =
+      std::get_if<std::span<const std::uint8_t>>(&attribute.values);
+  Require(attribute.domain == geo::AttributeDomain::vertex &&
+              attribute.name == kPressureAttribute &&
+              attribute.components == 1 && attribute.semantic.empty() &&
+              !attribute.set_index && !attribute.present &&
+              attribute.metadata.empty() && attribute.offsets &&
+              std::ranges::equal(*attribute.offsets, offsets) && scalars &&
+              scalars->size() == count &&
+              std::ranges::all_of(
+                  *scalars, [](auto value) { return value == kPressureValue; }),
+          "pressure is an actual typed ragged row, never an unbacked charge");
+  return mesh;
+}
+struct Pressure {
+  const geo::ExecutionContext& root;
+  const geo::ExecutionContext& foreign_context;
+  std::size_t count, report_request;
+  std::optional<geo::MaterializedMesh> shared, foreign;
+  std::size_t before = 0, shared_bytes = 0, foreign_bytes = 0, available = 0;
+  bool shares_root = false, foreign_shares_root = true;
+  void Create() {
+    Require(!shared && !foreign, "one real pressure construction epoch");
+    foreign.emplace(MakePressure(foreign_context, count));
+    foreign_bytes = static_cast<std::size_t>(foreign->NewRequestedBytes());
+    foreign_shares_root =
+        geo::SharesExecutionBudget(root, foreign->ShareExecutionContext());
+    before = root.ActiveTrackedPayload();
+    shared.emplace(MakePressure(root, count));
+    shared_bytes = static_cast<std::size_t>(shared->NewRequestedBytes());
+    shares_root =
+        geo::SharesExecutionBudget(root, shared->ShareExecutionContext());
+    const auto after = root.ActiveTrackedPayload();
+    Require(
+        shares_root && !foreign_shares_root && shared_bytes > 0 &&
+            shared_bytes == foreign_bytes && after >= before &&
+            after - before == shared_bytes &&
+            after <= root.TrackedPayloadBudget(),
+        "measured equal owners occupy only their actual corresponding ledgers");
+    available = root.TrackedPayloadBudget() - after;
+    Require(
+        available < report_request,
+        "fixture guard: real shared storage leaves less than report request");
+  }
+};
+struct Hooks {
+  Backend& backend;
+  const geo::ExecutionContext& context;
+  Pressure* pressure = nullptr;
+  bool report_seen = false, retain_repair = false;
+  std::size_t report_live = 0, wrapper_live = 0;
+  std::size_t repair_calls = 0, workflow_calls = 0;
+  std::optional<rep::MaterializedDuplicateRepair> repair;
+  static void Checkpoint(rep::PlyWorkflowStage stage, std::uint64_t,
+                         void* opaque) {
+    auto& self = *static_cast<Hooks*>(opaque);
+    if (stage != rep::PlyWorkflowStage::kReport || self.report_seen) return;
+    self.report_seen = true;
+    self.report_live = self.context.ActiveTrackedPayload();
+    self.wrapper_live = self.backend.Snapshot().live_bytes;
+    self.backend.MarkReport();
+    if (self.pressure) self.pressure->Create();
+  }
+  static void AfterRepair(const rep::MaterializedDuplicateResult& result,
+                          void* opaque) {
+    auto& self = *static_cast<Hooks*>(opaque);
+    ++self.repair_calls;
+    Require(result.status == rep::MaterializedDuplicateStatus::kSuccess &&
+                result.repair,
+            "resource checkpoint follows one genuine completed repair");
+    if (self.retain_repair) self.repair.emplace(*result.repair);
+  }
+  detail::WorkflowTestOptions Options() {
+    detail::WorkflowTestOptions result;
+    result.allocation_backend = backend.Options();
+    result.checkpoint = Checkpoint;
+    result.after_repair = AfterRepair;
+    result.state = this;
+    return result;
+  }
+};
+rep::PlyDuplicateFileWorkflowResult RunMemory(const ic::PlyFileAsset& source,
+                                              Hooks& hooks) {
+  ++hooks.workflow_calls;
+  return detail::RunPlyDuplicateFileWorkflowForTest(
+      {source,
+       kInputId,
+       kTargets,
+       f::Options(ic::PlyEncoding::kBinaryBigEndian),
+       kDeclarations,
+       {}},
+      Limits(), Work(), {}, hooks.Options());
+}
+void CheckRepair(const rep::MaterializedDuplicateRepair& repair) {
+  Require(
+      repair.Outcome() == rep::CandidateOutcome::accepted &&
+          std::ranges::equal(repair.FaceMap(), f::kFaceMap) &&
+          std::ranges::equal(repair.CornerMap(), f::kCornerMap) &&
+          std::ranges::equal(repair.SourceFaces(), f::kSourceFaces) &&
+          std::ranges::equal(repair.SourceCorners(), f::kSourceCorners),
+      "actual completed repair preserves all four literal correspondence maps");
+  f::CheckMesh(repair.Source());
+  f::CheckMesh(repair.Candidate(), {.changed = true});
+}
+void SaveIn(const fs::path& directory, const ic::PlyFileAsset& source,
+            const rep::PlyDuplicateFileWorkflowResult& result, bool report) {
+  Require(fs::create_directory(directory), "fresh real resource observation");
+  Save(directory, source, result, report);
+}
+void WriteWitness(const fs::path& path, const std::string& text) {
+  Require(text.size() <= kWitnessLimitBytes, "bounded actual resource witness");
+  Write(path, f::Bytes(text));
+}
+void SharedBudget(const fs::path& root) {
+  const auto directory = root / kBudgetCase;
+  Require(fs::create_directory(directory), "new shared-budget case");
+  const auto path = directory / kSourceName;
+  const auto wire = f::Wire(ic::PlyEncoding::kAscii);
+  Write(path, wire);
+  geo::ExecutionContext ledger(
+      {kWorkers, kParallelMinVertices, kLedgerLimitBytes});
+  geo::ExecutionContext foreign_context(
+      {kWorkers, kParallelMinVertices, kLedgerLimitBytes});
+  Backend baseline_backend, pressure_backend, released_backend;
+  std::optional<rep::PlyDuplicateFileWorkflowRecord> retained;
+  Pressure pressure{ledger, foreign_context, 0, 0, {}, {}};
+  std::size_t source_baseline = 0, baseline_request = 0, wrapper_live = 0;
+  std::size_t report_bytes = 0, released_bytes = 0, calls = 0;
+  std::optional<rep::PlyWorkflowDiagnostic> report_diagnostic;
+  {
+    auto context = ledger;
+    const auto captured = Capture(path, context);
+    Require(captured.asset.has_value(), "real resource source captured");
+    source_baseline = ledger.ActiveTrackedPayload();
+    std::size_t baseline_report_live = 0;
+    {
+      Hooks hooks{baseline_backend, context};
+      const auto result = RunMemory(*captured.asset, hooks);
+      calls += hooks.workflow_calls;
+      Require(result.status == rep::PlyWorkflowStatus::kSuccess &&
+                  result.record && hooks.report_seen && hooks.repair_calls == 1,
+              "unchanged operation caps pass without same-ledger pressure");
+      Facts(*result.record, true);
+      baseline_request = baseline_backend.Snapshot().first_report_bytes;
+      baseline_report_live = hooks.report_live;
+      Require(
+          baseline_request > kReportHeadroomDivisor &&
+              baseline_report_live < ledger.TrackedPayloadBudget(),
+          "actual successful report request and pre-report ledger observed");
+      SaveIn(directory / kBaseline, *captured.asset, result, true);
+    }
+    baseline_backend.Empty();
+    Require(ledger.ActiveTrackedPayload() == source_baseline,
+            "baseline result fully released before pressure setup");
+    std::size_t fixed_bytes = 0;
+    {
+      const auto calibration = MakePressure(foreign_context, 1);
+      fixed_bytes = static_cast<std::size_t>(calibration.NewRequestedBytes());
+    }
+    Released(foreign_context);
+    const auto headroom = baseline_request / kReportHeadroomDivisor;
+    const auto remaining = ledger.TrackedPayloadBudget() - baseline_report_live;
+    Require(remaining > headroom && remaining - headroom >= fixed_bytes,
+            "fixture has positive bounded real payload construction extent");
+    // Only the uint8 row length changes from the observed one-scalar owner.
+    // Successful creation and observed charge/headroom are checked, never
+    // assumed.
+    pressure.count = remaining - headroom - fixed_bytes + 1;
+    pressure.report_request = baseline_request;
+    {
+      Hooks hooks{pressure_backend, context, &pressure};
+      const auto result = RunMemory(*captured.asset, hooks);
+      calls += hooks.workflow_calls;
+      wrapper_live = hooks.wrapper_live;
+      Require(
+          hooks.report_seen && hooks.repair_calls == 1 &&
+              Limits().max_wrapper_new_requested_bytes >= wrapper_live &&
+              baseline_request <=
+                  (Limits().max_wrapper_new_requested_bytes - wrapper_live) / 2,
+          "actual staging and final requests fit unchanged operation-local "
+          "cap");
+      Require(
+          result.status == rep::PlyWorkflowStatus::kBudgetExceeded &&
+              result.diagnostic.stage == rep::PlyWorkflowStage::kReport &&
+              result.diagnostic.code ==
+                  rep::PlyWorkflowDiagnosticCode::kRequestBudget &&
+              result.outcomes.exit ==
+                  rep::PlyWorkflowExitMeaning::kExecutionFailure &&
+              result.outcomes.publication ==
+                  rep::PlyWorkflowPublicationOutcome::kNotRequested &&
+              result.record && !result.publication,
+          "real common-ledger admission refuses report without publication");
+      Facts(*result.record, true);
+      Require(result.record->InputSha256() &&
+                  result.record->ReportJson().empty() &&
+                  result.report_diagnostic &&
+                  result.report_diagnostic->stage ==
+                      rep::PlyWorkflowStage::kReport &&
+                  result.report_diagnostic->code ==
+                      rep::PlyWorkflowDiagnosticCode::kRequestBudget &&
+                  pressure_backend.Snapshot().report_requests == 0,
+              "typed completed facts survive; both real report requests "
+              "refused before backend");
+      report_bytes = result.record->ReportJson().size();
+      report_diagnostic = result.report_diagnostic;
+      SaveIn(directory / kPressure, *captured.asset, result, false);
+      retained.emplace(*result.record);
+    }
+    pressure.shared.reset();
+    released_bytes = ledger.ActiveTrackedPayload();
+    Require(pressure.foreign &&
+                !geo::SharesExecutionBudget(
+                    context, pressure.foreign->ShareExecutionContext()),
+            "equivalent real foreign owner stays held during released control");
+    {
+      Hooks hooks{released_backend, context};
+      const auto result = RunMemory(*captured.asset, hooks);
+      calls += hooks.workflow_calls;
+      Require(result.status == rep::PlyWorkflowStatus::kSuccess &&
+                  result.record && hooks.repair_calls == 1,
+              "same caps succeed after releasing only common-ledger pressure");
+      Facts(*result.record, true);
+      SaveIn(directory / kReleased, *captured.asset, result, true);
+    }
+    released_backend.Empty();
+    Require(Read(path) == wire && context.ActiveWorkers() == 0,
+            "resource controls leave source intact and every worker joined");
+  }
+  Require(retained && ledger.ActiveTrackedPayload() > 0 &&
+              ledger.ActiveWorkers() == 0,
+          "budget-refused record outlives original source/context owner");
+  Facts(*retained, true);
+  retained.reset();
+  pressure_backend.Empty();
+  Released(ledger);
+  pressure.foreign.reset();
+  Released(foreign_context);
+  Require(calls == 3 && report_diagnostic,
+          "three actual budget workflow calls");
+  // Closed test witness; values are observations, never a native result/report.
+  constexpr std::string_view kHeader =
+      "{\"schema\":\"meshvale.repair.ply-budget-witness/"
+      "1\",\"workflow_calls\":";
+  constexpr std::string_view kBaselineReportRequestBytesJson =
+      ",\"baseline_report_request_bytes\":";
+  constexpr std::string_view kForeignBytesAfterAllOwnersJson =
+      ",\"foreign_bytes_after_all_owners\":";
+  constexpr std::string_view kForeignPressureBytesJson =
+      ",\"foreign_pressure_bytes\":";
+  constexpr std::string_view kForeignSharesRootJson =
+      ",\"foreign_shares_root\":";
+  constexpr std::string_view kPressureBackendReportRequestsJson =
+      ",\"pressure_backend_report_requests\":";
+  constexpr std::string_view kReportBytesJson = ",\"report_bytes\":";
+  constexpr std::string_view kReportDiagnosticCodeJson =
+      ",\"report_diagnostic_code\":";
+  constexpr std::string_view kReportDiagnosticStageJson =
+      ",\"report_diagnostic_stage\":";
+  constexpr std::string_view kRootAvailableAfterPressureJson =
+      ",\"root_available_after_pressure\":";
+  constexpr std::string_view kRootBudgetBytesJson = ",\"root_budget_bytes\":";
+  constexpr std::string_view kRootBytesAfterAllOwnersJson =
+      ",\"root_bytes_after_all_owners\":";
+  constexpr std::string_view kRootBytesAfterPressureReleaseJson =
+      ",\"root_bytes_after_pressure_release\":";
+  constexpr std::string_view kRootLiveBytesBeforePressureJson =
+      ",\"root_live_bytes_before_pressure\":";
+  constexpr std::string_view kSharedPressureBytesJson =
+      ",\"shared_pressure_bytes\":";
+  constexpr std::string_view kSharesRootJson = ",\"shares_root\":";
+  constexpr std::string_view kSourceBaselineBytesJson =
+      ",\"source_baseline_bytes\":";
+  constexpr std::string_view kWrapperCapBytesJson = ",\"wrapper_cap_bytes\":";
+  constexpr std::string_view kWrapperLiveBytesAtReportJson =
+      ",\"wrapper_live_bytes_at_report\":";
+  constexpr std::string_view kFalseJson = "false";
+  constexpr std::string_view kTrueJson = "true";
+  constexpr std::string_view kObjectEndJson = "}\n";
+  std::ostringstream out;
+  out << kHeader << calls << kSourceBaselineBytesJson << source_baseline
+      << kRootBudgetBytesJson << ledger.TrackedPayloadBudget()
+      << kBaselineReportRequestBytesJson << baseline_request
+      << kWrapperCapBytesJson << Limits().max_wrapper_new_requested_bytes
+      << kWrapperLiveBytesAtReportJson << wrapper_live
+      << kRootLiveBytesBeforePressureJson << pressure.before
+      << kSharedPressureBytesJson << pressure.shared_bytes
+      << kForeignPressureBytesJson << pressure.foreign_bytes
+      << kRootAvailableAfterPressureJson << pressure.available
+      << kSharesRootJson << (pressure.shares_root ? kTrueJson : kFalseJson)
+      << kForeignSharesRootJson
+      << (pressure.foreign_shares_root ? kTrueJson : kFalseJson)
+      << kPressureBackendReportRequestsJson
+      << pressure_backend.Snapshot().report_requests
+      << kRootBytesAfterPressureReleaseJson << released_bytes
+      << kRootBytesAfterAllOwnersJson << ledger.ActiveTrackedPayload()
+      << kForeignBytesAfterAllOwnersJson
+      << foreign_context.ActiveTrackedPayload() << kReportBytesJson
+      << report_bytes << kReportDiagnosticStageJson
+      << static_cast<unsigned>(report_diagnostic->stage)
+      << kReportDiagnosticCodeJson
+      << static_cast<unsigned>(report_diagnostic->code) << kObjectEndJson;
+  WriteWitness(directory / kBudgetWitness, out.str());
+}
+void AllocationFailure(const fs::path& root) {
+  const auto directory = root / kAllocationCase;
+  Require(fs::create_directory(directory),
+          "new actual allocation failure case");
+  const auto path = directory / kSourceName;
+  const auto wire = f::Wire(ic::PlyEncoding::kAscii);
+  Write(path, wire);
+  geo::ExecutionContext ledger(
+      {kWorkers, kParallelMinVertices, kLedgerLimitBytes});
+  Backend backend;
+  backend.fail_report = true;
+  Hooks hooks{backend, ledger};
+  hooks.retain_repair = true;
+  bool returned = false, observed = false;
+  {
+    const auto captured = Capture(path, ledger);
+    Require(captured.asset.has_value(), "real allocation source captured");
+    Write(directory / kCapturedName, captured.asset->EntryBytes());
+    try {
+      const auto result = RunMemory(*captured.asset, hooks);
+      returned = true;
+      (void)result;
+    } catch (const std::bad_alloc&) {
+      observed = true;
+    }
+    const auto stats = backend.Snapshot();
+    Require(observed && !returned && hooks.workflow_calls == 1 &&
+                hooks.report_seen && hooks.repair_calls == 1 && hooks.repair &&
+                stats.failures == 1 && stats.report_requests == 1 &&
+                stats.first_report_bytes > 0 &&
+                stats.first_report_alignment > 0,
+            "bad_alloc came from the first actual wrapper request after real "
+            "report entry");
+    CheckRepair(*hooks.repair);
+    Require(Read(path) == wire && ledger.ActiveWorkers() == 0 &&
+                !fs::exists(directory / kNativeName) &&
+                !fs::exists(directory / kReportName) &&
+                !fs::exists(directory / kBundleName),
+            "exception returns no fabricated result/report/publication");
+    backend.Empty();
+  }
+  Require(hooks.repair && ledger.ActiveTrackedPayload() > 0 &&
+              ledger.ActiveWorkers() == 0,
+          "actual completed repair survives exception and captured source "
+          "lifetime");
+  CheckRepair(*hooks.repair);
+  const auto source = hooks.repair->Source().View();
+  const auto candidate = hooks.repair->Candidate().View();
+  constexpr std::string_view kHeader =
+      "{\"schema\":\"meshvale.repair.ply-allocation-witness/"
+      "1\",\"exception\":\"std.bad_alloc\",\"native_result_returned\":";
+  constexpr std::string_view kActiveBackendBytesAfterUnwindJson =
+      ",\"active_backend_bytes_after_unwind\":";
+  constexpr std::string_view kActualWrapperAllocationsJson =
+      ",\"actual_wrapper_allocations\":";
+  constexpr std::string_view kAfterRepairCallsJson = ",\"after_repair_calls\":";
+  constexpr std::string_view kCornersJson = ",\"corners\":";
+  constexpr std::string_view kExceptionObservedJson =
+      ",\"exception_observed\":";
+  constexpr std::string_view kFacesJson = ",\"faces\":";
+  constexpr std::string_view kFailedRequestAlignmentJson =
+      ",\"failed_request_alignment\":";
+  constexpr std::string_view kFailedRequestBytesJson =
+      ",\"failed_request_bytes\":";
+  constexpr std::string_view kFailedRequestsJson = ",\"failed_requests\":";
+  constexpr std::string_view kRootBytesAfterAllOwnersJson =
+      ",\"root_bytes_after_all_owners\":";
+  constexpr std::string_view kSourceCountsVerticesJson =
+      ",\"source_counts\":{\"vertices\":";
+  constexpr std::string_view kWorkflowCallsJson = ",\"workflow_calls\":";
+  constexpr std::string_view kCornerMapKey = "corner_map";
+  constexpr std::string_view kFaceMapKey = "face_map";
+  constexpr std::string_view kFalseJson = "false";
+  constexpr std::string_view kSourceCornersKey = "source_corners";
+  constexpr std::string_view kSourceFacesKey = "source_faces";
+  constexpr std::string_view kTrueJson = "true";
+  constexpr std::string_view kCandidateCountsVerticesJson =
+      "},\"candidate_counts\":{\"vertices\":";
+  constexpr std::string_view kObjectEndJson = "}\n";
+  std::ostringstream out;
+  const auto stats = backend.Snapshot();
+  out << kHeader << (returned ? kTrueJson : kFalseJson)
+      << kExceptionObservedJson << (observed ? kTrueJson : kFalseJson)
+      << kWorkflowCallsJson << hooks.workflow_calls << kAfterRepairCallsJson
+      << hooks.repair_calls << kFailedRequestsJson << stats.failures
+      << kFailedRequestBytesJson << stats.first_report_bytes
+      << kFailedRequestAlignmentJson << stats.first_report_alignment
+      << kActualWrapperAllocationsJson << stats.calls
+      << kActiveBackendBytesAfterUnwindJson << stats.live_bytes
+      << kSourceCountsVerticesJson
+      << source.positions.size() / kPositionComponents << kFacesJson
+      << source.face_offsets.size() - 1 << kCornersJson
+      << source.corner_vertices.size() << kCandidateCountsVerticesJson
+      << candidate.positions.size() / kPositionComponents << kFacesJson
+      << candidate.face_offsets.size() - 1 << kCornersJson
+      << candidate.corner_vertices.size() << '}';
+  const auto map = [&](std::string_view key,
+                       std::span<const geo::index_t> values) {
+    out << ",\"" << key << "\":[";
+    bool comma = false;
+    for (auto value : values) {
+      if (comma) out << ',';
+      comma = true;
+      out << value;
+    }
+    out << ']';
+  };
+  map(kFaceMapKey, hooks.repair->FaceMap());
+  map(kCornerMapKey, hooks.repair->CornerMap());
+  map(kSourceFacesKey, hooks.repair->SourceFaces());
+  map(kSourceCornersKey, hooks.repair->SourceCorners());
+  hooks.repair.reset();
+  backend.Empty();
+  Released(ledger);
+  out << kRootBytesAfterAllOwnersJson << ledger.ActiveTrackedPayload()
+      << kObjectEndJson;
+  WriteWitness(directory / kExceptionWitness, out.str());
+}
+}  // namespace resources
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -784,6 +1349,8 @@ int main(int argc, char** argv) {
     PropertyDifference(root);
     OppositeWinding(root);
     DistinctVertexIds(root);
+    resources::SharedBudget(root);
+    resources::AllocationFailure(root);
     return 0;
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
