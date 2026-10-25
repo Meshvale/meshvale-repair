@@ -103,8 +103,85 @@ ctest --test-dir build-ply -C Release --output-on-failure
 
 Select `qualified` only with a matching qualified Geometry producer. Current
 Windows MSVC development checks exercise the native typed PLY matrix, actual
-reports, relocated installed consumers and a Git-free source archive. The Python
-PLY API, single/batch commands and complete cross-profile qualification remain
-planned. Disabled PLY builds keep that optional target/header absent.
+reports, relocated installed consumers and a Git-free source archive. The opt-in
+Python API, module/console single commands and ordered batches are implemented
+and have bounded installed development checks below. Complete fault,
+unsupported-profile and cross-platform qualification remains pending. Disabled
+PLY builds keep that optional target/header absent.
+
+## PLY Python build and installed checks
+
+Use compatible installed Geometry and Interchange native SDKs from the
+[PLY dependency contract](docs/ply-workflow.md#pfw-dependency-001-independently-selectable-native-module),
+including Interchange's `meshvale::ply_files` target. Compiler, configuration,
+CRT, architecture and instrumentation must match the extension. Matching native
+version 0.0.0 alone is insufficient. Supply Geometry, Interchange and the static
+double-precision tinyobjloader prefixes as a quoted semicolon-separated
+`NATIVE_PREFIXES`, following [the existing Python build contract](docs/python.md#build-and-consumption).
+
+The exact declared Geometry Python wheel is
+`meshvale-geometry==0.0.1.dev134+g48298b24b`; its `reports` extra provides the
+shared report reader/validation dependencies. Repair's `workflow` extra declares
+that same dependency. Build these development wheels from their public source
+and provide their declared dependencies locally; these commands presume no
+package-index availability. PLY does not require the Interchange Python wheel
+or Repair's `assets` extra.
+
+The recipe below uses symbolic absolute paths and a fresh ordinary
+GIL-enabled Python environment (`PYTHON`). `BUILD_WHEELS` and
+`CANDIDATE_WHEELS` contain the pinned build tools and runtime dependencies;
+`REPAIR_WHEEL_DIRECTORY` is a fresh output directory and `REPAIR_WHEEL` selects
+its exact built wheel filename. CMake, the compiler and compatible native SDKs
+must already be available. Adjust shell notation for your host.
+
+```sh
+"$PYTHON" -m pip install --no-index --find-links "$BUILD_WHEELS" \
+  "scikit-build-core==1.1.1" "nanobind==3.1.0" "setuptools-scm==10.3.4"
+"$PYTHON" -m pip install --no-index --find-links "$CANDIDATE_WHEELS" \
+  "meshvale-geometry[reports]==0.0.1.dev134+g48298b24b"
+"$PYTHON" -m pip wheel . --no-deps --no-build-isolation \
+  --wheel-dir "$REPAIR_WHEEL_DIRECTORY" \
+  --config-settings=cmake.define.CMAKE_PREFIX_PATH="$NATIVE_PREFIXES" \
+  --config-settings=cmake.define.MESHVALE_REPAIR_PYTHON=ON \
+  --config-settings=cmake.define.MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON \
+  --config-settings=cmake.define.MESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON
+"$PYTHON" -m pip install --no-index --find-links "$CANDIDATE_WHEELS" "$REPAIR_WHEEL[workflow]"
+```
+
+This explicitly selects the co-enabled development configuration exercised by
+the current extension build: the existing default glTF modules plus optional
+OFF and PLY. Its Interchange SDK must therefore also provide the default glTF
+and selected OFF targets. OFF is not a PLY prerequisite, and its flag above
+does not change the default. A Python build with all other file workflows
+disabled has not been independently executed in this qualification. The native
+PLY-only configuration above is a separate result.
+
+Run the [walkthrough](docs/ply-walkthrough.md) from a new working directory.
+For the wider installed API/module/console/batch matrix, first retain native
+fixtures using the [fixture guide](tests/fixtures/ply-workflow/README.md).
+`REPAIR_SOURCE` denotes the checkout/archive containing the test and public
+expectations. `NATIVE_VERSION` is the actual `CMAKE_PROJECT_VERSION` in the
+`CMakeCache.txt` for the build that compiled the installed extension, with
+`CMAKE_PROJECT_NAME=MeshvaleRepair`; do not substitute its Python distribution
+version. Choose an absent `PYTHON_TEST_OUTPUT` with an existing parent outside
+the retained fixture tree. The test refuses resolved source/output overlap and
+source-tree imports before creating its outputs.
+
+```sh
+"$PYTHON" -I "$REPAIR_SOURCE/tests/ply_workflow_python.py" \
+  --fixture-root "$FIXTURE_DIRECTORY" --output-root "$PYTHON_TEST_OUTPUT" \
+  --literal-oracles "$REPAIR_SOURCE/tests/fixtures/ply-workflow/literal-predicates.json" \
+  --presets "$REPAIR_SOURCE/docs/ply-presets.json" --native-version "$NATIVE_VERSION"
+```
+
+The matching installed console is found beside that interpreter by default;
+`--console` may explicitly select its entrypoint in the same scripts directory.
+The test keeps streams, bundles and an `integration-results.json` with actual
+reached events and unchanged-input checks. Its planned successful scope is 102
+native attempts (100 workflow calls and two capture-only missing-file failures)
+and 97 two-member bundles. The current ordinary Windows x64 MSVC Release /
+CPython 3.13 development execution reached that scope. This does not establish a
+clean runtime floor, package-index wheel, supported release, complete fault
+coverage or additional platform/interpreter qualification.
 
 Public files use repository-relative links, public URLs, tool names, and symbolic environment values. Run these checks before committing or publishing. The portability check scans working files and staged content for machine paths and private local files; it does not scan all secrets or determine whether a document should be public. Review public content and package contents separately.

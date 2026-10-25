@@ -1,5 +1,5 @@
 {
-  "status": "Selected development values; implementation and qualification pending",
+  "status": "Development resolver implemented; bounded installed Python checks, broader qualification pending",
   "balanced-v1": {
     "execution": {
       "worker_budget": 4,

@@ -4,18 +4,20 @@
 |---|---|
 | ID | REPAIR-PLY-FILE-001 |
 | Version | 0.1.0 |
-| Status | Native development implementation; Python and broader qualification pending |
+| Status | Native and opt-in Python development interfaces implemented; broader qualification pending |
 | Interface | `meshvale/repair/ply_workflow.h` and `meshvale_repair.ply_workflow` |
 | Target | Optional `meshvale::ply_file_workflow` |
 
 This workflow applies the existing [charged duplicate-face operation](materialized_duplicates.md)
 to one retained typed PLY file, verifies its canonical output and optionally
 publishes a new directory containing that PLY file and its report. The same
-prepared operation is selected for the reusable Python API, single command and
-ordered batch. The native C++ interface is implemented as an opt-in development
-target; those Python entrypoints and their runnable walkthrough remain planned.
-No target discovery, welding, triangulation or additional repair algorithm is
-selected. Platform qualification and supported releases remain separate work.
+prepared operation serves the implemented reusable Python API, single command
+and ordered batch as well as the opt-in native C++ target. The
+[runnable walkthrough](ply-walkthrough.md) introduces those entrypoints;
+[ENVIRONMENT.md](../ENVIRONMENT.md#ply-python-build-and-installed-checks) gives
+the opt-in build and installed-test recipe. No target discovery, welding,
+triangulation or additional repair algorithm is selected. Broader fault/platform
+qualification and supported releases remain separate work.
 
 The native record's `WriteFacts()` retains actual writer metadata even if later
 reload or verification fails. It borrows the immutable live record and does not
@@ -330,6 +332,18 @@ plus newline and short-write/flush/shutdown handling follow the
 may cross native commit.
 
 ## PFW-ACCEPTANCE-001: Shared actual corpus
+
+Current installed development checks use Windows x64 MSVC Release, ordinary
+CPython 3.13 and the declared Geometry wheel. The
+[installed integration test](../tests/ply_workflow_python.py) exercises the
+18-cell balanced API matrix, two serial parity cells, the same 18 cells through
+each module/console single route and each ordered batch route, and bounded
+ownership/admission/missing-file/scheduling/delivery controls. Its source,
+expected data and reproduction instructions are linked from the
+[fixture guide](../tests/fixtures/ply-workflow/README.md#installed-python-api-and-command-checks).
+This is a bounded installed-wheel development result, not complete acceptance
+of every requirement below, an independent PLY-only Python-build qualification,
+a supported-platform declaration or a package-index release.
 
 API, console/module and ordered batch must use the same independently specified
 corpus: cyclic duplicate quads, an unrelated triangle, unused signed-zero
