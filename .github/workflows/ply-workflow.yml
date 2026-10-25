@@ -106,3 +106,79 @@ jobs:
             .local/gw/d/x64-windows-static-md
           include-hidden-files: true
           retention-days: 14
+
+  unsupported:
+    name: PLY native GNU 13 unsupported producer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          architecture: x64
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: 48298b24be7c132816fb5580d22d58bde61558d0
+          path: .local/gw/g
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-interchange
+          ref: 7739b2ff6c6b8a1471ee5ef6dd646769af96a471
+          path: .local/gw/i
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: microsoft/vcpkg
+          ref: cb5a41b03cde4086d554b3f3e2eac39206b16eda
+          path: .local/gw/v
+      - name: Select native GNU tools and pure report validator
+        run: |
+          command -v g++-13
+          command -v gcc-13
+          command -v ninja
+          python -m pip install cmake==4.3.1 jsonschema==4.26.0
+      - name: Qualify real unsupported producer, empty workflow, installed SDK and native archive
+        run: python scripts/gltf-workflow-ci.py --ply-file-workflow --profile gnu-unsupported
+      - name: Retain actual native-only development records
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ply-workflow-gnu-unsupported-${{ github.sha }}
+          path: |
+            .local/gw/e
+            .local/gw/dist
+            .local/gw/gb/CMakeCache.txt
+            .local/gw/gb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/gb/compile_commands.json
+            .local/gw/gb/Testing
+            .local/gw/ib/CMakeCache.txt
+            .local/gw/ib/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/ib/compile_commands.json
+            .local/gw/ib/Testing
+            .local/gw/rb/CMakeCache.txt
+            .local/gw/rb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/rb/compile_commands.json
+            .local/gw/rb/Testing
+            .local/gw/rb/ply*cpp
+            .local/gw/cb/CMakeCache.txt
+            .local/gw/cb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/cb/compile_commands.json
+            .local/gw/cb/Testing
+            .local/gw/ab/CMakeCache.txt
+            .local/gw/ab/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/ab/compile_commands.json
+            .local/gw/ab/Testing
+            .local/gw/consumer-source
+            .local/gw/q
+            .local/gw/tiny-relocated
+            .local/gw/v/buildtrees/tinyobjloader/*.log
+            .local/gw/v/buildtrees/tinyobjloader/*/compile_commands.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14

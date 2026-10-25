@@ -100,6 +100,8 @@ def inspect(path):
                          "python/ply_presets.cpp", "python/meshvale_repair/ply_workflow.py",
                          "python/meshvale_repair/ply_commands.py", "tests/ply_workflow_python.py",
                          "docs/ply-walkthrough.md",
+                         "examples/ply-workflow-consumer/main.cpp",
+                         "examples/ply-workflow-consumer/CMakeLists.txt",
                          "include/meshvale/repair/gltf_workflow.h", "docs/gltf-workflow.md",
                          "cmake/GltfWorkflow.cmake", "src/gltf_workflow.cpp",
                          "cmake/GltfFileWorkflow.cmake",
