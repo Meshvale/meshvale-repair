@@ -14,6 +14,10 @@ targeted repair, preservation, reporting and publication retain their existing
 owners. The interface handles the selected static primitive; native unsupported
 skin, morph, animation and extension cases remain explicit outcomes.
 
+The separately selected [direct-translation contract](gltf-translation.md)
+defines a future explicit animation-preserving profile. Its implementation and
+qualification are pending; the static/default behavior documented here is unchanged.
+
 ## GLTF-PY-REQUEST-001: Explicit request
 
 ```python

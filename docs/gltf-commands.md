@@ -28,6 +28,10 @@ correspondence. The default mode demonstrates the file API. The selected
 qualified profile is Windows x64 MSVC Release; `--unsupported-profile` checks
 explicit native refusal on other currently unqualified numerical profiles.
 
+The separately selected [direct-translation contract](gltf-translation.md)
+defines a future explicit animation-preserving profile. Its implementation and
+qualification are pending; the static/default behavior documented here is unchanged.
+
 ## GLC-INVOCATION-001: Explicit operation
 
 ```sh

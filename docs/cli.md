@@ -19,6 +19,9 @@ The separately selected [glTF command interface](gltf-commands.md) owns its
 explicit primitive policies, prepared native operation, receipt availability and
 bounded batch behavior. Its implementation and qualification remain pending.
 
+The glTF command owner separately links a [planned direct-translation extension](gltf-translation.md);
+its implementation is pending. This OBJ command contract is unchanged.
+
 ## Single asset
 
 ```sh
