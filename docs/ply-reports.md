@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-PLY-REPORT-001 |
 | Version | 0.1.0 |
-| Status | Selected development wire profile; implementation and qualification pending |
+| Status | Native development wire implemented; broader qualification pending |
 
 This document owns the PLY-specific options and extensions inside unchanged
 `meshvale.report/1` for the [file workflow](ply-workflow.md). Objects below have

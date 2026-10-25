@@ -55,6 +55,15 @@ single command and ordered batch share actual outcomes and correspondence maps.
 The walkthrough checks cyclic quads, unrelated faces and unused signed-zero
 vertices. Qualification remains in progress.
 
+The opt-in native [PLY file workflow](docs/ply-workflow.md) captures typed PLY,
+removes explicit duplicate-face targets, verifies canonical output and publishes
+a new PLY entry with its hashed report. It preserves ordered narrow wire schemas,
+dense/ragged properties and all four repair maps. Callers explicitly declare
+custom properties that are safe to transfer across edits. Native development
+checks cover all three PLY encodings, unchanged and empty inputs, retained
+results and installed packages. The selected Python API and commands remain
+planned; platform and release qualification is still in progress.
+
 The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.
 
 The optional [OBJ asset workflow](docs/obj-workflow.md) imports OBJ/MTL and referenced resources through Interchange, applies that same repair/profile and publishes a verified new bundle with its report. Polygon loops, materials and opaque resources follow the adapter's explicit subset; unsupported export channels fail explicitly. A rejected or cancelled publication leaves no repaired bundle. See the [installed file example](examples/python/repair_obj_bundle.py). OBJ support does not establish glTF/GLB or broader format coverage.

@@ -88,4 +88,23 @@ launching its diagnostic child. It restores the controller's previous policy.
 It captures module/thread metadata, without claiming stack or wait-chain
 diagnosis. These records do not establish the cause of a blank test timeout.
 
+The opt-in [native PLY file workflow](docs/ply-workflow.md) requires
+`MESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON`, charged Repair and an installed
+Interchange `meshvale::ply_files` target from its documented compatible producer.
+Supply compatible installed prefixes through `CMAKE_PREFIX_PATH` as above.
+The target and public header are installed only when enabled. A native-only
+configuration can keep the glTF and OFF workflows disabled:
+
+```sh
+cmake -S . -B build-ply -DCMAKE_BUILD_TYPE=Release -DMESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON -DBUILD_TESTING=ON -DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified
+cmake --build build-ply --config Release
+ctest --test-dir build-ply -C Release --output-on-failure
+```
+
+Select `qualified` only with a matching qualified Geometry producer. Current
+Windows MSVC development checks exercise the native typed PLY matrix, actual
+reports, relocated installed consumers and a Git-free source archive. The Python
+PLY API, single/batch commands and complete cross-profile qualification remain
+planned. Disabled PLY builds keep that optional target/header absent.
+
 Public files use repository-relative links, public URLs, tool names, and symbolic environment values. Run these checks before committing or publishing. The portability check scans working files and staged content for machine paths and private local files; it does not scan all secrets or determine whether a document should be public. Review public content and package contents separately.

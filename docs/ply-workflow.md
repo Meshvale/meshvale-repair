@@ -4,18 +4,18 @@
 |---|---|
 | ID | REPAIR-PLY-FILE-001 |
 | Version | 0.1.0 |
-| Status | Selected development profile; implementation and qualification pending |
+| Status | Native development implementation; Python and broader qualification pending |
 | Interface | `meshvale/repair/ply_workflow.h` and `meshvale_repair.ply_workflow` |
 | Target | Optional `meshvale::ply_file_workflow` |
 
 This workflow applies the existing [charged duplicate-face operation](materialized_duplicates.md)
 to one retained typed PLY file, verifies its canonical output and optionally
 publishes a new directory containing that PLY file and its report. The same
-prepared operation serves the reusable Python API, single command and ordered
-batch. No target discovery, welding, triangulation or additional repair algorithm
-is selected. This document selects the interfaces below; their production
-implementation and runnable walkthrough remain pending. Supported releases
-remain separate work.
+prepared operation is selected for the reusable Python API, single command and
+ordered batch. The native C++ interface is implemented as an opt-in development
+target; those Python entrypoints and their runnable walkthrough remain planned.
+No target discovery, welding, triangulation or additional repair algorithm is
+selected. Platform qualification and supported releases remain separate work.
 
 ## PFW-DEPENDENCY-001: Independently selectable native module
 
@@ -23,8 +23,13 @@ The selected option `MESHVALE_REPAIR_PLY_FILE_WORKFLOW` initially defaults OFF.
 It requires `meshvale::materialized_duplicates` and Interchange's optional
 `meshvale::ply_files`/`meshvale::ply` from a compatible installed producer with
 the PLY-FILES-001 contract. Geometry owns execution and `meshvale.report/1`.
-All native producers/consumers must match compiler, configuration, CRT and
-instrumentation. This target does not require the optional glTF workflows,
+Development checks use Interchange's
+[PLY file producer](https://github.com/Meshvale/meshvale-interchange/tree/7739b2ff6c6b8a1471ee5ef6dd646769af96a471)
+and the Geometry producer documented by the
+[charged operation](materialized_duplicates.md#dependency-build-and-test-selection).
+Development snapshots share native version0.0.0; version equality alone does not
+establish compatibility. All native producers/consumers must match compiler,
+configuration, CRT and instrumentation. This target does not require the optional glTF workflows,
 Interchange's Python extension, a new worker pool or another format SDK.
 The header/target are installed only when the implementation is enabled.
 
