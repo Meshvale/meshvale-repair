@@ -22,7 +22,7 @@ def inspect(path):
                 assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
                 continue
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","_obj_export.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","_obj_export.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py","ply_workflow.py","ply_commands.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
             else:
                 assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
@@ -86,6 +86,20 @@ def inspect(path):
                          "tests/off-cli/off_command_fixture.py",
                          "tests/off-cli/test_off_commands.py",
                          "scripts/check-off-workflow-reports.py",
+                         "cmake/PlyWorkflow.cmake", "include/meshvale/repair/ply_workflow.h",
+                         "src/ply_workflow.cpp", "src/ply_workflow_internal.h",
+                         "src/ply_workflow_report.cpp", "src/ply_workflow_test_internal.h",
+                         "docs/ply-workflow.md", "docs/ply-reports.md",
+                         "docs/ply-presets.md", "docs/ply-presets.json",
+                         "tests/ply_interchange_fixture.h", "tests/ply_workflow.cpp",
+                         "tests/ply_workflow_observations.h", "tests/header_ply_workflow.cpp",
+                         "tests/header_ply_workflow_observations.cpp", "scripts/check-ply-workflow-reports.py",
+                         "tests/fixtures/ply-workflow/README.md", "tests/fixtures/ply-workflow/literal-predicates.json",
+                         "tests/fixtures/ply-workflow/empty-source-oracles.json", "python/ply_bindings.h",
+                         "python/ply_bindings.cpp", "python/ply_presets.h",
+                         "python/ply_presets.cpp", "python/meshvale_repair/ply_workflow.py",
+                         "python/meshvale_repair/ply_commands.py", "tests/ply_workflow_python.py",
+                         "docs/ply-walkthrough.md",
                          "include/meshvale/repair/gltf_workflow.h", "docs/gltf-workflow.md",
                          "cmake/GltfWorkflow.cmake", "src/gltf_workflow.cpp",
                          "cmake/GltfFileWorkflow.cmake",
