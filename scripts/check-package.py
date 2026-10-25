@@ -46,7 +46,7 @@ def inspect(path):
         with tarfile.open(path,"r:gz") as archive:
             members = archive.getmembers()
         names = []
-        roots = {".clang-format","CMakeLists.txt","pyproject.toml","README.md","AGENTS.md","ENVIRONMENT.md",
+        roots = {".clang-format",".gitattributes",".git_archival.txt","CMakeLists.txt","pyproject.toml","README.md","AGENTS.md","ENVIRONMENT.md",
                  "environment.example.json","LICENSE","NOTICE","THIRD_PARTY.md","CHANGELOG.md","PKG-INFO"}
         directories = {"cmake","include","src","python","docs","examples","tests","licenses","scripts"}
         for member in members:
@@ -57,7 +57,9 @@ def inspect(path):
             assert name in roots or parts[1] in directories,name
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
-        for required in [".clang-format","scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h",
+        for required in [".clang-format", ".gitattributes", ".git_archival.txt",
+                         "cmake/SourceVersion.cmake", "docs/versioning.md", "scripts/check-source-version.py",
+                         "scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h",
                          "scripts/check-native-tests.py", "scripts/diagnose-windows-startup.py",
                          "scripts/check-gltf-python-return.py",
                          "tests/python_native/gltf_binding_module.cpp",
