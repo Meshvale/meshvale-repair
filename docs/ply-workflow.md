@@ -17,6 +17,11 @@ target; those Python entrypoints and their runnable walkthrough remain planned.
 No target discovery, welding, triangulation or additional repair algorithm is
 selected. Platform qualification and supported releases remain separate work.
 
+The native record's `WriteFacts()` retains actual writer metadata even if later
+reload or verification fails. It borrows the immutable live record and does not
+expose unverified bytes: `Output()` and `Reload()` remain available only after
+all required memory verification passes.
+
 ## PFW-DEPENDENCY-001: Independently selectable native module
 
 The selected option `MESHVALE_REPAIR_PLY_FILE_WORKFLOW` initially defaults OFF.

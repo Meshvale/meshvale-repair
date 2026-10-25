@@ -52,8 +52,9 @@ a caller-owned directory; this is not a transactional publication primitive.
 
 The fixed33 cases comprise18 nonempty publication chains (three source encodings
 by changed/empty-target-unchanged by three output encodings), nine true-empty
-publication chains and six controls below. The separate native lifetime call
-has no observation sidecar and is deliberately not fabricated into this manifest.
+publication chains and six controls below. The separate native lifetime and late-reload
+refusal calls have no observation sidecars and are deliberately not fabricated
+into this manifest.
 
 | Control | Fixed expected reachability/outcome |
 |---|---|

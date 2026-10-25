@@ -223,6 +223,9 @@ class PlyDuplicateFileWorkflowRecord {
   ~PlyDuplicateFileWorkflowRecord() noexcept;
   [[nodiscard]] const interchange::PlyFileAsset& Source() const noexcept;
   [[nodiscard]] const MaterializedDuplicateRepair* RepairFacts() const noexcept;
+  // Actual completed writer facts, even if later reload/verification fails.
+  // Borrows this live record; its presence does not verify output bytes.
+  [[nodiscard]] const interchange::PlyWriteFacts* WriteFacts() const noexcept;
   // Present only after all required memory verification has passed.
   [[nodiscard]] const std::optional<interchange::PlyOutput>& Output()
       const noexcept;
