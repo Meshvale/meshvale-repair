@@ -514,21 +514,55 @@ def ply_wheel(runner, source, label, version, prefixes):
 
 
 def validate_ply_request_reports(runner, geometry, fixture):
-    """Validate two real failure receipts separately from the closed33 corpus."""
+    """Validate seven real request cases separately from the closed33 corpus."""
     sys.path.insert(0, str(geometry / "python"))
     import meshvale_reports
     from jsonschema import Draft202012Validator
     validator = Draft202012Validator(meshvale_reports.schema_document())
-    expected = {"existing-destination", "interior-stop", "staged-entry-corruption"}
+    rejections = {"face-property-difference", "opposite-winding", "distinct-coincident-ids"}
+    publication_failures = {"existing-destination", "staged-entry-corruption"}
+    expected = publication_failures | rejections | {"interior-stop", "point-only"}
     if {path.name for path in fixture.iterdir()} != expected:
-        raise RuntimeError("PLY request fixture inventory differs from the three selected cases")
+        raise RuntimeError("PLY request fixture inventory differs from the seven selected cases")
     literal = json.loads((runner.root / "tests/fixtures/ply-workflow/literal-predicates.json").read_text(encoding="utf8"))
     maps = literal["changed"]["maps"]
+    map_fields = ("face_map", "corner_map", "source_faces", "source_corners")
     observed = []
     for name in sorted(expected):
         directory = fixture / name
         native = json.loads((directory / "native.json").read_text(encoding="utf8"))
-        if (native["face_map"] != maps["FaceMap"] or native["corner_map"] != maps["CornerMap"] or
+        if name in rejections:
+            if (any(native[key] is not None for key in map_fields) or
+                    native["repair_completed"] is not False or
+                    any(native[key] is not None for key in
+                        ("candidate_mesh", "reload_mesh", "published_mesh", "input_sha256")) or
+                    native["status"] != 6 or native["stage"] != "complete" or native["exit_code"] != 1 or
+                    native["publisher"] is not None or native["memory_output_verified"] is not False):
+                raise RuntimeError("Comparison refusal fabricated later facts or accepted empty maps: " + name)
+            delegated = native["diagnostic"]["delegated"]
+            if (native["diagnostic"]["stage"] != 2 or native["diagnostic"]["code"] != 10 or
+                    delegated["kind"] != "repair" or delegated["status"] != 6 or
+                    delegated["diagnostic"]["stage"] != 4 or delegated["diagnostic"]["code"] != 19 or
+                    delegated["diagnostic"]["target"] != 0):
+                raise RuntimeError("Expected actual target-zero comparison/NotEquivalent: " + name)
+            counts = {"vertices": 4, "faces": 2, "corners": 6} if name == "distinct-coincident-ids" else {
+                "vertices": 8, "faces": 3, "corners": 11}
+            if native["source_mesh"]["counts"] != counts or (directory / "bundle").exists():
+                raise RuntimeError("Refusal lost its actual source or created a publication: " + name)
+        elif name == "point-only":
+            if (any(native[key] != [] for key in map_fields) or native["repair_completed"] is not True or
+                    native["status"] != 0 or native["stage"] != "complete" or native["exit_code"] != 0 or
+                    native["memory_output_verified"] is not True or native["publisher"] is None or
+                    native["source_mesh"]["counts"] != {"vertices": 8, "faces": 0, "corners": 0} or
+                    any(native[key] != native["source_mesh"] for key in
+                        ("candidate_mesh", "reload_mesh", "published_mesh")) or
+                    native["source_encoding"] != "ascii" or
+                    native["reload_encoding"] != "binary_big_endian" or
+                    native["published_encoding"] != "binary_big_endian" or
+                    native["reload_schema"] != native["source_schema"] or
+                    native["published_schema"] != native["source_schema"]):
+                raise RuntimeError("Point-only rows/schema/maps or actual big-endian publication differ")
+        elif (native["face_map"] != maps["FaceMap"] or native["corner_map"] != maps["CornerMap"] or
                 native["source_faces"] != maps["SourceFaces"] or native["source_corners"] != maps["SourceCorners"]):
             raise RuntimeError("Request sidecar lacks the four literal completed Repair maps: " + name)
         if name == "interior-stop":
@@ -541,16 +575,52 @@ def validate_ply_request_reports(runner, geometry, fixture):
         report = meshvale_reports.load(raw.decode("utf8"))
         validator.validate(report)
         ext = report["extensions"]["meshvale.repair.ply"]
-        if (meshvale_reports.exit_code(report) != 2 or report["execution"]["outcome"] != "failed" or
-                report["execution"]["stage"] != "export" or report["candidate"]["outcome"] != "accepted" or
-                report["publication"]["outcome"] != "failed" or report["publication"]["artifacts"] or
-                ext["native_stage"] != "publication" or ext["memory_output_verified"] is not True or
-                ext["native_status"] != native["status"] or ext["publisher"] != native["publisher"] or
-                ext["source_faces"] != maps["SourceFaces"] or ext["source_corners"] != maps["SourceCorners"]):
-            raise RuntimeError("Final failure receipt disagrees with its real typed request outcome: " + name)
-        observed.append({"case": name, "sha256": hashlib.sha256(raw).hexdigest(), "exit_code": 2})
-    if len(observed) != 2:
-        raise RuntimeError("Expected exactly two available final request reports")
+        if (ext["native_status"] != native["status"] or
+                (name != "point-only" and ext["publisher"] != native["publisher"]) or
+                ext["source_faces"] != native["source_faces"] or ext["source_corners"] != native["source_corners"] or
+                ext["memory_output_verified"] != native["memory_output_verified"]):
+            raise RuntimeError("Final receipt disagrees with actual typed request observations: " + name)
+        if name in publication_failures:
+            if (meshvale_reports.exit_code(report) != 2 or report["execution"]["outcome"] != "failed" or
+                    report["execution"]["stage"] != "export" or report["candidate"]["outcome"] != "accepted" or
+                    report["publication"]["outcome"] != "failed" or report["publication"]["artifacts"] or
+                    ext["native_stage"] != "publication" or ext["memory_output_verified"] is not True):
+                raise RuntimeError("Final failure receipt disagrees with its real publication outcome: " + name)
+        elif name in rejections:
+            if (meshvale_reports.exit_code(report) != 1 or report["execution"]["outcome"] != "completed" or
+                    report["execution"]["stage"] != "complete" or report["candidate"]["outcome"] != "rejected" or
+                    report["candidate"]["snapshot"] is not None or report["publication"]["outcome"] != "not-attempted" or
+                    report["publication"]["artifacts"] or report["maps"] or report["input"]["sha256"] is not None or
+                    ext["native_stage"] != "complete" or ext["write_facts"] is not None or
+                    ext["native_diagnostic"] != native["diagnostic"] or
+                    any(ext["phase_diagnostics"][key] is not None for key in ("writing", "reload"))):
+                raise RuntimeError("Rejected receipt claims an unreached candidate/write/hash/publication: " + name)
+        else:
+            bundle = directory / "bundle"
+            captured = (directory / "captured.ply").read_bytes()
+            entry = (bundle / "source.ply").read_bytes()
+            artifacts = report["publication"]["artifacts"]
+            facts = ext["write_facts"]
+            # Committed receipt bytes were prepared before the publisher returned;
+            # its actual final typed result is in native.json, not fabricated in JSON.
+            if (ext["publisher"] is not None or
+                    meshvale_reports.exit_code(report) != 0 or report["execution"]["outcome"] != "completed" or
+                    report["candidate"]["outcome"] != "unchanged" or report["publication"]["outcome"] != "published" or
+                    {path.name for path in bundle.iterdir()} != {"source.ply", "meshvale-report.json"} or
+                    (bundle / "meshvale-report.json").read_bytes() != raw or
+                    report["input"]["sha256"] != hashlib.sha256(captured).hexdigest() or
+                    native["input_sha256"] != report["input"]["sha256"] or len(artifacts) != 1 or
+                    artifacts[0]["sha256"] != hashlib.sha256(entry).hexdigest() or
+                    not entry.startswith(b"ply\nformat binary_big_endian 1.0\n") or
+                    facts["source_vertex_count"] != 8 or facts["source_face_count"] != 0 or
+                    facts["vertex_count"] != 8 or facts["face_count"] != 0 or facts["corner_count"] != 0 or
+                    facts["property_count"] != 11 or report["operation"]["options"]["targets"] or
+                    report["operation"]["options"]["row_local_attributes"]):
+                raise RuntimeError("Actual point-only binary bytes, hashes, receipt or unchanged writer facts differ")
+        observed.append({"case": name, "sha256": hashlib.sha256(raw).hexdigest(),
+                         "exit_code": meshvale_reports.exit_code(report)})
+    if len(observed) != 6:
+        raise RuntimeError("Expected exactly six available final request reports")
     retained = runner.evidence / "ply-request-observations"
     source_signature = ply_signature(fixture)
     shutil.copytree(fixture, retained)
@@ -558,11 +628,10 @@ def validate_ply_request_reports(runner, geometry, fixture):
         raise RuntimeError("Retained request artifact bytes changed during copy")
     write_json(runner.evidence / "ply-request-checks.json", {
         "schema": "meshvale.repair.ply-request-checks/1", "passed": True,
-        "actual_cases": 3, "final_reports": observed, "native_sidecars": [
+        "actual_cases": 7, "final_reports": observed, "native_sidecars": [
             {"case": name, "sha256": sha256(fixture / name / "native.json")} for name in sorted(expected)],
         "retained_raw_files": source_signature,
-        "scope": "Two actual final failed-publication receipts and one typed interior stop; canceled JSON not required; closed33 unchanged"})
-
+        "scope": "One point-only publication, three comparison refusals, two failed publications and one typed interior stop; six final receipts; canceled JSON not required; closed33 unchanged"})
 
 def qualify_ply(root, profile_name):
     """One bounded qualified Windows route, independent of the older cohorts."""
@@ -711,7 +780,7 @@ def qualify_ply(root, profile_name):
         if installed["passed"] is not True:
             raise RuntimeError("Installed PLY integration did not pass")
         result.update(gate_passed=True, native_tests=6, native_cases=33, shared_reports=31,
-                      native_request_cases=3, native_request_reports=2,
+                      native_request_cases=7, native_request_reports=6,
                       journal_counts=installed["journal_counts"], bundles=installed["bundles"])
         result["completed"].append("installed-ply-and-full31")
     except BaseException as error:

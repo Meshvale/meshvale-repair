@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
@@ -28,6 +29,7 @@
 #include <stop_token>
 #include <string>
 #include <string_view>
+#include <variant>
 #include <vector>
 
 #include "ply_interchange_fixture.h"
@@ -510,6 +512,255 @@ void StagedCorruption(const fs::path& root) {
   }
   Released(context);
 }
+void PointOnly(const fs::path& root) {
+  constexpr std::string_view kCase = "point-only";
+  constexpr f::Shape kShape{.omit_face = true};
+  constexpr std::size_t kPointProperties = 11;
+  const auto directory = root / kCase;
+  Require(fs::create_directory(directory), "new point-only case");
+  const auto source_path = directory / kSourceName;
+  const auto bundle = directory / kBundleName;
+  const auto wire = f::Wire(ic::PlyEncoding::kAscii, kShape);
+  Write(source_path, wire);
+  geo::ExecutionContext ledger({kWorkers, kParallelMinVertices, kLedgerBytes});
+  std::optional<rep::PlyDuplicateFileWorkflowRecord> retained;
+  {
+    auto context = ledger;
+    const auto captured = Capture(source_path, context);
+    Require(captured.asset.has_value(), "real point-only source captured");
+    f::Check(captured.asset->Document(), kShape);
+    const rep::PlyDuplicateFileWorkflowRequest request{
+        *captured.asset,
+        kInputId,
+        {},
+        f::Options(ic::PlyEncoding::kBinaryBigEndian),
+        {},
+        rep::PlyWorkflowPublication{bundle, kReceiptName}};
+    const auto result =
+        rep::RunPlyDuplicateFileWorkflow(request, Limits(), Work());
+    Require(result.record && result.publication &&
+                result.status == rep::PlyWorkflowStatus::kSuccess &&
+                result.outcomes.execution ==
+                    rep::PlyWorkflowExecutionOutcome::kCompleted &&
+                result.outcomes.candidate == rep::CandidateOutcome::unchanged &&
+                result.outcomes.profile ==
+                    rep::PlyWorkflowProfileOutcome::kPassed &&
+                result.outcomes.publication ==
+                    rep::PlyWorkflowPublicationOutcome::kPublished &&
+                result.outcomes.exit == rep::PlyWorkflowExitMeaning::kSuccess &&
+                result.publication->outcome ==
+                    ic::PlyFilePublicationOutcome::kPublished,
+            "empty targets publish a genuine unchanged point-only owner");
+    const auto& record = *result.record;
+    const auto* repair = record.RepairFacts();
+    Require(repair && repair->Outcome() == rep::CandidateOutcome::unchanged &&
+                repair->FaceMap().empty() && repair->CornerMap().empty() &&
+                repair->SourceFaces().empty() &&
+                repair->SourceCorners().empty(),
+            "all four real maps exist and are empty, vertex rows are retained");
+    f::CheckMesh(repair->Source(), kShape);
+    f::CheckMesh(repair->Candidate(), kShape);
+    Require(
+        record.Output() && record.Reload() && record.Published() &&
+            record.WriteFacts() && record.InputSha256() &&
+            record.WriteFacts()->property_count == kPointProperties &&
+            record.WriteFacts()->source_vertex_count == kSourceVertices &&
+            record.WriteFacts()->source_face_count == 0 &&
+            record.WriteFacts()->face_count == 0 &&
+            record.WriteFacts()->corner_count == 0,
+        "point rows and eleven source properties reach actual writer facts");
+    f::CheckOutput(*record.Output(), ic::PlyEncoding::kAscii,
+                   ic::PlyEncoding::kBinaryBigEndian, kShape, kShape);
+    f::Check(*record.Reload(), kShape);
+    f::Check(record.Published()->Document(), kShape);
+    Require(record.Reload()->Encoding() == ic::PlyEncoding::kBinaryBigEndian &&
+                record.Published()->Document().Encoding() ==
+                    ic::PlyEncoding::kBinaryBigEndian &&
+                std::ranges::equal(record.Published()->EntryBytes(),
+                                   record.Output()->Bytes()) &&
+                record.Published()->ReceiptBytes() &&
+                std::ranges::equal(*record.Published()->ReceiptBytes(),
+                                   record.ReportJson()) &&
+                Read(bundle / kSourceName) ==
+                    f::Wire(ic::PlyEncoding::kBinaryBigEndian, kShape, true) &&
+                std::ranges::equal(Read(bundle / kReceiptName),
+                                   record.ReportJson()) &&
+                Names(bundle) == std::set<fs::path>{fs::path(kSourceName),
+                                                    fs::path(kReceiptName)} &&
+                Read(source_path) == wire,
+            "physical canonical big-endian entry and exact receipt, flat two "
+            "members");
+    Joined(captured.execution);
+    Joined(result.execution);
+    Joined(result.publication->execution);
+    Save(directory, *captured.asset, result, true);
+    retained = record;
+  }
+  Require(retained && ledger.ActiveWorkers() == 0 &&
+              ledger.ActiveTrackedPayload() > 0,
+          "immutable point-only record outlives source and original context");
+  f::Check(retained->Published()->Document(), kShape);
+  retained.reset();
+  Released(ledger);
+}
+
+void CheckPropertySource(const ic::PlyDocument& document) {
+  f::Check(document, {.different_face = true});
+}
+
+void CheckWindingSource(const ic::PlyDocument& document) {
+  constexpr std::array<geo::index_t, 11> kReversedCorners{0, 1, 2, 3, 2, 1,
+                                                          0, 3, 4, 5, 6};
+  constexpr std::array<std::uint32_t, 4> kEqualBins{7, 4294967295, 7,
+                                                    4294967295};
+  constexpr std::array<geo::index_t, 4> kBinOffsets{0, 2, 4, 4};
+  constexpr std::array<float, 3> kEqualWeights{0.5f, 0.5f, -0.0f};
+  Require(document.Inspection().IsStorageValid(),
+          "reversed loop storage is valid");
+  f::CheckSchema(document);
+  const auto view = document.Mesh().View();
+  Require(view.positions.size() == f::kPositions.size() &&
+              std::ranges::equal(view.face_offsets, f::kOffsets) &&
+              std::ranges::equal(view.corner_vertices, kReversedCorners),
+          "literal reversed directed cycle, unchanged other face loops");
+  for (std::size_t i = 0; i < f::kPositions.size(); ++i)
+    Require(std::bit_cast<std::uint64_t>(view.positions[i]) ==
+                std::bit_cast<std::uint64_t>(f::kPositions[i]),
+            "winding case retains every position bit including signed zero");
+  const auto& bins = f::Attribute(view, geo::AttributeDomain::face, "bins");
+  f::Values(bins, kEqualBins, false);
+  f::Values(f::Attribute(view, geo::AttributeDomain::face, "weight"),
+            kEqualWeights, false);
+  Require(bins.offsets && std::ranges::equal(*bins.offsets, kBinOffsets),
+          "face property rows agree; only the directed loop differs");
+}
+
+void CheckDistinctSource(const ic::PlyDocument& document) {
+  constexpr std::array<double, 12> kPositions{0, 0, 0, 1, 0, 0,
+                                              0, 1, 0, 0, 0, 0};
+  constexpr std::array<geo::index_t, 3> kOffsets{0, 3, 6};
+  constexpr std::array<geo::index_t, 6> kCorners{0, 1, 2, 3, 1, 2};
+  const auto view = document.Mesh().View();
+  Require(document.Inspection().IsStorageValid() && view.attributes.empty() &&
+              view.positions.size() == kPositions.size() &&
+              std::ranges::equal(view.face_offsets, kOffsets) &&
+              std::ranges::equal(view.corner_vertices, kCorners),
+          "four vertices, two valid triangles with coincident distinct IDs");
+  for (std::size_t i = 0; i < kPositions.size(); ++i)
+    Require(
+        std::bit_cast<std::uint64_t>(view.positions[i]) ==
+            std::bit_cast<std::uint64_t>(kPositions[i]),
+        "independent exact coordinate bits, vertex zero equals vertex three");
+}
+
+void ComparisonRejection(
+    const fs::path& root, std::string_view name,
+    std::span<const std::byte> wire,
+    std::span<const rep::RowLocalAttributeDeclaration> declarations,
+    void (*check_source)(const ic::PlyDocument&)) {
+  const auto directory = root / name;
+  Require(fs::create_directory(directory), "new comparison rejection case");
+  const auto source_path = directory / kSourceName;
+  const auto bundle = directory / kBundleName;
+  Write(source_path, wire);
+  geo::ExecutionContext ledger({kWorkers, kParallelMinVertices, kLedgerBytes});
+  std::optional<rep::PlyDuplicateFileWorkflowRecord> retained;
+  {
+    auto context = ledger;
+    const auto captured = Capture(source_path, context);
+    Require(captured.asset.has_value(), "real comparison source captured");
+    check_source(captured.asset->Document());
+    const rep::PlyDuplicateFileWorkflowRequest request{
+        *captured.asset, kInputId,
+        kTargets,        f::Options(ic::PlyEncoding::kBinaryBigEndian),
+        declarations,    rep::PlyWorkflowPublication{bundle, kReceiptName}};
+    const auto result =
+        rep::RunPlyDuplicateFileWorkflow(request, Limits(), Work());
+    const auto* status = std::get_if<rep::MaterializedDuplicateStatus>(
+        &result.diagnostic.delegated_status);
+    const auto* diagnostic = std::get_if<rep::MaterializedDuplicateDiagnostic>(
+        &result.diagnostic.delegated);
+    Require(
+        result.record && result.status == rep::PlyWorkflowStatus::kRejected &&
+            result.diagnostic.stage == rep::PlyWorkflowStage::kRepair &&
+            result.diagnostic.code == rep::PlyWorkflowDiagnosticCode::kRepair &&
+            status && *status == rep::MaterializedDuplicateStatus::kRejected &&
+            diagnostic &&
+            diagnostic->stage == rep::MaterializedDuplicateStage::kComparison &&
+            diagnostic->code ==
+                rep::MaterializedDuplicateDiagnosticCode::kNotEquivalent &&
+            diagnostic->target == 0 &&
+            result.outcomes.execution ==
+                rep::PlyWorkflowExecutionOutcome::kCompleted &&
+            result.outcomes.stage == rep::PlyWorkflowStage::kComplete &&
+            result.outcomes.candidate == rep::CandidateOutcome::rejected &&
+            result.outcomes.profile ==
+                rep::PlyWorkflowProfileOutcome::kFailed &&
+            result.outcomes.exit ==
+                rep::PlyWorkflowExitMeaning::kRejectedOrIncomplete &&
+            result.outcomes.publication ==
+                rep::PlyWorkflowPublicationOutcome::kNotAttempted,
+        "real comparison, not eligibility/storage/range refusal, target zero");
+    const auto& record = *result.record;
+    Require(
+        !record.RepairFacts() && !record.WriteFacts() && !record.Output() &&
+            !record.Reload() && !record.Published() && !record.InputSha256() &&
+            !result.publication && !fs::exists(bundle) &&
+            Coverage(record, rep::PlyWorkflowCheck::kTargetPolicy).passed ==
+                false &&
+            Coverage(record, rep::PlyWorkflowCheck::kSourceStorage).passed ==
+                true &&
+            result.execution.hashing.caller_jobs == 0 &&
+            std::ranges::equal(Read(source_path), wire),
+        "no candidate/maps, writer, reload, hash or publisher before those "
+        "phases");
+    Joined(captured.execution);
+    Joined(result.execution);
+    Save(directory, *captured.asset, result, true);
+    retained = record;
+  }
+  Require(
+      retained && ledger.ActiveWorkers() == 0 &&
+          ledger.ActiveTrackedPayload() > 0,
+      "rejected source and diagnostics remain owned after original context");
+  check_source(retained->Source().Document());
+  retained.reset();
+  Released(ledger);
+}
+
+void PropertyDifference(const fs::path& root) {
+  constexpr std::string_view kCase = "face-property-difference";
+  const auto wire = f::Wire(ic::PlyEncoding::kAscii, {.different_face = true});
+  ComparisonRejection(root, kCase, wire, kDeclarations, CheckPropertySource);
+}
+
+void OppositeWinding(const fs::path& root) {
+  constexpr std::string_view kCase = "opposite-winding";
+  constexpr std::string_view kForward = ".5 2 7 4294967295 4 2 3 0 1\n";
+  constexpr std::string_view kReversed = ".5 2 7 4294967295 4 2 1 0 3\n";
+  const auto original = f::Wire(ic::PlyEncoding::kAscii);
+  std::string text(f::Text(original));
+  const auto first = text.find(kForward);
+  Require(
+      first != std::string::npos &&
+          text.find(kForward, first + kForward.size()) == std::string::npos,
+      "exact unique face row replacement, no unrelated property/vertex edits");
+  text.replace(first, kForward.size(), kReversed);
+  const auto wire = f::Bytes(text);
+  ComparisonRejection(root, kCase, wire, kDeclarations, CheckWindingSource);
+}
+
+void DistinctVertexIds(const fs::path& root) {
+  constexpr std::string_view kCase = "distinct-coincident-ids";
+  constexpr std::string_view kWire =
+      "ply\nformat ascii 1.0\nelement vertex 4\nproperty float x\n"
+      "property float y\nproperty float z\nelement face 2\n"
+      "property list uchar int vertex_indices\nend_header\n"
+      "0 0 0\n1 0 0\n0 1 0\n0 0 0\n3 0 1 2\n3 3 1 2\n";
+  const auto wire = f::Bytes(kWire);
+  ComparisonRejection(root, kCase, wire, {}, CheckDistinctSource);
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -529,6 +780,10 @@ int main(int argc, char** argv) {
     ExistingDestination(root);
     InteriorStop(root);
     StagedCorruption(root);
+    PointOnly(root);
+    PropertyDifference(root);
+    OppositeWinding(root);
+    DistinctVertexIds(root);
     return 0;
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';
