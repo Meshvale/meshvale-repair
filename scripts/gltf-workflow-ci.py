@@ -343,6 +343,17 @@ def ply_signature(root):
             for path in sorted(root.rglob("*")) if path.is_file()]
 
 
+def ply_sdk_version(prefix, package):
+    # The pinned Geometry producer predates project(VERSION). Its installed
+    # ConfigVersion file owns the SDK version consumed by find_package.
+    path = prefix / "lib/cmake" / package / (package + "ConfigVersion.cmake")
+    values = re.findall(r'^set\(PACKAGE_VERSION "([^"\r\n]+)"\)\s*$',
+                        path.read_text(encoding="utf8"), re.MULTILINE)
+    if len(values) != 1 or values[0] != "0.0.0":
+        raise RuntimeError("Installed SDK version differs from the selected development cohort: " + package)
+    return {"version": values[0], "path": str(path), "sha256": sha256(path)}
+
+
 
 def ply_object_target(entry, tokens):
     """Select only the object output; source/include/PDB text is not a target."""
@@ -580,11 +591,11 @@ def qualify_ply(root, profile_name):
                                "--gltf-files", "ON", "--off-files", "ON", "--ply-files", "ON")
         runner.test(ib, True)
         runner.install(ib, prefix)
-        for build in (gb, ib):
-            if ply_cache(build, "CMAKE_PROJECT_VERSION") != "0.0.0":
-                raise RuntimeError("Input native SDK version differs from selected development cohort")
+        sdk_versions = {package: ply_sdk_version(prefix, package)
+                        for package in ("MeshvaleGeometry", "MeshvaleInterchange")}
         write_json(runner.evidence / "sdk-inputs.json", {"combined_geometry_interchange": ply_signature(prefix),
                    "tiny_prefix": ply_signature(dependencies / triplet), "pins": inputs["sources"],
+                   "native_versions": sdk_versions,
                    "runtime": "MultiThreadedDLL", "scope": "Fresh same-run SDK inputs; no relocation/runtime-floor claim"})
         result["completed"].append("fresh-input-sdks")
         runner.configure(root, rb, runtime, f"-DCMAKE_PREFIX_PATH={prefix};{dependencies / triplet}",
