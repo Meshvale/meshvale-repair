@@ -396,6 +396,66 @@ void Lifetime(const fs::path& root) {
   }
   Released(ledger);
 }
+void RetainedWriteFacts(const fs::path& root) {
+  constexpr std::string_view kDirectory = "retained-writer-facts";
+  constexpr std::uint64_t kRefusedReloadSourceBytes = 1;
+  constexpr std::uint64_t kSourceVertices = 8;
+  constexpr std::uint64_t kSourceFaces = 3;
+  constexpr std::uint64_t kCandidateFaces = 2;
+  constexpr std::uint64_t kCandidateCorners = 7;
+  constexpr std::uint64_t kProperties = 14;
+  const auto directory = root / kDirectory;
+  Require(fs::create_directory(directory), "fresh retained-writer directory");
+  const auto source = directory / kSourceName;
+  Write(source, f::Wire(ic::PlyEncoding::kAscii));
+  std::optional<rep::PlyDuplicateFileWorkflowRecord> held;
+  {
+    geo::ExecutionContext context({kWorkers, kParallelFloor, kLedger});
+    const auto captured = Capture(source, context);
+    Require(captured.asset.has_value(), "retained-writer capture");
+    auto limits = Limits();
+    limits.reload.max_source_bytes = kRefusedReloadSourceBytes;
+    const auto result = rep::RunPlyDuplicateFileWorkflow(
+        {*captured.asset,
+         kInputId,
+         kTargets,
+         f::Options(ic::PlyEncoding::kBinaryBigEndian),
+         kDeclarations,
+         {}},
+        limits, Work());
+    Require(
+        result.status == rep::PlyWorkflowStatus::kLimitExceeded &&
+            result.diagnostic.stage == rep::PlyWorkflowStage::kReload &&
+            result.record && result.record->RepairFacts() &&
+            result.record->WriteFacts() && !result.record->Output() &&
+            !result.record->Reload(),
+        "actual reload refusal retains writer facts without verified bytes");
+    CheckRepair(*result.record->RepairFacts(), true);
+    held.emplace(*result.record);
+  }
+  auto ledger = held->Source().Document().Mesh().ShareExecutionContext();
+  {
+    const auto copy = *held;
+    held.reset();
+    const auto* facts = copy.WriteFacts();
+    Require(
+        facts && facts->source_encoding == ic::PlyEncoding::kAscii &&
+            facts->source_vertex_count == kSourceVertices &&
+            facts->source_face_count == kSourceFaces &&
+            facts->encoding == ic::PlyEncoding::kBinaryBigEndian &&
+            facts->rewrite_policy == ic::PlyRewritePolicy::kCanonical &&
+            facts->vertex_count == kSourceVertices &&
+            facts->face_count == kCandidateFaces &&
+            facts->corner_count == kCandidateCorners &&
+            facts->property_count == kProperties &&
+            facts->correspondence == ic::PlyCorrespondence::kIdentity &&
+            !copy.Output() && !copy.Reload(),
+        "typed writer facts survive source/context/original-record lifetime");
+    Require(ledger.ActiveTrackedPayload() > 0 && ledger.ActiveWorkers() == 0,
+            "retained writer ledger is live and all workers are joined");
+  }
+  Released(ledger);
+}
 void SaveControl(const fs::path& directory, std::string_view name,
                  const ic::PlyFileAsset& source,
                  const rep::PlyDuplicateFileWorkflowResult& result) {
@@ -530,6 +590,7 @@ int main(int argc, char** argv) {
     EmptyCorpus(root);
     Controls(root);
     Lifetime(root);
+    RetainedWriteFacts(root);
     return 0;
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

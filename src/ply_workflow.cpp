@@ -1483,6 +1483,10 @@ const MaterializedDuplicateRepair* PlyDuplicateFileWorkflowRecord::RepairFacts()
     const noexcept {
   return state_->repair ? &*state_->repair : nullptr;
 }
+const interchange::PlyWriteFacts* PlyDuplicateFileWorkflowRecord::WriteFacts()
+    const noexcept {
+  return state_->written ? &state_->written->Facts() : nullptr;
+}
 const std::optional<interchange::PlyOutput>&
 PlyDuplicateFileWorkflowRecord::Output() const noexcept {
   return state_->memory_verified ? state_->written : state_->absent_output;
