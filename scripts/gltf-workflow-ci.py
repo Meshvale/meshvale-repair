@@ -20,6 +20,8 @@ import shlex
 import shutil
 import subprocess
 import sys
+import sysconfig
+import struct
 import tarfile
 import zipfile
 
@@ -29,6 +31,7 @@ GEOMETRY_PYTHON_VERSION = "0.0.1.dev134+g48298b24b"
 INTERCHANGE_REVISION = "916c45f742feadbf9bbb608af3576c8d12db045d"
 INTERCHANGE_FILE_REVISION = "b8e81599d6f08c3b55060c75e76d6b7e75144561"
 INTERCHANGE_OFF_FILE_REVISION = "b577263107403e65643fdcfc1b8af3faa5c9fff4"
+INTERCHANGE_PLY_FILE_REVISION = "7739b2ff6c6b8a1471ee5ef6dd646769af96a471"
 VCPKG_REVISION = "cb5a41b03cde4086d554b3f3e2eac39206b16eda"
 BUILD_WORKERS = 2
 TEST_TIMEOUT_SECONDS = 120
@@ -326,6 +329,330 @@ def qualify_off_python(runner, geometry, source, relocated, dependencies, triple
         "scope": "Current-run installed development wheels; portable redistribution remains a separate gate"})
 
 
+
+def ply_cache(build, key):
+    values = re.findall(r"^" + re.escape(key) + r":[^=]+=([^\r\n]*)$",
+                        (build / "CMakeCache.txt").read_text(encoding="utf8"), re.MULTILINE)
+    if len(values) != 1:
+        raise RuntimeError(f"Expected one {key} cache value in {build}")
+    return values[0]
+
+
+def ply_signature(root):
+    return [{"path": path.relative_to(root).as_posix(), "sha256": sha256(path)}
+            for path in sorted(root.rglob("*")) if path.is_file()]
+
+
+
+def ply_object_target(entry, tokens):
+    """Select only the object output; source/include/PDB text is not a target."""
+    outputs = [entry["output"]] if entry.get("output") else []
+    for index, token in enumerate(tokens):
+        if token == "-o" or token.lower() in ("/fo", "-fo"):
+            if index + 1 == len(tokens):
+                raise RuntimeError("Missing compiler object-output argument")
+            outputs.append(tokens[index + 1])
+        elif token[:3].lower() in ("/fo", "-fo"):
+            outputs.append(token[3:])
+    if not outputs:
+        raise RuntimeError("Missing actual CMake object-output identity")
+    targets = set()
+    for output in outputs:
+        matches = re.findall(r"(?:^|/)CMakeFiles/([^/]+)\.dir/", output.replace("\\", "/"))
+        if len(matches) != 1:
+            raise RuntimeError("Missing or ambiguous CMake target in object output")
+        targets.add(matches[0])
+    if len(targets) != 1:
+        raise RuntimeError("Conflicting actual object-output targets")
+    return targets.pop()
+
+
+def ply_fp_selection(entry, tokens, product):
+    target = ply_object_target(entry, tokens)
+    # Exact targets from the selected products' owning CMake declarations.
+    strict_targets = {
+        "geometry": {"meshvale_geometry", "meshvale_geometry_materialization",
+                     "meshvale_geometry_attribute_numerics", "meshvale_geometry_triangulation"},
+        "interchange": {"meshvale_interchange_ply", "meshvale_interchange_ply_files",
+                        "meshvale_ply_tests", "meshvale_ply_request_tests", "meshvale_ply_files_tests",
+                        "meshvale_ply_files_request_tests", "meshvale_ply_files_consumer_tests"},
+        "repair": {"meshvale_repair_materialized_duplicates", "meshvale_repair_ply_file_workflow",
+                   "meshvale_materialized_duplicate_request_tests", "meshvale_materialized_duplicate_tests",
+                   "meshvale_materialized_duplicate_semantic_tests", "meshvale_ply_workflow_tests",
+                   "meshvale_repair_gltf_workflow", "meshvale_repair_gltf_file_workflow",
+                   "meshvale_repair_off_file_workflow", "_repair"}}
+    if product == "repair" and target not in strict_targets[product] | {
+            "meshvale_repair", "meshvale_repair_header_checks", "meshvale_duplicate_tests",
+            "meshvale_repair_record", "nanobind-static"}:
+        raise RuntimeError("Unclassified Repair object target: " + target)
+    required = target in strict_targets[product]
+    if required and not any(flag in tokens for flag in ("/fp:strict", "-fp:strict")):
+        raise RuntimeError("Required per-target strict FP missing: " + target + ": " + entry["file"])
+    return target, required
+
+
+def ply_compilation(runner, build, product, wheel=False):
+    database = build / "compile_commands.json"
+    runner.compilation(database, warnings=not wheel)
+    commands = json.loads(database.read_text(encoding="utf8"))
+    compiler = Path(shutil.which(runner.profile.cxx)).resolve()
+    rows = []
+    for entry in commands:
+        tokens = entry.get("arguments") or shlex.split(entry["command"], posix=False)
+        tokens = [token.strip('"') for token in tokens]
+        third_party = "nanobind" in Path(entry["file"]).as_posix().lower()
+        if not any(flag in tokens for flag in ("/MD", "-MD")):
+            raise RuntimeError("PLY cohort requires dynamic release CRT per TU: " + entry["file"])
+        if not third_party and not any(flag in tokens for flag in ("/std:c++20", "-std:c++20")):
+            raise RuntimeError("First-party C++20 selection missing: " + entry["file"])
+        if not third_party and "/WX" not in tokens and "-WX" not in tokens:
+            raise RuntimeError("First-party warnings-as-errors missing: " + entry["file"])
+        target, strict = ply_fp_selection(entry, tokens, product)
+        rows.append({"file": entry["file"], "target": target, "third_party": third_party,
+                     "strict_fp_required": strict, "strict_fp_present": any(x in tokens for x in ("/fp:strict", "-fp:strict")), "tokens": tokens})
+    if ply_cache(build, "CMAKE_MSVC_RUNTIME_LIBRARY") != "MultiThreadedDLL":
+        raise RuntimeError("Configured runtime differs from the selected dynamic release CRT")
+    package_dirs = {}
+    for key in ("MeshvaleGeometry_DIR", "MeshvaleInterchange_DIR", "tinyobjloader_DIR"):
+        text = (build / "CMakeCache.txt").read_text(encoding="utf8")
+        if re.search(r"^" + key + r":", text, re.MULTILINE):
+            directory = Path(ply_cache(build, key)).resolve()
+            allowed = (runner.work / "p", runner.work / "d/x64-windows-static-md")
+            if not any(directory.is_relative_to(prefix.resolve()) for prefix in allowed):
+                raise RuntimeError("Package discovery outside this run's SDK inputs: " + key)
+            package_dirs[key] = str(directory)
+    write_json(runner.evidence / (build.name + "-toolchain.json"), {
+        "database_sha256": sha256(database), "compiler": str(compiler),
+        "compiler_sha256": sha256(compiler), "cache_sha256": sha256(build / "CMakeCache.txt"),
+        "generator": ply_cache(build, "CMAKE_GENERATOR"), "package_dirs": package_dirs, "translation_units": rows})
+
+
+def ply_sdist(runner, source, label):
+    dist = runner.work / "dist" / label
+    runner.run(sys.executable, "-m", "build", "--sdist", "--no-isolation", "--outdir", dist, source)
+    archives = list(dist.glob("*.tar.gz"))
+    if len(archives) != 1:
+        raise RuntimeError("Expected one fresh source package for " + label)
+    runner.run(sys.executable, source / "scripts/check-package.py", archives[0])
+    destination = runner.work / (label + "-source")
+    destination.mkdir()
+    with tarfile.open(archives[0], "r:gz") as archive:
+        archive.extractall(destination, filter="data")
+    roots = list(destination.iterdir())
+    if len(roots) != 1 or not roots[0].is_dir():
+        raise RuntimeError("Source package must have one owning root")
+    metadata = BytesParser().parsebytes((roots[0] / "PKG-INFO").read_bytes())
+    if metadata["Name"] != "meshvale-" + label or not metadata["Version"]:
+        raise RuntimeError("Source package Name/FULL missing or mismatched")
+    write_json(runner.evidence / (label + "-sdist.json"), {
+        "path": str(archives[0]), "sha256": sha256(archives[0]), "name": metadata["Name"],
+        "full_version": metadata["Version"], "files": ply_signature(roots[0]),
+        "scope": "Genuine configured-backend sdist; no node-only Git-archive Python route"})
+    return roots[0], metadata["Version"]
+
+
+def ply_wheel(runner, source, label, version, prefixes):
+    build = runner.work / (label + "-wheel-build")
+    output = runner.work / "python-wheels" / label
+    ninja = Path(shutil.which("ninja")).resolve().as_posix()
+    # Child-owned selection: never pair a Visual Studio generator with Ninja's program.
+    runner.environment.update(CMAKE_GENERATOR="Ninja", CMAKE_PREFIX_PATH=prefixes)
+    options = [f"-Cbuild-dir={build}", "-Ccmake.define.CMAKE_BUILD_TYPE=Release",
+               "-Ccmake.define.CMAKE_EXPORT_COMPILE_COMMANDS=ON",
+               f"-Ccmake.define.CMAKE_MAKE_PROGRAM={ninja}",
+               f"-Ccmake.define.CMAKE_CXX_COMPILER={Path(shutil.which('cl')).resolve().as_posix()}",
+               "-Ccmake.define.CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL",
+               "-Ccmake.define.CMAKE_CXX_FLAGS=/EHsc", "-Ccmake.define.BUILD_TESTING=OFF"]
+    if label == "geometry":
+        options += ["-Ccmake.define.CMAKE_DISABLE_FIND_PACKAGE_Eigen3=ON"]
+    if label == "repair":
+        options += ["-Ccmake.define.MESHVALE_REPAIR_PYTHON=ON",
+                    "-Ccmake.define.MESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON",
+                    "-Ccmake.define.MESHVALE_REPAIR_GLTF_WORKFLOW=ON",
+                    "-Ccmake.define.MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON",
+                    "-Ccmake.define.MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON",
+                    "-Ccmake.define.MESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON"]
+    runner.run(sys.executable, "-m", "build", "--wheel", "--no-isolation", "--outdir", output, *options, source)
+    wheels = list(output.glob("*.whl"))
+    if len(wheels) != 1:
+        raise RuntimeError("Expected one fresh " + label + " wheel")
+    with zipfile.ZipFile(wheels[0]) as archive:
+        names = [name for name in archive.namelist() if name.endswith(".dist-info/METADATA")]
+        if len(names) != 1:
+            raise RuntimeError("Expected one wheel metadata document")
+        metadata = BytesParser().parsebytes(archive.read(names[0]))
+    if metadata["Name"] != "meshvale-" + label or metadata["Version"] != version:
+        raise RuntimeError("Wheel identity differs from genuine source package FULL")
+    selected = (["MESHVALE_REPAIR_PYTHON", "MESHVALE_REPAIR_MATERIALIZED_DUPLICATES",
+                 "MESHVALE_REPAIR_GLTF_WORKFLOW", "MESHVALE_REPAIR_GLTF_FILE_WORKFLOW",
+                 "MESHVALE_REPAIR_OFF_FILE_WORKFLOW", "MESHVALE_REPAIR_PLY_FILE_WORKFLOW"]
+                if label == "repair" else ["MESHVALE_GEOMETRY_PYTHON"])
+    if any(ply_cache(build, key).upper() not in ("ON", "TRUE", "1") for key in selected):
+        raise RuntimeError("Wheel did not enable every selected native module")
+    if ply_cache(build, "BUILD_TESTING").upper() not in ("OFF", "FALSE", "0"):
+        raise RuntimeError("Production wheel unexpectedly enabled native test fixtures")
+    if ply_cache(build, "CMAKE_GENERATOR") != "Ninja":
+        raise RuntimeError("Wheel did not use selected Ninja generator")
+    ply_compilation(runner, build, label, wheel=True)
+    runner.run(sys.executable, source / "scripts/check-package.py", wheels[0])
+    write_json(runner.evidence / (label + "-wheel.json"), {
+        "path": str(wheels[0]), "sha256": sha256(wheels[0]), "name": metadata["Name"],
+        "version": version, "build_directory": str(build), "actual_wheel_tu_database": True})
+    return wheels[0]
+
+
+def qualify_ply(root, profile_name):
+    """One bounded qualified Windows route, independent of the older cohorts."""
+    if (profile_name != "msvc-release" or platform.system() != "Windows" or
+            sys.version_info[:2] != (3, 13) or sys.implementation.name != "cpython" or
+            struct.calcsize("P") != 8 or sysconfig.get_config_var("Py_GIL_DISABLED")):
+        raise RuntimeError("PLY CI requires Windows x64 ordinary CPython3.13 msvc-release")
+    work = root / ".local/gw"
+    runner = Runner(root, work, PROFILES[profile_name])
+    result = {"gate_passed": False, "profile": profile_name, "completed": [],
+              "runtime_floor_qualified": False, "interchange_python_required": False}
+    try:
+        geometry, interchange, vcpkg = (work / name for name in ("g", "i", "v"))
+        inputs = {"profile": vars(runner.profile), "sources": {}, "event": {
+            key: os.environ.get(key) for key in ("GITHUB_EVENT_NAME", "GITHUB_SHA", "GITHUB_REF",
+                                                "GITHUB_HEAD_REF", "GITHUB_BASE_REF")}}
+        for name, source, expected in (("geometry", geometry, GEOMETRY_REVISION),
+                                      ("interchange", interchange, INTERCHANGE_PLY_FILE_REVISION),
+                                      ("vcpkg", vcpkg, VCPKG_REVISION), ("repair", root, None)):
+            head = runner.run("git", "-C", source, "rev-parse", "HEAD").strip()
+            if ((expected is not None and head != expected) or
+                    runner.run("git", "-C", source, "status", "--porcelain").strip()):
+                raise RuntimeError(name + ": expected clean exact owning checkout")
+            inputs["sources"][name] = {"head": head,
+                "tree": runner.run("git", "-C", source, "rev-parse", "HEAD^{tree}").strip(),
+                "parents": runner.run("git", "-C", source, "show", "-s", "--format=%P", "HEAD").strip().split()}
+        actual_head = inputs["sources"]["repair"]["head"]
+        if os.environ.get("GITHUB_SHA") and os.environ["GITHUB_SHA"] != actual_head:
+            raise RuntimeError("Actual checkout differs from workflow event SHA")
+        event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if event_path:
+            event = json.loads(Path(event_path).read_text(encoding="utf8"))
+            pull = event.get("pull_request")
+            if pull:
+                inputs["event"]["pull_request"] = {"number": event["number"], "head": pull["head"]["sha"],
+                    "base": pull["base"]["sha"], "merge_commit_sha": pull.get("merge_commit_sha")}
+        write_json(runner.evidence / "inputs.json", inputs)
+        for tool in ("cmake", "ctest", "ninja", "cl"):
+            if shutil.which(tool) is None:
+                raise RuntimeError("Required tool missing: " + tool)
+        runner.run("cmake", "--version")
+        runner.run("ninja", "--version")
+        runner.environment["CMAKE_GENERATOR"] = "Ninja"
+        runner.run("cmd", "/d", "/c", str(vcpkg / "bootstrap-vcpkg.bat"), "-disableMetrics")
+        prefix, dependencies, triplet = work / "p", work / "d", "x64-windows-static-md"
+        gb, ib, rb = (work / name for name in ("gb", "ib", "rb"))
+        runtime = "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL"
+        runner.configure(geometry, gb, runtime, "-DBUILD_TESTING=ON", "-DMESHVALE_GEOMETRY_PYTHON=OFF",
+                         "-DCMAKE_DISABLE_FIND_PACKAGE_Eigen3=ON", "-DMESHVALE_GEOMETRY_ALLOCATION_PROBE=ON",
+                         "-DMESHVALE_GEOMETRY_MATERIALIZATION_TEST_PROFILE=qualified")
+        runner.build(gb)
+        ply_compilation(runner, gb, "geometry")
+        runner.inventory(gb, "geometry")
+        runner.check_inventory(geometry, gb, "--allocation-probe", "enabled")
+        runner.test(gb)
+        runner.install(gb, prefix)
+        overlay = runner.evidence / "triplets"
+        overlay.mkdir()
+        compiler = Path(shutil.which("cl")).resolve().as_posix()
+        (overlay / (triplet + ".cmake")).write_text(
+            f'include("{(vcpkg / "triplets" / (triplet + ".cmake")).as_posix()}")\n'
+            'list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\n'
+            f'  "-DCMAKE_CXX_COMPILER={compiler}" "-DCMAKE_C_COMPILER={compiler}")\n'
+            'list(APPEND VCPKG_ENV_PASSTHROUGH CC CXX)\n', encoding="utf8")
+        runner.configure(interchange, ib, runtime, "-DBUILD_TESTING=ON",
+            f"-DCMAKE_PREFIX_PATH={prefix}", f"-DCMAKE_TOOLCHAIN_FILE={vcpkg}/scripts/buildsystems/vcpkg.cmake",
+            f"-DVCPKG_TARGET_TRIPLET={triplet}", f"-DVCPKG_OVERLAY_TRIPLETS={overlay}",
+            f"-DVCPKG_INSTALLED_DIR={dependencies}", "-DMESHVALE_INTERCHANGE_PYTHON=OFF",
+            "-DMESHVALE_INTERCHANGE_USD=OFF", "-DMESHVALE_INTERCHANGE_FBX=OFF",
+            "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON", "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON",
+            "-DMESHVALE_INTERCHANGE_GLTF_FILES=ON", "-DMESHVALE_INTERCHANGE_OFF_FILES=ON",
+            "-DMESHVALE_INTERCHANGE_PLY_FILES=ON", "-DMESHVALE_INTERCHANGE_MATERIALIZATION_TEST_PROFILE=qualified")
+        runner.build(ib)
+        ply_compilation(runner, ib, "interchange")
+        runner.compilation(vcpkg / "buildtrees/tinyobjloader" / (triplet + "-rel") / "compile_commands.json")
+        runner.inventory(ib, "interchange")
+        runner.check_inventory(interchange, ib, "--topology-write", "ON", "--workflow-support", "ON",
+                               "--gltf-files", "ON", "--off-files", "ON", "--ply-files", "ON")
+        runner.test(ib, True)
+        runner.install(ib, prefix)
+        for build in (gb, ib):
+            if ply_cache(build, "CMAKE_PROJECT_VERSION") != "0.0.0":
+                raise RuntimeError("Input native SDK version differs from selected development cohort")
+        write_json(runner.evidence / "sdk-inputs.json", {"combined_geometry_interchange": ply_signature(prefix),
+                   "tiny_prefix": ply_signature(dependencies / triplet), "pins": inputs["sources"],
+                   "runtime": "MultiThreadedDLL", "scope": "Fresh same-run SDK inputs; no relocation/runtime-floor claim"})
+        result["completed"].append("fresh-input-sdks")
+        runner.configure(root, rb, runtime, f"-DCMAKE_PREFIX_PATH={prefix};{dependencies / triplet}",
+            "-DBUILD_TESTING=ON", "-DMESHVALE_REPAIR_PYTHON=OFF", "-DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON",
+            "-DMESHVALE_REPAIR_GLTF_WORKFLOW=OFF", "-DMESHVALE_REPAIR_GLTF_FILE_WORKFLOW=OFF",
+            "-DMESHVALE_REPAIR_OFF_FILE_WORKFLOW=OFF", "-DMESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON",
+            "-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified")
+        runner.build(rb)
+        ply_compilation(runner, rb, "repair")
+        runner.inventory(rb, "repair", 5)
+        runner.check_inventory(root, rb, "--gltf-workflow", "OFF", "--gltf-file-workflow", "OFF",
+                               "--off-file-workflow", "OFF", "--ply-file-workflow", "ON")
+        try:
+            runner.run("ctest", "--test-dir", rb, "-C", "Release", "--verbose", "--output-on-failure",
+                       "--timeout", FILE_TEST_TIMEOUT_SECONDS, "--output-junit", rb / "Testing/ply-junit.xml",
+                       timeout=FILE_SUITE_TIMEOUT_SECONDS)
+        finally:
+            log = rb / "Testing/Temporary/LastTest.log"
+            if log.is_file():
+                shutil.copyfile(log, runner.evidence / "rb-actual-LastTest.log")
+        fixtures = list(rb.glob("ply-workflow-fixture-*"))
+        if len(fixtures) != 1 or not fixtures[0].is_dir():
+            raise RuntimeError("Need exactly one retained native fixture epoch from the fresh CTest run")
+        fixture = fixtures[0]
+        native_version = ply_cache(rb, "CMAKE_PROJECT_VERSION")
+        if native_version != "0.0.0":
+            raise RuntimeError("Native baseline differs from selected untagged development source")
+        cases = runner.evidence / "ply-cases.json"
+        checks = runner.evidence / "ply-checks.json"
+        checker = root / "scripts/check-ply-workflow-reports.py"
+        runner.run(sys.executable, checker, "make-cases", "--fixture-root", fixture,
+                   "--native-cache", rb / "CMakeCache.txt", "--output", cases)
+        runner.run(sys.executable, checker, "check", "--cases", cases, "--receipt", checks,
+                   "--require-chains18", "--shared-schema", geometry / "python/meshvale_reports/report-v1.schema.json",
+                   "--require-shared-validation")
+        check = json.loads(checks.read_text(encoding="utf8"))
+        if not check["passed"] or len(check["cases"]) != 33:
+            raise RuntimeError("Public closed native checker did not accept all33 cases")
+        result["completed"].append("native-five-and-public33")
+        geometry_source, geometry_version = ply_sdist(runner, geometry, "geometry")
+        if geometry_version != GEOMETRY_PYTHON_VERSION:
+            raise RuntimeError("Fresh Geometry backend version differs from exact required pin")
+        repair_source, repair_version = ply_sdist(runner, root, "repair")
+        prefixes = os.pathsep.join((str(prefix), str(dependencies / triplet)))
+        geometry_wheel = ply_wheel(runner, geometry_source, "geometry", geometry_version, prefixes)
+        repair_wheel = ply_wheel(runner, repair_source, "repair", repair_version, prefixes)
+        result["completed"].append("genuine-sdist-wheels")
+        temporary = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
+        installed_root = temporary / ("meshvale-ply-" + actual_head)
+        write_json(runner.evidence / "installed-location.json", {"path": str(installed_root),
+                   "scope": "Fresh retained interpreter/cwd outside checkout"})
+        runner.run(sys.executable, root / "scripts/test-installed.py", "--geometry-wheel", geometry_wheel,
+                   "--repair-wheel", repair_wheel, "--ply", "--ply-fixture-root", fixture,
+                   "--ply-native-version", native_version, "--ply-cases", cases,
+                   "--ply-output-root", installed_root, timeout=FILE_SUITE_TIMEOUT_SECONDS)
+        installed = json.loads((installed_root / "qualification.json").read_text(encoding="utf8"))
+        if installed["passed"] is not True:
+            raise RuntimeError("Installed PLY integration did not pass")
+        result.update(gate_passed=True, native_tests=5, native_cases=33, shared_reports=31,
+                      journal_counts=installed["journal_counts"], bundles=installed["bundles"])
+        result["completed"].append("installed-ply-and-full31")
+    except BaseException as error:
+        result["error"] = {"type": type(error).__name__, "message": str(error)}
+        raise
+    finally:
+        write_json(runner.evidence / "result.json", result)
+
+
 def qualify(root, profile_name, file_workflow=False, off_file_workflow=False, off_python=False):
     profile = PROFILES[profile_name]
     if platform.system() != profile.system:
@@ -541,6 +868,8 @@ def main():
                         help="Qualify reported OFF repair with optional glTF modules disabled")
     parser.add_argument("--off-python", action="store_true",
                         help="Also build and exercise OFF wheels in the selected development profiles")
+    parser.add_argument("--ply-file-workflow", action="store_true",
+                        help="Qualify PLY native and installed Python on Windows msvc-release only")
     parser.add_argument("--validate-reports", type=Path,
                         help="Validate existing fixture JSON without configuring native builds")
     parser.add_argument("--geometry-source", type=Path)
@@ -548,10 +877,15 @@ def main():
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
     if args.validate_reports:
-        if args.profile or args.file_workflow or args.off_file_workflow or args.off_python or args.geometry_source is None or args.receipt is None:
+        if args.profile or args.file_workflow or args.off_file_workflow or args.off_python or args.ply_file_workflow or args.geometry_source is None or args.receipt is None:
             parser.error("Report-only validation requires --geometry-source and --receipt, without --profile")
         validate_reports(args.geometry_source.resolve(), args.validate_reports.resolve(), args.receipt.resolve())
     elif args.profile:
+        if args.ply_file_workflow:
+            if args.profile != "msvc-release" or args.file_workflow or args.off_file_workflow or args.off_python:
+                parser.error("PLY requires msvc-release without another qualification mode")
+            qualify_ply(root, args.profile)
+            return
         if args.file_workflow and args.off_file_workflow:
             parser.error("Select one file-workflow qualification cohort")
         if args.off_python and (not args.off_file_workflow or args.profile not in ("msvc-release", "gnu-unsupported")):

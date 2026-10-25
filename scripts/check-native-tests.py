@@ -18,6 +18,7 @@ FILE_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_GLTF_FILE_WORKFLOW"
 INSTALLED_FILE_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_GLTF_FILE_WORKFLOW"
 OFF_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_OFF_FILE_WORKFLOW"
 INSTALLED_OFF_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW"
+PLY_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_PLY_FILE_WORKFLOW"
 TRUE_CACHE_VALUES = frozenset({"ON", "TRUE", "YES", "1"})
 FALSE_CACHE_VALUES = frozenset({"OFF", "FALSE", "NO", "0"})
 COMMON_TESTS = frozenset({"targeted_duplicates"})
@@ -75,7 +76,7 @@ def validate_configuration(cache, configuration):
 
 
 def validate_cache(cache, profile, configuration, installed=False, workflow=False,
-                   file_workflow=False, off_file_workflow=False):
+                   file_workflow=False, off_file_workflow=False, ply_file_workflow=False):
     validate_configuration(cache, configuration)
     if not installed:
         if not cache_bool(cache, "BUILD_TESTING"):
@@ -94,6 +95,12 @@ def validate_cache(cache, profile, configuration, installed=False, workflow=Fals
     off_workflow_key = INSTALLED_OFF_WORKFLOW_CACHE_KEY if installed else OFF_WORKFLOW_CACHE_KEY
     if cache_bool(cache, off_workflow_key) != off_file_workflow:
         raise ValueError("OFF workflow selection differs between the requested and configured inventory")
+    if ply_file_workflow and (installed or profile != QUALIFIED_PROFILE):
+        raise ValueError("PLY inventory currently requires qualified native tests, without an installed inventory")
+    if not installed:
+        configured_ply = cache_bool(cache, PLY_WORKFLOW_CACHE_KEY) if PLY_WORKFLOW_CACHE_KEY in cache else False
+        if configured_ply != ply_file_workflow:
+            raise ValueError("PLY workflow selection differs between the requested and configured inventory")
 
 
 def validate_compiler(build_dir, expected_id, expected_version):
@@ -110,7 +117,7 @@ def validate_compiler(build_dir, expected_id, expected_version):
 
 
 def expected_inventory(profile, installed=False, workflow=False, file_workflow=False,
-                       off_file_workflow=False):
+                       off_file_workflow=False, ply_file_workflow=False):
     common = COMMON_INSTALLED_TESTS if installed else COMMON_TESTS
     specific = PROFILE_INSTALLED_TESTS if installed else PROFILE_TESTS
     expected = common | specific[profile]
@@ -138,6 +145,10 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
                      frozenset({"off_workflow_semantics", "off_workflow_requests"}))
         if not installed and not file_workflow:
             expected |= frozenset({"off_file_sha256"})
+    if ply_file_workflow:
+        if installed or profile != QUALIFIED_PROFILE:
+            raise ValueError("PLY inventory currently requires qualified native tests")
+        expected |= frozenset({"ply_workflow_semantics"})
     return expected
 
 
@@ -165,6 +176,8 @@ def main():
                         help="Defaults to the native configured file workflow option")
     parser.add_argument("--off-file-workflow", choices=("ON", "OFF"),
                         help="Defaults to the native configured OFF workflow option")
+    parser.add_argument("--ply-file-workflow", choices=("ON", "OFF"),
+                        help="Defaults to the native configured PLY workflow option")
     parser.add_argument("--ctest", default="ctest")
     args = parser.parse_args()
     try:
@@ -176,17 +189,20 @@ def main():
                          if args.gltf_file_workflow is None else args.gltf_file_workflow == "ON")
         off_file_workflow = (cache_bool(native_cache, OFF_WORKFLOW_CACHE_KEY)
                              if args.off_file_workflow is None else args.off_file_workflow == "ON")
+        ply_file_workflow = (cache_bool(native_cache, PLY_WORKFLOW_CACHE_KEY)
+                             if args.ply_file_workflow is None and PLY_WORKFLOW_CACHE_KEY in native_cache
+                             else args.ply_file_workflow == "ON")
         for build_dir, installed in ((args.build_dir, False), (args.installed_build_dir, True)):
             if build_dir is None:
                 continue
             validate_cache(cache_entries(build_dir / "CMakeCache.txt"),
                            args.materialization_profile, args.configuration, installed, workflow,
-                           file_workflow, off_file_workflow)
+                           file_workflow, off_file_workflow, ply_file_workflow)
             validate_compiler(build_dir, args.compiler_id, args.compiler_version)
             checked.append(("installed" if installed else "native", validate_inventory(
                 build_dir, args.configuration,
                 expected_inventory(args.materialization_profile, installed, workflow, file_workflow,
-                                   off_file_workflow),
+                                   off_file_workflow, ply_file_workflow),
                 args.ctest)))
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.error(str(error))
@@ -196,6 +212,9 @@ def main():
               f"file workflow {'ON' if file_workflow else 'OFF'}; "
               f"OFF workflow {'ON' if off_file_workflow else 'OFF'}; "
               f"{args.configuration}; {names}")
+
+    if ply_file_workflow:
+        print("PLY workflow ON; qualified native inventory")
 
 
 if __name__ == "__main__":

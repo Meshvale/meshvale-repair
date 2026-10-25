@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Qualified PLY repair development workflow
+
+"on":
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workflow:
+    name: PLY workflow msvc-release ordinary cp313
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          architecture: x64
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: 48298b24be7c132816fb5580d22d58bde61558d0
+          path: .local/gw/g
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-interchange
+          ref: 7739b2ff6c6b8a1471ee5ef6dd646769af96a471
+          path: .local/gw/i
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: microsoft/vcpkg
+          ref: cb5a41b03cde4086d554b3f3e2eac39206b16eda
+          path: .local/gw/v
+      - name: Select Windows x64 compiler environment for Ninja
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $visualStudio = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $visualStudio) { throw 'No Windows x64 compiler environment' }
+          $environment = & cmd /d /c "call `"$visualStudio/Common7/Tools/VsDevCmd.bat`" -arch=x64 -host_arch=x64 >nul && set"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $compilerVariables = @('PATH', 'INCLUDE', 'LIB', 'LIBPATH', 'WindowsSdkDir', 'WindowsSDKVersion', 'VCINSTALLDIR', 'VCToolsInstallDir', 'UniversalCRTSdkDir', 'UCRTVersion')
+          foreach ($line in $environment) {
+            $name, $value = $line -split '=', 2
+            if ($name -in $compilerVariables) {
+              "$name=$value" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+            }
+          }
+      - name: Install selected build and independent report tooling
+        run: |
+          python -m pip install build==1.6.1 jsonschema==4.26.0 scikit-build-core==1.1.1 nanobind==3.1.0 setuptools-scm==10.3.4 cmake==4.3.1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) { throw 'Ninja is required' }
+      - name: Qualify actual native PLY, genuine wheels and installed API and commands
+        run: |
+          python scripts/gltf-workflow-ci.py --ply-file-workflow --profile msvc-release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain actual development qualification records
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ply-workflow-msvc-release-${{ github.sha }}
+          path: |
+            .local/gw/e
+            .local/gw/dist
+            .local/gw/python-wheels
+            .local/gw/gb/CMakeCache.txt
+            .local/gw/gb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/gb/compile_commands.json
+            .local/gw/gb/Testing
+            .local/gw/ib/CMakeCache.txt
+            .local/gw/ib/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/ib/compile_commands.json
+            .local/gw/ib/Testing
+            .local/gw/rb/CMakeCache.txt
+            .local/gw/rb/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/rb/compile_commands.json
+            .local/gw/rb/Testing
+            .local/gw/rb/ply*cpp
+            .local/gw/rb/ply-workflow-fixture-*
+            .local/gw/geometry-wheel-build/CMakeCache.txt
+            .local/gw/geometry-wheel-build/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/geometry-wheel-build/compile_commands.json
+            .local/gw/repair-wheel-build/CMakeCache.txt
+            .local/gw/repair-wheel-build/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/gw/repair-wheel-build/compile_commands.json
+            ${{ runner.temp }}/meshvale-ply-${{ github.sha }}/inputs
+            ${{ runner.temp }}/meshvale-ply-${{ github.sha }}/results
+            ${{ runner.temp }}/meshvale-ply-${{ github.sha }}/runtime.json
+            ${{ runner.temp }}/meshvale-ply-${{ github.sha }}/shared-reports.json
+            ${{ runner.temp }}/meshvale-ply-${{ github.sha }}/qualification.json
+            .local/gw/v/buildtrees/tinyobjloader/*.log
+            .local/gw/v/buildtrees/tinyobjloader/*/compile_commands.json
+            .local/gw/p
+            .local/gw/d/x64-windows-static-md
+          include-hidden-files: true
+          retention-days: 14
