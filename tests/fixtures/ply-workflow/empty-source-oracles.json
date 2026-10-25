@@ -1,0 +1,19 @@
+{
+  "encodings": {
+    "ascii": {
+      "header_utf8": "ply\r\nformat ascii 1.0\ncomment original typed polygons\nelement vertex 0\nproperty char sample_i8\nproperty float y\nproperty uchar sample_u8\nproperty short sample_i16\nproperty float z\nproperty ushort sample_u16\nproperty int sample_i32\nproperty float x\nproperty uint sample_u32\nproperty double sample_f64\nproperty list uchar short samples\nelement face 0\nproperty float weight\nproperty list ushort uint bins\nproperty list uchar int vertex_indices\nend_header\n",
+      "byte_count": 452,
+      "sha256": "440fa4b1d64f27a973081d7f3456a3b0088128bf31ceb130b4151ab37148ebae"
+    },
+    "binary_little_endian": {
+      "header_utf8": "ply\r\nformat binary_little_endian 1.0\ncomment original typed polygons\nelement vertex 0\nproperty char sample_i8\nproperty float y\nproperty uchar sample_u8\nproperty short sample_i16\nproperty float z\nproperty ushort sample_u16\nproperty int sample_i32\nproperty float x\nproperty uint sample_u32\nproperty double sample_f64\nproperty list uchar short samples\nelement face 0\nproperty float weight\nproperty list ushort uint bins\nproperty list uchar int vertex_indices\nend_header\n",
+      "byte_count": 467,
+      "sha256": "042c0a404f0c46301e192965615b99a56b7b7ce0b642befe6bba5f961738dbde"
+    },
+    "binary_big_endian": {
+      "header_utf8": "ply\r\nformat binary_big_endian 1.0\ncomment original typed polygons\nelement vertex 0\nproperty char sample_i8\nproperty float y\nproperty uchar sample_u8\nproperty short sample_i16\nproperty float z\nproperty ushort sample_u16\nproperty int sample_i32\nproperty float x\nproperty uint sample_u32\nproperty double sample_f64\nproperty list uchar short samples\nelement face 0\nproperty float weight\nproperty list ushort uint bins\nproperty list uchar int vertex_indices\nend_header\n",
+      "byte_count": 464,
+      "sha256": "91499b01070874025a43616e441144f9cfaca9c824f20fa60eaee32b4bdd0c4a"
+    }
+  }
+}
