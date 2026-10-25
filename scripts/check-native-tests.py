@@ -95,8 +95,8 @@ def validate_cache(cache, profile, configuration, installed=False, workflow=Fals
     off_workflow_key = INSTALLED_OFF_WORKFLOW_CACHE_KEY if installed else OFF_WORKFLOW_CACHE_KEY
     if cache_bool(cache, off_workflow_key) != off_file_workflow:
         raise ValueError("OFF workflow selection differs between the requested and configured inventory")
-    if ply_file_workflow and (installed or profile != QUALIFIED_PROFILE):
-        raise ValueError("PLY inventory currently requires qualified native tests, without an installed inventory")
+    if ply_file_workflow and (installed or profile == DISABLED_PROFILE):
+        raise ValueError("PLY requires an enabled native profile; its standalone installed consumer has a separate inventory")
     if not installed:
         configured_ply = cache_bool(cache, PLY_WORKFLOW_CACHE_KEY) if PLY_WORKFLOW_CACHE_KEY in cache else False
         if configured_ply != ply_file_workflow:
@@ -146,9 +146,10 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
         if not installed and not file_workflow:
             expected |= frozenset({"off_file_sha256"})
     if ply_file_workflow:
-        if installed or profile != QUALIFIED_PROFILE:
-            raise ValueError("PLY inventory currently requires qualified native tests")
-        expected |= frozenset({"ply_workflow_semantics", "ply_workflow_requests"})
+        if installed or profile == DISABLED_PROFILE:
+            raise ValueError("PLY requires an enabled native profile; installed inventory is separate")
+        expected |= (frozenset({"ply_workflow_semantics", "ply_workflow_requests"})
+                     if profile == QUALIFIED_PROFILE else frozenset({"ply_workflow_unsupported"}))
     return expected
 
 
@@ -214,7 +215,7 @@ def main():
               f"{args.configuration}; {names}")
 
     if ply_file_workflow:
-        print("PLY workflow ON; qualified native inventory")
+        print(f"PLY workflow ON; {args.materialization_profile} native inventory")
 
 
 if __name__ == "__main__":

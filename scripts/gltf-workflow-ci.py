@@ -13,7 +13,7 @@ from email.parser import BytesParser
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import platform
 import re
 import shlex
@@ -378,7 +378,7 @@ def ply_object_target(entry, tokens):
     return targets.pop()
 
 
-def ply_fp_selection(entry, tokens, product):
+def ply_fp_selection(entry, tokens, product, gnu=False):
     target = ply_object_target(entry, tokens)
     # Exact targets from the selected products' owning CMake declarations.
     strict_targets = {
@@ -391,6 +391,8 @@ def ply_fp_selection(entry, tokens, product):
                    "meshvale_materialized_duplicate_request_tests", "meshvale_materialized_duplicate_tests",
                    "meshvale_materialized_duplicate_semantic_tests", "meshvale_ply_workflow_tests",
                    "meshvale_ply_workflow_request_tests",
+                   "meshvale_materialized_duplicate_unsupported_tests",
+                   "meshvale_ply_workflow_unsupported_tests", "meshvale_ply_workflow_unsupported_consumer",
                    "meshvale_repair_gltf_workflow", "meshvale_repair_gltf_file_workflow",
                    "meshvale_repair_off_file_workflow", "_repair"}}
     if product == "repair" and target not in strict_targets[product] | {
@@ -398,7 +400,11 @@ def ply_fp_selection(entry, tokens, product):
             "meshvale_repair_record", "nanobind-static"}:
         raise RuntimeError("Unclassified Repair object target: " + target)
     required = target in strict_targets[product]
-    if required and not any(flag in tokens for flag in ("/fp:strict", "-fp:strict")):
+    gnu_flags = (("-fno-fast-math",) if product == "geometry" else
+                 ("-fno-fast-math", "-ffp-contract=off"))
+    present = (all(flag in tokens for flag in gnu_flags) if gnu else
+               any(flag in tokens for flag in ("/fp:strict", "-fp:strict")))
+    if required and not present:
         raise RuntimeError("Required per-target strict FP missing: " + target + ": " + entry["file"])
     return target, required
 
@@ -900,6 +906,313 @@ def qualify_ply(root, profile_name):
         write_json(runner.evidence / "result.json", result)
 
 
+def ply_gnu_compilation(runner, build, product, prefixes):
+    """Audit the genuine GNU build, without imposing the MSVC CRT contract."""
+    database = build / "compile_commands.json"
+    runner.compilation(database, warnings=True)
+    if ply_cache(build, "CMAKE_GENERATOR") != "Ninja":
+        raise RuntimeError("GNU PLY requires the explicit Ninja generator")
+    records = list((build / "CMakeFiles").glob("*/CMakeCXXCompiler.cmake"))
+    if len(records) != 1:
+        raise RuntimeError("Need one actual GNU compiler identity record")
+    compiler_record = records[0].read_text(encoding="utf8")
+    if (not re.search(r'set\(CMAKE_CXX_COMPILER_ID "GNU"\)', compiler_record) or
+            not re.search(r'set\(CMAKE_CXX_COMPILER_VERSION "13\.[^"]+"\)', compiler_record)):
+        raise RuntimeError("Actual compiler identity differs from GNU 13")
+    if not re.search(r'set\(CMAKE_CXX_SIZEOF_DATA_PTR "8"\)', compiler_record):
+        raise RuntimeError("Actual GNU target must have 64-bit pointers")
+    home = Path(ply_cache(build, "CMAKE_HOME_DIRECTORY")).resolve(strict=True)
+    rows = []
+    for entry in json.loads(database.read_text(encoding="utf8")):
+        tokens = entry.get("arguments") or shlex.split(entry["command"])
+        if "-std=c++20" not in tokens:
+            raise RuntimeError("GNU first-party C++20 selection missing: " + entry["file"])
+        include_dirs = []
+        for index, token in enumerate(tokens):
+            if token in ("-I", "-isystem"):
+                if index + 1 == len(tokens):
+                    raise RuntimeError("Missing include-directory argument")
+                include_dirs.append(tokens[index + 1])
+            elif token.startswith("-I"):
+                include_dirs.append(token[2:])
+        for value in include_dirs:
+            directory = Path(value)
+            if not directory.is_absolute():
+                directory = Path(entry["directory"]) / directory
+            if not any(directory.resolve().is_relative_to(prefix.resolve()) for prefix in [home, build, *prefixes]):
+                raise RuntimeError("GNU include fallback escaped source/build/SDK inputs: " + value)
+        target, strict = ply_fp_selection(entry, tokens, product, gnu=True)
+        rows.append({"file": entry["file"], "target": target, "strict_fp_required": strict,
+                     "tokens": tokens})
+    package_dirs = {}
+    cache = (build / "CMakeCache.txt").read_text(encoding="utf8")
+    for key in ("MeshvaleRepair_DIR", "MeshvaleGeometry_DIR", "MeshvaleInterchange_DIR", "tinyobjloader_DIR"):
+        if re.search(r"^" + key + r":", cache, re.MULTILINE):
+            directory = Path(ply_cache(build, key)).resolve(strict=True)
+            if not any(directory.is_relative_to(prefix.resolve(strict=True)) for prefix in prefixes):
+                raise RuntimeError("GNU package discovery escaped the selected prefixes: " + key)
+            package_dirs[key] = str(directory)
+    commands = runner.run("ninja", "-C", build, "-t", "commands")
+    libraries = {}
+    for line in commands.splitlines():
+        for token in shlex.split(line):
+            path = Path(token)
+            if path.is_absolute() and path.suffix in (".a", ".so"):
+                if not path.is_file() or not any(path.resolve().is_relative_to(prefix.resolve()) for prefix in [build, *prefixes]):
+                    raise RuntimeError("GNU static/shared library escaped selected prefixes: " + token)
+                libraries[str(path)] = sha256(path)
+    write_json(runner.evidence / (build.name + "-gnu-toolchain.json"), {
+        "database_sha256": sha256(database), "cache_sha256": sha256(build / "CMakeCache.txt"),
+        "compiler_record_sha256": sha256(records[0]), "compiler_sha256": sha256(Path(shutil.which(runner.profile.cxx)).resolve()),
+        "package_dirs": package_dirs, "library_inputs": libraries, "translation_units": rows,
+        "scope": "Exact object targets and actual GNU compiler/link inputs; no archive object-extraction claim"})
+
+
+def validate_ply_unsupported(runner, geometry, build, label):
+    """Read one true empty receipt separately from a capture-only refusal."""
+    roots = list(build.glob("ply-workflow-unsupported-*"))
+    if len(roots) != 1 or not roots[0].is_dir():
+        raise RuntimeError("Need exactly one fresh unsupported PLY fixture root")
+    fixture = roots[0]
+    if {p.name for p in fixture.iterdir()} != {"nonempty.ply", "captured-empty.ply", "bundle", "observations.json"}:
+        raise RuntimeError("Unsupported PLY fixture inventory differs")
+    bundle = fixture / "bundle"
+    if {p.name for p in bundle.iterdir()} != {"empty.ply", "meshvale-report.json"}:
+        raise RuntimeError("Empty publication must contain exactly entry and receipt")
+    members = list(fixture.rglob("*"))
+    if len(members) != 6 or any(p.is_symlink() or (p != bundle and not p.is_file()) for p in members):
+        raise RuntimeError("Unexpected non-regular fixture member")
+    observation = json.loads((fixture / "observations.json").read_text(encoding="utf8"))
+    # Existing public enum ordinals, not substitutes for a native result:
+    # I file kPlyFailure/kPlyRead/kDelegatedPly, PLY kGeometryFailure, G kUnsupportedAllocationProfile.
+    expected = {"capture_status": 9, "capture_stage": 3, "capture_code": 17,
+                "ply_status": 10, "geometry_status": 4, "source_encoding": 1,
+                "reload_encoding": 1, "published_encoding": 1, "exit_code": 0,
+                "active_workers_with_retained_record": 0}
+    if (set(observation) != set(expected) | {"schema", "input_sha256"} or
+            observation["schema"] != "meshvale.repair.ply-unsupported/1" or
+            any(type(observation[key]) is not int or observation[key] != value for key, value in expected.items())):
+        raise RuntimeError("Actual capture-only/empty native observations differ")
+    sys.path.insert(0, str(geometry / "python"))
+    import meshvale_reports
+    from jsonschema import Draft202012Validator
+    path = bundle / "meshvale-report.json"
+    raw = path.read_bytes()
+    report = meshvale_reports.load(raw.decode("utf8"))
+    Draft202012Validator(meshvale_reports.schema_document()).validate(report)
+    extension = report["extensions"]["meshvale.repair.ply"]
+    input_sha = sha256(fixture / "captured-empty.ply")
+    output_sha = sha256(bundle / "empty.ply")
+    if (meshvale_reports.exit_code(report) != 0 or meshvale_reports.profile_outcome(report) != "passed" or
+            report["execution"]["outcome"] != "completed" or report["execution"]["stage"] != "complete" or
+            report["candidate"]["outcome"] != "unchanged" or report["publication"]["outcome"] != "published" or
+            report["publication"]["verified"] is not True or report["input"]["sha256"] != input_sha or
+            observation["input_sha256"] != input_sha or
+            report["publication"]["artifacts"] != [{"id": "entry", "sha256": output_sha}] or
+            report["operation"]["options"] != {"encoding": "ascii", "rewrite": "canonical", "targets": [], "row_local_attributes": []} or
+            extension["native_status"] != 0 or extension["native_stage"] != "complete" or
+            extension["memory_output_verified"] is not True or
+            extension["source_faces"] != [] or extension["source_corners"] != [] or
+            extension["publisher"] is not None or
+            extension["artifact_paths"] != {"entry": "empty.ply", "receipt": "meshvale-report.json"}):
+        raise RuntimeError("Actual empty receipt/final physical bytes differ from the selected contract")
+    facts = extension["write_facts"]
+    if (facts["encoding"] != "ascii" or facts["source_encoding"] != "ascii" or
+            facts["source_vertex_count"] != 0 or facts["source_face_count"] != 0 or
+            facts["vertex_count"] != 0 or facts["face_count"] != 0 or facts["corner_count"] != 0 or
+            facts["property_count"] != 4 or any(row["kind"] != "identity" or row["entries"] is not None for row in report["maps"]) or
+            len(report["maps"]) != 6):
+        raise RuntimeError("Empty writer/map provenance differs")
+    for snapshot in report["snapshots"]:
+        if any(any(mesh[key] != 0 for key in ("vertex_count", "face_count", "corner_count")) for mesh in snapshot["meshes"]):
+            raise RuntimeError("Empty snapshots contain numerical rows")
+    if ply_cache(build, "CMAKE_PROJECT_NAME") == "MeshvaleRepair" and report["tool"]["version"] != ply_cache(build, "CMAKE_PROJECT_VERSION"):
+        raise RuntimeError("Native receipt tool version differs from the actual build")
+    signature = ply_signature(fixture)
+    retained = runner.evidence / (label + "-unsupported-fixtures")
+    shutil.copytree(fixture, retained)
+    if signature != ply_signature(retained):
+        raise RuntimeError("Retained unsupported fixture copy changed raw bytes")
+    write_json(runner.evidence / (label + "-unsupported-checks.json"), {
+        "passed": True, "native_workflow_calls": 1, "capture_only_refusals": 1,
+        "reports": [{"sha256": hashlib.sha256(raw).hexdigest(), "input_sha256": input_sha,
+                     "output_sha256": output_sha, "exit_code": meshvale_reports.exit_code(report)}],
+        "validator_sha256": sha256(Path(meshvale_reports.__file__)), "retained_files": signature,
+        "scope": "One genuine empty publication and one earlier nonempty capture refusal; no nonempty Repair result"})
+
+
+def qualify_ply_unsupported(root, profile_name):
+    """Native-only GNU producer/installed/archive boundary, with no Python wheel route."""
+    if profile_name != "gnu-unsupported" or platform.system() != "Linux" or platform.machine() not in ("x86_64", "AMD64"):
+        raise RuntimeError("Native unsupported PLY lane requires Linux x64 GNU 13")
+    work = root / ".local/gw"
+    runner = Runner(root, work, PROFILES[profile_name])
+    result = {"gate_passed": False, "profile": profile_name, "completed": [],
+              "python_qualified": False, "runtime_floor_qualified": False}
+    try:
+        geometry, interchange, vcpkg = (work / name for name in ("g", "i", "v"))
+        inputs = {"profile": vars(runner.profile), "sources": {}}
+        for name, source, revision in (("geometry", geometry, GEOMETRY_REVISION),
+                ("interchange", interchange, INTERCHANGE_PLY_FILE_REVISION),
+                ("vcpkg", vcpkg, VCPKG_REVISION), ("repair", root, None)):
+            head = runner.run("git", "-C", source, "rev-parse", "HEAD").strip()
+            if (revision and head != revision) or runner.run("git", "-C", source, "status", "--porcelain").strip():
+                raise RuntimeError("Expected exact clean source: " + name)
+            inputs["sources"][name] = {"head": head,
+                "tree": runner.run("git", "-C", source, "rev-parse", "HEAD^{tree}").strip(),
+                "parents": runner.run("git", "-C", source, "show", "-s", "--format=%P", "HEAD").strip().split()}
+        head = inputs["sources"]["repair"]["head"]
+        if os.environ.get("GITHUB_SHA") and os.environ["GITHUB_SHA"] != head:
+            raise RuntimeError("Actual checkout differs from workflow event SHA")
+        event_path = os.environ.get("GITHUB_EVENT_PATH")
+        if event_path:
+            event = json.loads(Path(event_path).read_text(encoding="utf8"))
+            pull = event.get("pull_request")
+            if pull:
+                inputs["pull_request"] = {"number": event["number"], "head": pull["head"]["sha"],
+                                          "base": pull["base"]["sha"], "merge_commit_sha": pull.get("merge_commit_sha")}
+        write_json(runner.evidence / "inputs.json", inputs)
+        for tool in ("cmake", "ctest", "ninja", runner.profile.cxx, runner.profile.cc):
+            if shutil.which(tool) is None:
+                raise RuntimeError("Required GNU tool missing: " + tool)
+        if runner.run(runner.profile.cxx, "-dumpfullversion").strip().split(".")[0] != "13":
+            raise RuntimeError("Selected GNU compiler must actually be version 13")
+        runner.run("cmake", "--version")
+        runner.run("ninja", "--version")
+        runner.environment["CMAKE_GENERATOR"] = "Ninja"
+        runner.run("bash", vcpkg / "bootstrap-vcpkg.sh", "-disableMetrics")
+        prefix, dependencies, triplet = work / "p", work / "d", "x64-linux"
+        gb, ib, rb = (work / name for name in ("gb", "ib", "rb"))
+        runner.configure(geometry, gb, "-DBUILD_TESTING=ON", "-DMESHVALE_GEOMETRY_PYTHON=OFF",
+            "-DCMAKE_DISABLE_FIND_PACKAGE_Eigen3=ON", "-DMESHVALE_GEOMETRY_ALLOCATION_PROBE=ON",
+            "-DMESHVALE_GEOMETRY_MATERIALIZATION_TEST_PROFILE=unsupported")
+        runner.build(gb)
+        ply_gnu_compilation(runner, gb, "geometry", [])
+        runner.inventory(gb, "geometry")
+        runner.check_inventory(geometry, gb, "--allocation-probe", "enabled")
+        runner.run("ctest", "--test-dir", gb, "-C", "Release", "-R", "^unsupported_materialization_profile$",
+                   "--verbose", "--output-on-failure", "--output-junit", gb / "Testing/unsupported-junit.xml")
+        runner.install(gb, prefix)
+        overlay = runner.evidence / "triplets"
+        overlay.mkdir()
+        (overlay / (triplet + ".cmake")).write_text(
+            f'include("{(vcpkg / "triplets" / (triplet + ".cmake")).as_posix()}")\n'
+            'list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\n'
+            f'  "-DCMAKE_CXX_COMPILER={Path(shutil.which(runner.profile.cxx)).resolve().as_posix()}"\n'
+            f'  "-DCMAKE_C_COMPILER={Path(shutil.which(runner.profile.cc)).resolve().as_posix()}")\n'
+            'list(APPEND VCPKG_ENV_PASSTHROUGH CC CXX)\n', encoding="utf8")
+        runner.configure(interchange, ib, "-DBUILD_TESTING=ON", f"-DCMAKE_PREFIX_PATH={prefix}",
+            f"-DCMAKE_TOOLCHAIN_FILE={vcpkg}/scripts/buildsystems/vcpkg.cmake", f"-DVCPKG_TARGET_TRIPLET={triplet}",
+            f"-DVCPKG_OVERLAY_TRIPLETS={overlay}", f"-DVCPKG_INSTALLED_DIR={dependencies}",
+            "-DMESHVALE_INTERCHANGE_PYTHON=OFF", "-DMESHVALE_INTERCHANGE_USD=OFF", "-DMESHVALE_INTERCHANGE_FBX=OFF",
+            "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=OFF", "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=OFF",
+            "-DMESHVALE_INTERCHANGE_GLTF_FILES=OFF", "-DMESHVALE_INTERCHANGE_OFF_FILES=OFF",
+            "-DMESHVALE_INTERCHANGE_PLY_FILES=ON", "-DMESHVALE_INTERCHANGE_MATERIALIZATION_TEST_PROFILE=unsupported")
+        runner.build(ib)
+        ply_gnu_compilation(runner, ib, "interchange", [prefix, dependencies / triplet])
+        runner.compilation(vcpkg / "buildtrees/tinyobjloader" / (triplet + "-rel") / "compile_commands.json")
+        runner.inventory(ib, "interchange")
+        runner.check_inventory(interchange, ib, "--topology-write", "OFF", "--workflow-support", "OFF",
+                               "--gltf-files", "OFF", "--off-files", "OFF", "--ply-files", "ON")
+        runner.run("ctest", "--test-dir", ib, "-C", "Release", "-R", "^ply_files_(semantics|requests|consumer)$",
+            "--verbose", "--output-on-failure", "--timeout", FILE_TEST_TIMEOUT_SECONDS,
+            "--output-junit", ib / "Testing/ply-unsupported-junit.xml", timeout=FILE_SUITE_TIMEOUT_SECONDS)
+        runner.install(ib, prefix)
+        write_json(runner.evidence / "sdk-inputs.json", {
+            "sources": inputs["sources"], "native_versions": {name: ply_sdk_version(prefix, name)
+            for name in ("MeshvaleGeometry", "MeshvaleInterchange")},
+            "combined_geometry_interchange": ply_signature(prefix), "tiny_prefix": ply_signature(dependencies / triplet),
+            "scope": "Fresh GNU SDKs; G one and I three selected tests, not their complete registered inventories"})
+        result["completed"].append("genuine-gnu-producers")
+        options = ["-DBUILD_TESTING=ON", "-DMESHVALE_REPAIR_PYTHON=OFF",
+            "-DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON", "-DMESHVALE_REPAIR_GLTF_WORKFLOW=OFF",
+            "-DMESHVALE_REPAIR_GLTF_FILE_WORKFLOW=OFF", "-DMESHVALE_REPAIR_OFF_FILE_WORKFLOW=OFF",
+            "-DMESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON", "-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=unsupported"]
+        runner.configure(root, rb, *options, f"-DCMAKE_PREFIX_PATH={prefix};{dependencies / triplet}")
+        runner.build(rb)
+        ply_gnu_compilation(runner, rb, "repair", [prefix, dependencies / triplet])
+        runner.inventory(rb, "repair", 4)
+        runner.check_inventory(root, rb, "--gltf-workflow", "OFF", "--gltf-file-workflow", "OFF",
+                               "--off-file-workflow", "OFF", "--ply-file-workflow", "ON")
+        runner.test(rb, True)
+        validate_ply_unsupported(runner, geometry, rb, "native")
+        runner.install(rb, prefix)
+        write_json(runner.evidence / "repair-sdk.json", {
+            "version": ply_sdk_version(prefix, "MeshvaleRepair"), "installed_files": ply_signature(prefix)})
+        relocated, tiny = work / "q", work / "tiny-relocated"
+        shutil.copytree(prefix, relocated)
+        shutil.copytree(dependencies / triplet, tiny)
+        if ply_signature(prefix) != ply_signature(relocated) or ply_signature(dependencies / triplet) != ply_signature(tiny):
+            raise RuntimeError("Relocation changed installed SDK bytes")
+        consumer = work / "consumer-source"
+        shutil.copytree(root / "examples/ply-workflow-consumer", consumer)
+        consumer_signature = ply_signature(root / "examples/ply-workflow-consumer")
+        if consumer_signature != ply_signature(consumer):
+            raise RuntimeError("Copied standalone consumer source changed raw bytes")
+        write_json(runner.evidence / "consumer-source.json", {"files": consumer_signature,
+            "source": str(consumer), "installed_prefix_files": ply_signature(relocated),
+            "relocated_tiny_files": ply_signature(tiny)})
+        cb = work / "cb"
+        runner.configure(consumer, cb, f"-DCMAKE_PREFIX_PATH={relocated};{tiny}")
+        runner.build(cb)
+        ply_gnu_compilation(runner, cb, "repair", [relocated, tiny])
+        names = [test["name"] for test in runner.inventory(cb, "installed", 1)]
+        if names != ["installed_ply_workflow_unsupported"]:
+            raise RuntimeError("Standalone installed inventory differs")
+        runner.test(cb, True)
+        validate_ply_unsupported(runner, geometry, cb, "installed")
+        result["completed"].append("native-four-and-relocated-installed-one")
+        dist = work / "dist"
+        dist.mkdir(exist_ok=False)
+        archive_path = dist / "repair-native.tar"
+        runner.run("git", "-C", root, "archive", "--format=tar", "--output", archive_path, head)
+        archived = work / "archive-source"
+        archived.mkdir()
+        members = []
+        with tarfile.open(archive_path, "r:") as archive:
+            tracked = set(runner.run("git", "-C", root, "ls-tree", "-r", "--name-only", head).splitlines())
+            for member in archive.getmembers():
+                path = PurePosixPath(member.name)
+                if path.is_absolute() or ".." in path.parts or not (member.isfile() or member.isdir()):
+                    raise RuntimeError("Invalid source archive member: " + member.name)
+                if member.isfile():
+                    raw = archive.extractfile(member).read()
+                    original = subprocess.check_output(["git", "-C", str(root), "show", head + ":" + member.name], env=runner.environment)
+                    source_text = path.suffix in {".cpp", ".h", ".py", ".md", ".cmake", ".txt", ".toml", ".yml", ".yaml", ".json"} or member.name in {".gitattributes", ".gitignore", "LICENSE", "NOTICE"}
+                    eol_only = source_text and raw.replace(b"\r\n", b"\n") == original.replace(b"\r\n", b"\n")
+                    if member.name != ".git_archival.txt" and raw != original and not eol_only:
+                        raise RuntimeError("Git archive source bytes differ beyond source EOL: " + member.name)
+                    members.append({"path": member.name, "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest(),
+                                    "git_blob_sha256": hashlib.sha256(original).hexdigest(),
+                                    "bridge": "expanded-marker" if member.name == ".git_archival.txt" else "raw" if raw == original else "source-eol-only"})
+            if {member["path"] for member in members} != tracked:
+                raise RuntimeError("Git archive file inventory differs from this exact commit")
+            archive.extractall(archived, filter="data")
+        marker = (archived / ".git_archival.txt").read_text(encoding="utf8")
+        if ("$Format:" in marker or "node: " + head not in marker or (archived / ".git").exists()):
+            raise RuntimeError("Archive must have genuine expanded node metadata and no Git directory")
+        write_json(runner.evidence / "archive.json", {"head": head, "sha256": sha256(archive_path),
+            "members": members, "marker": marker, "scope": "Genuine reviewed-commit native archive; no Python backend route"})
+        ab = work / "ab"
+        runner.configure(archived, ab, *options, f"-DCMAKE_PREFIX_PATH={relocated};{tiny}")
+        runner.build(ab)
+        ply_gnu_compilation(runner, ab, "repair", [relocated, tiny])
+        runner.inventory(ab, "archive", 4)
+        runner.check_inventory(archived, ab, "--gltf-workflow", "OFF", "--gltf-file-workflow", "OFF",
+                               "--off-file-workflow", "OFF", "--ply-file-workflow", "ON")
+        runner.test(ab, True)
+        if ply_cache(ab, "CMAKE_HOME_DIRECTORY") != str(archived) or ply_cache(ab, "CMAKE_PROJECT_VERSION") != "0.0.0":
+            raise RuntimeError("Native Git-free archive source/version identity differs")
+        validate_ply_unsupported(runner, geometry, ab, "archive")
+        result.update(gate_passed=True, native_tests=4, installed_tests=1, archive_native_tests=4,
+                      capture_only_refusals=3, actual_empty_workflows=3, final_reports=3)
+        result["completed"].append("genuine-archive-native-four")
+    except BaseException as error:
+        result["error"] = {"type": type(error).__name__, "message": str(error)}
+        raise
+    finally:
+        write_json(runner.evidence / "result.json", result)
+
 def qualify(root, profile_name, file_workflow=False, off_file_workflow=False, off_python=False):
     profile = PROFILES[profile_name]
     if platform.system() != profile.system:
@@ -1116,7 +1429,7 @@ def main():
     parser.add_argument("--off-python", action="store_true",
                         help="Also build and exercise OFF wheels in the selected development profiles")
     parser.add_argument("--ply-file-workflow", action="store_true",
-                        help="Qualify PLY native and installed Python on Windows msvc-release only")
+                        help="Qualify Windows native/Python PLY, or the native-only GNU unsupported producer")
     parser.add_argument("--validate-reports", type=Path,
                         help="Validate existing fixture JSON without configuring native builds")
     parser.add_argument("--geometry-source", type=Path)
@@ -1129,9 +1442,12 @@ def main():
         validate_reports(args.geometry_source.resolve(), args.validate_reports.resolve(), args.receipt.resolve())
     elif args.profile:
         if args.ply_file_workflow:
-            if args.profile != "msvc-release" or args.file_workflow or args.off_file_workflow or args.off_python:
-                parser.error("PLY requires msvc-release without another qualification mode")
-            qualify_ply(root, args.profile)
+            if args.profile not in ("msvc-release", "gnu-unsupported") or args.file_workflow or args.off_file_workflow or args.off_python:
+                parser.error("PLY requires msvc-release or native-only gnu-unsupported without another mode")
+            if args.profile == "gnu-unsupported":
+                qualify_ply_unsupported(root, args.profile)
+            else:
+                qualify_ply(root, args.profile)
             return
         if args.file_workflow and args.off_file_workflow:
             parser.error("Select one file-workflow qualification cohort")
