@@ -1,0 +1,831 @@
+{
+  "source_counts": {
+    "vertices": 8,
+    "faces": 3,
+    "corners": 11
+  },
+  "positions_f64_hex": [
+    "8000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "3ff0000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "3ff0000000000000",
+    "3ff0000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "3ff0000000000000",
+    "0000000000000000",
+    "4000000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "4008000000000000",
+    "0000000000000000",
+    "0000000000000000",
+    "4000000000000000",
+    "3ff0000000000000",
+    "0000000000000000",
+    "4058c00000000000",
+    "8000000000000000",
+    "4014000000000000"
+  ],
+  "original_schema": [
+    {
+      "kind": "vertex",
+      "original_count": 8,
+      "properties": [
+        {
+          "name": "sample_i8",
+          "kind": "scalar",
+          "value_type": "char",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 0
+        },
+        {
+          "name": "y",
+          "kind": "scalar",
+          "value_type": "float",
+          "count_type": null,
+          "binding": "y",
+          "attribute": null
+        },
+        {
+          "name": "sample_u8",
+          "kind": "scalar",
+          "value_type": "uchar",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 1
+        },
+        {
+          "name": "sample_i16",
+          "kind": "scalar",
+          "value_type": "short",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 2
+        },
+        {
+          "name": "z",
+          "kind": "scalar",
+          "value_type": "float",
+          "count_type": null,
+          "binding": "z",
+          "attribute": null
+        },
+        {
+          "name": "sample_u16",
+          "kind": "scalar",
+          "value_type": "ushort",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 3
+        },
+        {
+          "name": "sample_i32",
+          "kind": "scalar",
+          "value_type": "int",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 4
+        },
+        {
+          "name": "x",
+          "kind": "scalar",
+          "value_type": "float",
+          "count_type": null,
+          "binding": "x",
+          "attribute": null
+        },
+        {
+          "name": "sample_u32",
+          "kind": "scalar",
+          "value_type": "uint",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 5
+        },
+        {
+          "name": "sample_f64",
+          "kind": "scalar",
+          "value_type": "double",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 6
+        },
+        {
+          "name": "samples",
+          "kind": "list",
+          "value_type": "short",
+          "count_type": "uchar",
+          "binding": "attribute",
+          "attribute": 7
+        }
+      ]
+    },
+    {
+      "kind": "face",
+      "original_count": 3,
+      "properties": [
+        {
+          "name": "weight",
+          "kind": "scalar",
+          "value_type": "float",
+          "count_type": null,
+          "binding": "attribute",
+          "attribute": 8
+        },
+        {
+          "name": "bins",
+          "kind": "list",
+          "value_type": "uint",
+          "count_type": "ushort",
+          "binding": "attribute",
+          "attribute": 9
+        },
+        {
+          "name": "vertex_indices",
+          "kind": "list",
+          "value_type": "int",
+          "count_type": "uchar",
+          "binding": "vertex-indices",
+          "attribute": null
+        }
+      ]
+    }
+  ],
+  "source_hashes": {
+    "ascii": "9e3d38543dd05bfc0723b69ef882a3fb81118a2a6f0d2d9eb6a80771c29c8564",
+    "binary_little_endian": "9f79608daf1641501b1c798bb12ab2cdbb77c9b7a419907858a2e18d9e3de5b0",
+    "binary_big_endian": "7dfac90b0f29e41a1a18825889a3f3d56454f98b817f621d017fd6d989c85df8"
+  },
+  "targets": [
+    {
+      "keep": 0,
+      "remove": 1
+    }
+  ],
+  "explicit_measurement_declarations": [
+    {
+      "domain": "vertex",
+      "name": "sample_i8"
+    },
+    {
+      "domain": "vertex",
+      "name": "sample_u8"
+    },
+    {
+      "domain": "vertex",
+      "name": "sample_i16"
+    },
+    {
+      "domain": "vertex",
+      "name": "sample_u16"
+    },
+    {
+      "domain": "vertex",
+      "name": "sample_i32"
+    },
+    {
+      "domain": "vertex",
+      "name": "sample_u32"
+    },
+    {
+      "domain": "vertex",
+      "name": "sample_f64"
+    },
+    {
+      "domain": "vertex",
+      "name": "samples"
+    },
+    {
+      "domain": "face",
+      "name": "weight"
+    },
+    {
+      "domain": "face",
+      "name": "bins"
+    }
+  ],
+  "changed": {
+    "counts": {
+      "vertices": 8,
+      "faces": 2,
+      "corners": 7
+    },
+    "face_offsets": [
+      0,
+      4,
+      7
+    ],
+    "corner_vertices": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "maps": {
+      "FaceMap": [
+        0,
+        0,
+        1
+      ],
+      "CornerMap": [
+        0,
+        1,
+        2,
+        3,
+        2,
+        3,
+        0,
+        1,
+        4,
+        5,
+        6
+      ],
+      "SourceFaces": [
+        0,
+        2
+      ],
+      "SourceCorners": [
+        0,
+        1,
+        2,
+        3,
+        8,
+        9,
+        10
+      ]
+    },
+    "attributes": [
+      {
+        "name": "sample_i8",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -128,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          126,
+          127
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_u8",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint8",
+        "data_kind": "integer",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          255
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_i16",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -32768,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          32766,
+          32767
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_u16",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint16",
+        "data_kind": "integer",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          65534,
+          65535
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_i32",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -2147483648,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          2147483646,
+          2147483647
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_u32",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint32",
+        "data_kind": "integer",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          4294967294,
+          4294967295
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_f64",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "float64",
+        "data_kind": "bits64",
+        "values": [
+          "3fb999999999999a",
+          "8000000000000000",
+          "0000000000000001",
+          "7fefffffffffffff",
+          "3ff0000000000000",
+          "4000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "offsets": null
+      },
+      {
+        "name": "samples",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -32768,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          32767
+        ],
+        "offsets": [
+          0,
+          0,
+          1,
+          3,
+          6,
+          6,
+          7,
+          9,
+          10
+        ]
+      },
+      {
+        "name": "weight",
+        "domain": "face",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "float32",
+        "data_kind": "bits32",
+        "values": [
+          "3f000000",
+          "80000000"
+        ],
+        "offsets": null
+      },
+      {
+        "name": "bins",
+        "domain": "face",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint32",
+        "data_kind": "integer",
+        "values": [
+          7,
+          4294967295
+        ],
+        "offsets": [
+          0,
+          2,
+          2
+        ]
+      }
+    ],
+    "retained_vertex_rows": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "unchanged": {
+    "counts": {
+      "vertices": 8,
+      "faces": 3,
+      "corners": 11
+    },
+    "face_offsets": [
+      0,
+      4,
+      8,
+      11
+    ],
+    "corner_vertices": [
+      0,
+      1,
+      2,
+      3,
+      2,
+      3,
+      0,
+      1,
+      4,
+      5,
+      6
+    ],
+    "maps": {
+      "FaceMap": [
+        0,
+        1,
+        2
+      ],
+      "CornerMap": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ],
+      "SourceFaces": [
+        0,
+        1,
+        2
+      ],
+      "SourceCorners": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "attributes": [
+      {
+        "name": "sample_i8",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -128,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          126,
+          127
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_u8",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint8",
+        "data_kind": "integer",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          255
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_i16",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -32768,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          32766,
+          32767
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_u16",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint16",
+        "data_kind": "integer",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          65534,
+          65535
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_i32",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -2147483648,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          2147483646,
+          2147483647
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_u32",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint32",
+        "data_kind": "integer",
+        "values": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          4294967294,
+          4294967295
+        ],
+        "offsets": null
+      },
+      {
+        "name": "sample_f64",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "float64",
+        "data_kind": "bits64",
+        "values": [
+          "3fb999999999999a",
+          "8000000000000000",
+          "0000000000000001",
+          "7fefffffffffffff",
+          "3ff0000000000000",
+          "4000000000000000",
+          "4008000000000000",
+          "4010000000000000"
+        ],
+        "offsets": null
+      },
+      {
+        "name": "samples",
+        "domain": "vertex",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "int32",
+        "data_kind": "integer",
+        "values": [
+          -32768,
+          -1,
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          32767
+        ],
+        "offsets": [
+          0,
+          0,
+          1,
+          3,
+          6,
+          6,
+          7,
+          9,
+          10
+        ]
+      },
+      {
+        "name": "weight",
+        "domain": "face",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "float32",
+        "data_kind": "bits32",
+        "values": [
+          "3f000000",
+          "3f000000",
+          "80000000"
+        ],
+        "offsets": null
+      },
+      {
+        "name": "bins",
+        "domain": "face",
+        "components": 1,
+        "semantic": "",
+        "set_index": null,
+        "present": null,
+        "metadata": [],
+        "canonical_type": "uint32",
+        "data_kind": "integer",
+        "values": [
+          7,
+          4294967295,
+          7,
+          4294967295
+        ],
+        "offsets": [
+          0,
+          2,
+          4,
+          4
+        ]
+      }
+    ],
+    "retained_vertex_rows": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  },
+  "memory_required_checks": [
+    "source-storage",
+    "target-policy",
+    "candidate-storage",
+    "repair-correspondence",
+    "canonical-preservation",
+    "reload-candidate",
+    "source-unchanged",
+    "typed-properties",
+    "wire-schema"
+  ],
+  "publication_required_checks": [
+    "source-storage",
+    "target-policy",
+    "candidate-storage",
+    "repair-correspondence",
+    "canonical-preservation",
+    "reload-candidate",
+    "source-unchanged",
+    "typed-properties",
+    "wire-schema",
+    "staged-candidate",
+    "staged-physical-members"
+  ],
+  "source_body_derivation": "Exact independently enumerated original literal data referenced by hash; original CRLF/comment and endian bodies are not regenerated by product code."
+}
