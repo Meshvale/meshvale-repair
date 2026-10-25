@@ -22,6 +22,10 @@ The optional [supplied-memory glTF workflow](docs/gltf-workflow.md) composes pub
 
 The development [glTF single and batch commands](docs/gltf-commands.md) use the same file operation for explicit JSON glTF or GLB targets. They prepare all jobs before capture, run in order and preserve exact native receipt bytes. The [installed walkthrough](examples/python/gltf_walkthrough.py) adds `--commands` to compare console, module and batch behavior, including unchanged copies and resource hashes. Final platform qualification remains pending.
 
+The selected [direct-translation preservation contract](docs/gltf-translation.md)
+describes a planned explicit animation profile and its API/command presets.
+Implementation and qualification are pending; current static defaults are unchanged.
+
 The [static shared-scene walkthrough](docs/gltf-scene-walkthrough.md) creates two
 transformed instances of one mesh and an unrelated mesh. It repairs the shared
 primitive through the API, commands and batches while checking transforms,

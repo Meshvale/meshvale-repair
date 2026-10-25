@@ -139,3 +139,6 @@ Original allocator backend state must outlive the last retained block free.
 Concurrent immutable reads through separate copies are supported. The separate
 [Python path interface](gltf-python.md) owns capture convenience, application
 presets and Python observations. Single/batch glTF commands remain later work.
+The separately selected [direct-translation contract](gltf-translation.md)
+defines a future explicit animation-preserving profile. Its implementation and
+qualification are pending; the static/default behavior documented here is unchanged.

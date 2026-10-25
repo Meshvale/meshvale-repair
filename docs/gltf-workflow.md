@@ -32,6 +32,10 @@ verification and correspondence. Interchange owns
 and [checked topology writing](https://github.com/Meshvale/meshvale-interchange/blob/main/docs/gltf_topology_write.md).
 This contract owns their workflow composition; it changes none of those rules.
 
+The separately selected [direct-translation contract](gltf-translation.md)
+defines a future explicit animation-preserving profile. Its implementation and
+qualification are pending; the static/default behavior documented here is unchanged.
+
 ## GWF-INPUT-001: Request and selected capability
 
 `RunGltfDuplicateWorkflow` accepts supplied JSON bytes, explicit resource

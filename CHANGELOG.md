@@ -4,6 +4,10 @@
 
 ### Documentation
 
+- Select the [direct-translation preservation contract](docs/gltf-translation.md)
+  and positive preset table for future implementation. Current static defaults
+  remain unchanged; this is not an implemented feature or support declaration.
+
 - Document the implemented [source-version profile](docs/versioning.md) and its
   compiler-free metadata checks. Release/runtime qualification remains separate.
 
