@@ -198,7 +198,20 @@ def _parser():
     off_batch = commands.add_parser("off-batch", help="Process a versioned indexed OFF job request")
     off_batch.add_argument("request")
     off_batch.add_argument("--fail-fast", action="store_true")
-    for command in (gltf, gltf_batch, off, off_batch):
+    ply = commands.add_parser("ply", help="Repair typed PLY polygons into a verified new bundle")
+    ply.add_argument("input"); ply.add_argument("destination")
+    ply.add_argument("--encoding", required=True,
+                     choices=("ascii", "binary_little_endian", "binary_big_endian"))
+    ply_selection = ply.add_mutually_exclusive_group(required=True)
+    ply_selection.add_argument("--target", action="append", metavar="KEEP:REMOVE")
+    ply_selection.add_argument("--unchanged", action="store_true")
+    ply.add_argument("--row-local", action="append", default=[], metavar="DOMAIN:NAME")
+    ply.add_argument("--input-id", default="source")
+    ply.add_argument("--report-path", default="meshvale-report.json")
+    ply_batch = commands.add_parser("ply-batch", help="Process a versioned typed PLY job request")
+    ply_batch.add_argument("request")
+    ply_batch.add_argument("--fail-fast", action="store_true")
+    for command in (gltf, gltf_batch, off, off_batch, ply, ply_batch):
         command.add_argument("--preset", default="balanced-v1",
                              choices=("balanced-v1", "serial-reference-v1"))
     return parser
@@ -357,6 +370,39 @@ def _main_off(options, stdout, stderr):
         return error.exit_code
 
 
+def _main_ply(options, stdout, stderr):
+    from .ply_commands import (
+        PlyCommandDeliveryError, _path as _ply_path, _read_ply_request,
+        _run_ply_single, run_ply_jobs,
+    )
+    from .ply_workflow import PlyCancellation, PlyExecution
+    token = PlyCancellation()
+    execution = PlyExecution(preset=options.preset)
+    try:
+        with _gltf_interrupt(token):
+            if options.command == "ply":
+                declarations = [dict(domain=domain, name=name)
+                                for domain, name in _pairs(options.row_local)]
+                job = {"id": options.input_id, "input": options.input,
+                       "destination": options.destination,
+                       "targets": _pairs(options.target or [], True),
+                       "encoding": options.encoding,
+                       "row_local_attributes": declarations,
+                       "report_path": options.report_path}
+                result = _run_ply_single(job, base=Path.cwd(), execution=execution,
+                                        cancellation=token)
+            else:
+                path = _ply_path(options.request, os.getcwd())
+                request = _read_ply_request(path)
+                result = run_ply_jobs(request, base=os.path.dirname(path),
+                                      fail_fast=options.fail_fast,
+                                      execution=execution, cancellation=token)
+            return _deliver_gltf(result, stdout, stderr, token)
+    except PlyCommandDeliveryError as error:
+        _diagnostic(stderr, "Report delivery failed; completed publication facts are retained.")
+        return error.exit_code
+
+
 def _deliver(report, stdout, stderr):
     from meshvale_reports import exit_code, validate
     validate(report)
@@ -439,11 +485,13 @@ def main(argv=None, *, stdout=None, stderr=None):
             return _main_gltf(options, stdout, stderr)
         if options.command in {"off", "off-batch"}:
             return _main_off(options, stdout, stderr)
+        if options.command in {"ply", "ply-batch"}:
+            return _main_ply(options, stdout, stderr)
         return _main_obj(options, stdout, stderr)
     except InvocationError:
         _diagnostic(stderr, "Invalid invocation; no assets processed.")
     except ImportError:
-        if options.command in {"gltf", "gltf-batch", "off", "off-batch"}:
+        if options.command in {"gltf", "gltf-batch", "off", "off-batch", "ply", "ply-batch"}:
             _diagnostic(stderr, "Report runtime unavailable; install the declared workflow extra and candidates.")
         else:
             _diagnostic(stderr, "Asset runtime unavailable; install the declared assets extra and candidates.")

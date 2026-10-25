@@ -172,3 +172,53 @@ new product defaults. Optional `--shared-schema`/`--require-shared-validation`
 checks only structural Geometry JSON Schema; it is not full shared report
 semantic validation. No generic PLY parser, external physical source-state,
 worker/budget stress, supported platform, runtime floor or release claim follows.
+
+## Installed Python API and command checks
+
+Build/install the opt-in Python extension and its declared `workflow` extra
+using [ENVIRONMENT.md](../../../ENVIRONMENT.md#ply-python-build-and-installed-checks).
+The [walkthrough](../../../docs/ply-walkthrough.md) introduces the same API and
+single/batch routes. This integration uses the public literal expectations
+above and a retained native `--write-reports` tree; it does not modify native
+fixtures or infer expected maps/schema/counts from their observed reports.
+
+Use an isolated installed interpreter, outside any source-tree import fallback.
+All five arguments below are explicit inputs. `NATIVE_VERSION` is the actual
+native CMake project version of the installed extension, not its wheel version.
+`PYTHON_TEST_OUTPUT` must be absent, have an existing parent and be outside the
+fixture tree after comparison-path resolution. No recursive cleanup is done.
+
+```sh
+"$PYTHON" -I "$REPAIR_SOURCE/tests/ply_workflow_python.py" \
+  --fixture-root "$FIXTURE_DIRECTORY" --output-root "$PYTHON_TEST_OUTPUT" \
+  --literal-oracles "$REPAIR_SOURCE/tests/fixtures/ply-workflow/literal-predicates.json" \
+  --presets "$REPAIR_SOURCE/docs/ply-presets.json" --native-version "$NATIVE_VERSION"
+```
+
+The test checks 215 leaves for each preset and the 24 scheduling-only differences;
+18 balanced API cells and two serial parity cells; the same 18 cells through
+each module/console single route and through each ordered batch route. Batch
+requests split into two nine-row invocations per route to stay within the
+16-job cap. Each batch must contain the literal physical native receipt bytes,
+then pass shared loading, identity and semantic comparisons.
+
+Additional bounded controls exercise real missing/unused declarations,
+empty-target behavior, a schema view surviving its result, ledger release,
+whole-invocation bad-later-row admission, empty-batch cancellation, actual
+missing-file attempts, continue/fail-fast scheduling and four post-publication
+receipt-byte delivery faults. The fault injection changes only the receipt
+getter after a real committed result; it does not fabricate native outcomes.
+Missing/invalid delivery gives 2/130 without undoing a bundle. A genuinely
+unpublished missing-source result instead exercises the closed command projection with 17 observations and
+integer version 1. There is no Interchange Python dependency.
+
+The test independently checks literal source digests, four maps, vertex identity,
+counts and original/current wire types/order/schema. Physical entry comparisons
+against the same retained native matrix cell are explicitly byte parity, not an
+independent scalar-value decoder. Existing native checker bit/value checks
+remain separate. It rehashes fixtures and expectations after the run, retaining
+all own outputs and an event journal. Only a completed journal establishes
+reached scope: the current Windows x64 MSVC Release / ordinary CPython 3.13
+development run records 102 attempts, 97 bundles and 109 events. This is not a
+full unsupported-profile, concurrency/fault/stress or platform qualification,
+an independently executed PLY-only Python build, or a released-wheel claim.

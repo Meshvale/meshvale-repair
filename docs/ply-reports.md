@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-PLY-REPORT-001 |
 | Version | 0.1.0 |
-| Status | Native development wire implemented; broader qualification pending |
+| Status | Native wire and opt-in Python command projection implemented; broader qualification pending |
 
 This document owns the PLY-specific options and extensions inside unchanged
 `meshvale.report/1` for the [file workflow](ply-workflow.md). Objects below have
@@ -12,6 +12,16 @@ exactly the listed required keys unless an alternative is explicitly defined.
 `U` is an exact JSON integer in0..18446744073709551615; `U?` means U or null.
 Arrays preserve order. Null means unavailable/not reached, not zero or success.
 No nonfinite number, duplicate key or machine path is emitted.
+
+The [PLY walkthrough](ply-walkthrough.md) uses these actual native receipts from
+the installed API and commands. The
+[installed integration test](../tests/ply_workflow_python.py) checks shared
+report loading/exit semantics, physical receipt equality, literal batch receipt
+slices, missing-source projection and post-publication byte-delivery faults.
+Its bounded Windows MSVC/ordinary CPython 3.13 development result does not cover
+every report/resource refusal or establish a released schema implementation on
+all platforms. [The fixture guide](../tests/fixtures/ply-workflow/README.md)
+separately describes the closed native observation checker and reproduction.
 
 ## PLY-REPORT-OPTIONS-001: Operation and checks
 

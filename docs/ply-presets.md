@@ -4,13 +4,19 @@
 |---|---|
 | ID | REPAIR-PLY-PRESETS-001 |
 | Version | 0.1.0 |
-| Status | Selected development values; implementation and qualification pending |
+| Status | Development resolver implemented; bounded installed Python checks, broader qualification pending |
 
 The [complete JSON table](ply-presets.json) selects every one of215 native leaf
 values for `balanced-v1` and `serial-reference-v1` in the
 [PLY workflow](ply-workflow.md). Native callers still provide explicit limits
-and work policies. This document and its table select application values; they
-do not establish an implemented preset resolver or accepted platform.
+and work policies. The Python `PlyExecution` resolver implements this complete
+table and returns a fresh `resolved_preset` observation. The
+[installed integration test](../tests/ply_workflow_python.py) compares all 215
+leaves for both presets and exactly 24 scheduling differences; it also exercises
+the full balanced matrix and two serial parity cells. These bounded Windows
+MSVC/ordinary CPython 3.13 development checks do not establish all-profile
+qualification or a supported platform. See the [build/test recipe](../ENVIRONMENT.md#ply-python-build-and-installed-checks)
+and [walkthrough](ply-walkthrough.md).
 
 The selected `PlyPreset` has five roots: `execution: ExecutionOptions`,
 `capture_limits: PlyFileReadLimits`, `capture_work: PlyFileReadWorkPolicy`,

@@ -55,14 +55,18 @@ single command and ordered batch share actual outcomes and correspondence maps.
 The walkthrough checks cyclic quads, unrelated faces and unused signed-zero
 vertices. Qualification remains in progress.
 
-The opt-in native [PLY file workflow](docs/ply-workflow.md) captures typed PLY,
+The opt-in [PLY file workflow](docs/ply-workflow.md) captures typed PLY,
 removes explicit duplicate-face targets, verifies canonical output and publishes
 a new PLY entry with its hashed report. It preserves ordered narrow wire schemas,
 dense/ragged properties and all four repair maps. Callers explicitly declare
-custom properties that are safe to transfer across edits. Native development
-checks cover all three PLY encodings, unchanged and empty inputs, retained
-results and installed packages. The selected Python API and commands remain
-planned; platform and release qualification is still in progress.
+custom properties that are safe to transfer across edits. Its implemented Python
+path API, console/module commands and ordered batches use the same native
+operation. Start with the [PLY walkthrough](docs/ply-walkthrough.md). Native
+checks cover all three encodings, unchanged and empty inputs, retained results
+and installed packages. Installed Python development checks cover the encoding
+matrix and bounded admission/delivery controls on Windows x64 MSVC Release with
+ordinary CPython 3.13. Broader fault/platform qualification and a supported
+release remain pending; no published wheel or runtime floor is established.
 
 The optional [reported workflow](docs/workflow.md) independently verifies actual candidate correspondence and every channel, retains scoped topology diagnostics, and returns a versioned report. Its preservation profile accepts intentional open surfaces and retains unrelated defects as visible diagnostics. See the [real reported-operation example](examples/python/reported_duplicate.py); in-memory acceptance is separate from file publication.
 
