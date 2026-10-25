@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 cmake_minimum_required(VERSION 3.24)
-project(MeshvaleRepair LANGUAGES CXX)
+include(cmake/SourceVersion.cmake)
+meshvale_repair_resolve_source_version(MESHVALE_REPAIR_VERSION
+  MESHVALE_REPAIR_VERSION_PROVENANCE "${CMAKE_CURRENT_SOURCE_DIR}")
+project(MeshvaleRepair VERSION "${MESHVALE_REPAIR_VERSION}" LANGUAGES CXX)
 set(CMAKE_CXX_EXTENSIONS OFF)
 option(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES
   "Build direct charged repair over immutable Geometry owners" ON)
@@ -119,16 +122,6 @@ foreach(meshvale_notice IN ITEMS eigen-mpl2.txt eigen-apache.txt eigen-notices.t
 endforeach()
 meshvale_require_geometry_notice("${meshvale_geometry_notice_root}/NOTICE"
   "${CMAKE_CURRENT_SOURCE_DIR}/licenses/meshvale-geometry-notice.txt")
-find_package(Git QUIET)
-set(MESHVALE_REPAIR_VERSION "0.0.0")
-if(Git_FOUND)
-  execute_process(COMMAND "${GIT_EXECUTABLE}" describe --tags --exact-match --dirty
-    WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-    OUTPUT_VARIABLE meshvale_tag OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-  if(meshvale_tag MATCHES "^v([0-9]+\\.[0-9]+\\.[0-9]+)$")
-    set(MESHVALE_REPAIR_VERSION "${CMAKE_MATCH_1}")
-  endif()
-endif()
 
 add_library(meshvale_repair STATIC src/duplicates.cpp src/gltf_file_sha256_internal.cpp)
 add_library(meshvale::repair ALIAS meshvale_repair)

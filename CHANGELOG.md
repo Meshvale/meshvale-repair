@@ -4,10 +4,15 @@
 
 ### Documentation
 
-- Select the [source-version profile](docs/versioning.md) for tagged and
-  Git-free builds; its extended implementation and qualification are pending.
+- Document the implemented [source-version profile](docs/versioning.md) and its
+  compiler-free metadata checks. Release/runtime qualification remains separate.
 
 ### Fixed
+
+- Resolve the CMake project and installed CMake package version from one
+  checked source identity, including tagged archives and source packages.
+  Cross-check a matching Python build's full version against that identity.
+  Compiled workflow reports use the same native version.
 
 - OFF commands preserve logical source, destination and batch-base path spellings, including partial Windows anchors and trailing separators, so native path validation determines each attempted outcome.
 
