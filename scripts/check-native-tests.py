@@ -148,7 +148,7 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
     if ply_file_workflow:
         if installed or profile != QUALIFIED_PROFILE:
             raise ValueError("PLY inventory currently requires qualified native tests")
-        expected |= frozenset({"ply_workflow_semantics"})
+        expected |= frozenset({"ply_workflow_semantics", "ply_workflow_requests"})
     return expected
 
 

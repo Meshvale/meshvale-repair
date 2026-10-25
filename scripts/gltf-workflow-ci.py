@@ -390,6 +390,7 @@ def ply_fp_selection(entry, tokens, product):
         "repair": {"meshvale_repair_materialized_duplicates", "meshvale_repair_ply_file_workflow",
                    "meshvale_materialized_duplicate_request_tests", "meshvale_materialized_duplicate_tests",
                    "meshvale_materialized_duplicate_semantic_tests", "meshvale_ply_workflow_tests",
+                   "meshvale_ply_workflow_request_tests",
                    "meshvale_repair_gltf_workflow", "meshvale_repair_gltf_file_workflow",
                    "meshvale_repair_off_file_workflow", "_repair"}}
     if product == "repair" and target not in strict_targets[product] | {
@@ -512,6 +513,57 @@ def ply_wheel(runner, source, label, version, prefixes):
     return wheels[0]
 
 
+def validate_ply_request_reports(runner, geometry, fixture):
+    """Validate two real failure receipts separately from the closed33 corpus."""
+    sys.path.insert(0, str(geometry / "python"))
+    import meshvale_reports
+    from jsonschema import Draft202012Validator
+    validator = Draft202012Validator(meshvale_reports.schema_document())
+    expected = {"existing-destination", "interior-stop", "staged-entry-corruption"}
+    if {path.name for path in fixture.iterdir()} != expected:
+        raise RuntimeError("PLY request fixture inventory differs from the three selected cases")
+    literal = json.loads((runner.root / "tests/fixtures/ply-workflow/literal-predicates.json").read_text(encoding="utf8"))
+    maps = literal["changed"]["maps"]
+    observed = []
+    for name in sorted(expected):
+        directory = fixture / name
+        native = json.loads((directory / "native.json").read_text(encoding="utf8"))
+        if (native["face_map"] != maps["FaceMap"] or native["corner_map"] != maps["CornerMap"] or
+                native["source_faces"] != maps["SourceFaces"] or native["source_corners"] != maps["SourceCorners"]):
+            raise RuntimeError("Request sidecar lacks the four literal completed Repair maps: " + name)
+        if name == "interior-stop":
+            if (native["status"] != 5 or native["stage"] != "verify" or native["exit_code"] != 130 or
+                    native["publisher"] is not None or native["memory_output_verified"] is not False):
+                raise RuntimeError("Interior stop did not retain its typed canceled/verify/no-publisher facts")
+            # FailureReport may return without JSON under a requested stop.
+            continue
+        raw = (directory / "report.json").read_bytes()
+        report = meshvale_reports.load(raw.decode("utf8"))
+        validator.validate(report)
+        ext = report["extensions"]["meshvale.repair.ply"]
+        if (meshvale_reports.exit_code(report) != 2 or report["execution"]["outcome"] != "failed" or
+                report["execution"]["stage"] != "export" or report["candidate"]["outcome"] != "accepted" or
+                report["publication"]["outcome"] != "failed" or report["publication"]["artifacts"] or
+                ext["native_stage"] != "publication" or ext["memory_output_verified"] is not True or
+                ext["native_status"] != native["status"] or ext["publisher"] != native["publisher"] or
+                ext["source_faces"] != maps["SourceFaces"] or ext["source_corners"] != maps["SourceCorners"]):
+            raise RuntimeError("Final failure receipt disagrees with its real typed request outcome: " + name)
+        observed.append({"case": name, "sha256": hashlib.sha256(raw).hexdigest(), "exit_code": 2})
+    if len(observed) != 2:
+        raise RuntimeError("Expected exactly two available final request reports")
+    retained = runner.evidence / "ply-request-observations"
+    source_signature = ply_signature(fixture)
+    shutil.copytree(fixture, retained)
+    if source_signature != ply_signature(retained):
+        raise RuntimeError("Retained request artifact bytes changed during copy")
+    write_json(runner.evidence / "ply-request-checks.json", {
+        "schema": "meshvale.repair.ply-request-checks/1", "passed": True,
+        "actual_cases": 3, "final_reports": observed, "native_sidecars": [
+            {"case": name, "sha256": sha256(fixture / name / "native.json")} for name in sorted(expected)],
+        "retained_raw_files": source_signature,
+        "scope": "Two actual final failed-publication receipts and one typed interior stop; canceled JSON not required; closed33 unchanged"})
+
+
 def qualify_ply(root, profile_name):
     """One bounded qualified Windows route, independent of the older cohorts."""
     if (profile_name != "msvc-release" or platform.system() != "Windows" or
@@ -605,7 +657,7 @@ def qualify_ply(root, profile_name):
             "-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified")
         runner.build(rb)
         ply_compilation(runner, rb, "repair")
-        runner.inventory(rb, "repair", 5)
+        runner.inventory(rb, "repair", 6)
         runner.check_inventory(root, rb, "--gltf-workflow", "OFF", "--gltf-file-workflow", "OFF",
                                "--off-file-workflow", "OFF", "--ply-file-workflow", "ON")
         try:
@@ -634,7 +686,11 @@ def qualify_ply(root, profile_name):
         check = json.loads(checks.read_text(encoding="utf8"))
         if not check["passed"] or len(check["cases"]) != 33:
             raise RuntimeError("Public closed native checker did not accept all33 cases")
-        result["completed"].append("native-five-and-public33")
+        request_roots = list(rb.glob("ply-workflow-requests-*"))
+        if len(request_roots) != 1 or not request_roots[0].is_dir():
+            raise RuntimeError("Need one separate actual request fixture epoch")
+        validate_ply_request_reports(runner, geometry, request_roots[0])
+        result["completed"].append("native-six-public33-and-request2")
         geometry_source, geometry_version = ply_sdist(runner, geometry, "geometry")
         if geometry_version != GEOMETRY_PYTHON_VERSION:
             raise RuntimeError("Fresh Geometry backend version differs from exact required pin")
@@ -654,7 +710,8 @@ def qualify_ply(root, profile_name):
         installed = json.loads((installed_root / "qualification.json").read_text(encoding="utf8"))
         if installed["passed"] is not True:
             raise RuntimeError("Installed PLY integration did not pass")
-        result.update(gate_passed=True, native_tests=5, native_cases=33, shared_reports=31,
+        result.update(gate_passed=True, native_tests=6, native_cases=33, shared_reports=31,
+                      native_request_cases=3, native_request_reports=2,
                       journal_counts=installed["journal_counts"], bundles=installed["bundles"])
         result["completed"].append("installed-ply-and-full31")
     except BaseException as error:
