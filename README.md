@@ -4,6 +4,9 @@ Configurable inspection and repair of imperfect polygon meshes.
 
 **Status:** Development C++20 library and optional Python package with targeted exact duplicate-face removal, reported verification, verified OBJ bundles and commands, and a glTF/GLB file API under qualification. No stable release yet.
 
+The selected [source-version profile](docs/versioning.md) defines build identity
+for tagged and Git-free sources. Its extended archive implementation is pending.
+
 Start with the [textured OBJ walkthrough](docs/quickstart.md): run the same repair through the Python API, single command and batch, then inspect preserved polygon loops, UV seams, resource bytes and bundled reports.
 
 ## Available native operation

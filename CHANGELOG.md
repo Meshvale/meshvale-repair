@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Documentation
+
+- Select the [source-version profile](docs/versioning.md) for tagged and
+  Git-free builds; its extended implementation and qualification are pending.
+
 ### Fixed
 
 - OFF commands preserve logical source, destination and batch-base path spellings, including partial Windows anchors and trailing separators, so native path validation determines each attempted outcome.
