@@ -400,7 +400,9 @@ def ply_fp_selection(entry, tokens, product, gnu=False):
             "meshvale_repair_record", "nanobind-static"}:
         raise RuntimeError("Unclassified Repair object target: " + target)
     required = target in strict_targets[product]
-    present = (all(flag in tokens for flag in ("-fno-fast-math", "-ffp-contract=off")) if gnu else
+    gnu_flags = (("-fno-fast-math",) if product == "geometry" else
+                 ("-fno-fast-math", "-ffp-contract=off"))
+    present = (all(flag in tokens for flag in gnu_flags) if gnu else
                any(flag in tokens for flag in ("/fp:strict", "-fp:strict")))
     if required and not present:
         raise RuntimeError("Required per-target strict FP missing: " + target + ": " + entry["file"])
