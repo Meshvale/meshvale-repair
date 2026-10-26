@@ -11,6 +11,11 @@ from .commands import InvocationError
 
 
 _REQUEST_SCHEMA = "meshvale.repair.gltf-jobs/1"
+_REQUEST_SCHEMA_V2 = "meshvale.repair.gltf-jobs/2"
+_STATIC_PROFILE = "static-local-triangles-v1"
+_TRANSLATION_PROFILE = "direct-translation-v1"
+_PROCESSING_PROFILES = (_STATIC_PROFILE, _TRANSLATION_PROFILE)
+_TRANSLATION_PRESETS = ("balanced-direct-translation-v1", "serial-direct-translation-v1")
 _REPORT_SCHEMA = "meshvale.report/1"
 _BATCH_SCHEMA = "meshvale.batch/1"
 _EXTENSION = "meshvale.repair.gltf.commands"
@@ -210,13 +215,14 @@ def _report_path(value, limit):
 
 def _shape(request, limits):
     if (type(request) is not dict or len(request) != 2 or set(request) != {"schema", "jobs"} or
-            type(request["schema"]) is not str or request["schema"] != _REQUEST_SCHEMA or
+            type(request["schema"]) is not str or request["schema"] not in (_REQUEST_SCHEMA, _REQUEST_SCHEMA_V2) or
             type(request["jobs"]) is not list or len(request["jobs"]) > _MAX_JOBS):
         raise _invocation_error()
+    required = _REQUIRED | {"processing_profile"} if request["schema"] == _REQUEST_SCHEMA_V2 else _REQUIRED
     rows, identities, targets = [], set(), 0
     for row in request["jobs"]:
-        if (type(row) is not dict or not len(_REQUIRED) <= len(row) <= len(_REQUIRED) + len(_OPTIONAL) or
-                not _REQUIRED <= set(row) or set(row) - _REQUIRED - _OPTIONAL):
+        if (type(row) is not dict or not len(required) <= len(row) <= len(required) + len(_OPTIONAL) or
+                not required <= set(row) or set(row) - required - _OPTIONAL):
             raise _invocation_error()
         copied = {name: row[name] for name in row}
         # Refuse oversized ordinary arrays before iterating or copying them.
@@ -234,6 +240,8 @@ def _shape(request, limits):
             _text(copied[name], max_chars=limits.path_units - 1)
         _choice(copied["triangles"], _TRIANGLE_POLICIES)
         _choice(copied["values"], _VALUE_POLICIES)
+        if request["schema"] == _REQUEST_SCHEMA_V2:
+            _choice(copied["processing_profile"], _PROCESSING_PROFILES)
         if copied["id"] in identities:
             raise _invocation_error()
         identities.add(copied["id"])
@@ -261,7 +269,7 @@ def _shape(request, limits):
             _report_path(copied["report_path"], limits.report_path_bytes)
         rows.append(copied)
     # Shape/count admission precedes the separate API canonical-byte admission.
-    _encoded({"schema": _REQUEST_SCHEMA, "jobs": rows}, _MAX_REQUEST_BYTES, _invocation_error)
+    _encoded({"schema": request["schema"], "jobs": rows}, _MAX_REQUEST_BYTES, _invocation_error)
     return rows
 
 
@@ -291,10 +299,20 @@ def _admit(request, base, execution, cancellation):
             raise _invocation_error()
         if cancellation is not None and not isinstance(cancellation, _workflow.GltfCancellation):
             raise _invocation_error()
-        session = _workflow.GltfExecution() if execution is None else execution
+        if execution is None:
+            preset = ("balanced-direct-translation-v1"
+                      if type(request) is dict and request.get("schema") == _REQUEST_SCHEMA_V2
+                      else "balanced-v1")
+            session = _workflow.GltfExecution(preset=preset)
+        else:
+            session = execution
         token = _workflow.GltfCancellation() if cancellation is None else cancellation
         limits = _AdmissionLimits.from_session(session)
         rows = _shape(request, limits)
+        if any(row.get("processing_profile", _STATIC_PROFILE) == _TRANSLATION_PROFILE for row in rows):
+            preset = _workflow.GltfExecution.preset.__get__(session, _workflow.GltfExecution)
+            if preset not in _TRANSLATION_PRESETS:
+                raise _invocation_error()
         _preflight_reports()
         base_text = os.fspath(Path.cwd() if base is None else base)
         _text(base_text, max_chars=limits.path_units - 1)
@@ -308,6 +326,7 @@ def _admit(request, base, execution, cancellation):
             arguments = {"source": source, "destination": destination, "targets": row["targets"],
                          "input_id": row["id"], "primitive_ordinal": row["primitive_ordinal"],
                          "triangles": row["triangles"], "values": row["values"],
+                         "processing_profile": row.get("processing_profile", _STATIC_PROFILE),
                          "resource_root": resource, "row_local_attributes": row.get("row_local_attributes", []),
                          "report_path": row.get("report_path", _DEFAULT_REPORT_PATH),
                          "execution": session, "cancellation": token, "retain_failure_facts": True}
@@ -440,6 +459,14 @@ def _project_gltf_fallback(result, job):
                 "diagnostic": _observe(result.diagnostic), "execution": _observe(result.execution)},
             "memory_outcomes": _observe(result.memory_outcomes), "publication": _observe(result.publication),
             "requested_bytes": _observe(result.requested_bytes)}
+        profile = result.processing_profile
+        if type(profile) is not str or profile != job.get("processing_profile", _STATIC_PROFILE):
+            raise GltfCommandDeliveryError(_failure_exit(result))
+        if profile == _TRANSLATION_PROFILE:
+            extension = report["extensions"][_EXTENSION]
+            extension["version"] = "2"
+            extension["processing_profile"] = profile
+            extension["processing"] = result.translation_facts
         return report
     finally:
         # A handled delivery exception must not pin a native owner in traceback
@@ -570,8 +597,14 @@ def run_gltf_jobs(request, *, base=None, fail_fast=False, execution=None, cancel
             job.prepared = None
 
 
-def _run_gltf_single(job, *, base=None, execution=None, cancellation=None):
-    jobs, _ = _admit({"schema": _REQUEST_SCHEMA, "jobs": [job]}, base, execution, cancellation)
+def _run_gltf_single(job, *, base=None, execution=None, cancellation=None,
+                     processing_profile=_STATIC_PROFILE):
+    _choice(processing_profile, _PROCESSING_PROFILES)
+    schema = _REQUEST_SCHEMA
+    if processing_profile == _TRANSLATION_PROFILE:
+        schema = _REQUEST_SCHEMA_V2
+        job = {**job, "processing_profile": processing_profile}
+    jobs, _ = _admit({"schema": schema, "jobs": [job]}, base, execution, cancellation)
     try:
         payload, _, code = _attempt(jobs[0])
         return GltfCommandResult(payload, code)

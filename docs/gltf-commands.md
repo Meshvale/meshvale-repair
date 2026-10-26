@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-GLTF-COMMANDS-001 |
 | Version | 0.1.1 |
-| Status | Implemented development interface; final platform qualification pending |
+| Status | Static development interface; translation candidate qualification in progress |
 | Owner | Command admission, ordered scheduling, receipt framing and delivery |
 
 These commands use the same [prepared file operation](gltf-python.md), native
@@ -28,9 +28,9 @@ correspondence. The default mode demonstrates the file API. The selected
 qualified profile is Windows x64 MSVC Release; `--unsupported-profile` checks
 explicit native refusal on other currently unqualified numerical profiles.
 
-The separately selected [direct-translation contract](gltf-translation.md)
-defines a future explicit animation-preserving profile. Its implementation and
-qualification are pending; the static/default behavior documented here is unchanged.
+The opt-in [direct-translation candidate](gltf-translation.md) is under
+qualification. Its contract selects bounded direct node-translation
+preservation during the same operation. Static processing remains the default.
 
 ## GLC-INVOCATION-001: Explicit operation
 
@@ -49,14 +49,20 @@ selects JSON/GLB and publication retains the format.
 
 Single options `--input-id` (default `source`), `--resource-root`, repeated
 `--row-local DOMAIN:NAME` and `--report-path` (default `receipts/report.json`)
-mirror the file interface. Both commands accept `--preset balanced-v1` or
-`serial-reference-v1`. Batch also accepts `--fail-fast`. No automatic primitive
+mirror the file interface. A single command also accepts `--processing-profile`
+with default `static-local-triangles-v1` or opt-in `direct-translation-v1`.
+Both commands accept the original presets `balanced-v1` and
+`serial-reference-v1`, plus `balanced-direct-translation-v1` and
+`serial-direct-translation-v1`. Preset omission selects the matching balanced
+policy; a version-2 batch selects the new balanced policy even for mixed rows.
+Each invocation creates one shared context/token for its rows. Incompatible
+explicit old presets fail before filesystem work. Batch also accepts `--fail-fast`. No automatic primitive
 discovery, target selection, custom native limits, phase callbacks or parallel
 job scheduler is added. Help/version do not import optional report/asset modules.
 
 ## GLC-ADMISSION-001: Closed, bounded request
 
-Batch UTF-8 JSON has exactly `schema` and `jobs`, with schema
+The existing static batch UTF-8 JSON has exactly `schema` and `jobs`, with schema
 `meshvale.repair.gltf-jobs/1`. Each job requires `id`, `input`, `destination`,
 `targets`, `primitive_ordinal`, `triangles`, `values`; optional fields are
 `resource_root`, `row_local_attributes`, `report_path`. IDs are unique opaque
@@ -65,6 +71,12 @@ Targets and row declarations are arrays of two-element arrays. Empty targets are
 intentional unchanged processing. Reject duplicate JSON keys, nonfinite numbers,
 unknown/missing fields, booleans as indices, invalid policy/encoding and bounds
 before capture. The native preparation path remains the conversion authority.
+
+Closed schema `meshvale.repair.gltf-jobs/2` keeps those keys and row fields,
+requires `processing_profile` on every row, and permits mixed static/translation
+jobs. Version 1 remains closed and rejects that added field. The
+[translation command contract](gltf-translation.md#gtran-command-001-single-command-and-closed-batch-version-2)
+owns the complete version-2 example and profile/preset rules.
 
 ```json
 {"schema":"meshvale.repair.gltf-jobs/1","jobs":[

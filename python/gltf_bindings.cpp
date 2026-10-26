@@ -52,6 +52,63 @@ constexpr std::string_view kVertexDomainName = "vertex";
 constexpr std::string_view kFaceDomainName = "face";
 constexpr std::string_view kCornerDomainName = "corner";
 constexpr std::size_t kPositionComponents = 3;
+// Closed processing-object and additive API/property names.
+struct GltfTranslationFields {
+  static constexpr char kDirectTranslation[] = "direct_translation";
+  static constexpr char kProfile[] = "profile";
+  static constexpr char kSource[] = "source";
+  static constexpr char kWriting[] = "writing";
+  static constexpr char kReload[] = "reload";
+  static constexpr char kVerification[] = "verification";
+  static constexpr char kPublicationReload[] = "publication_reload";
+  static constexpr char kPublicationVerification[] = "publication_verification";
+  static constexpr char kOffset[] = "offset";
+  static constexpr char kLength[] = "length";
+  static constexpr char kStatus[] = "status";
+  static constexpr char kCode[] = "code";
+  static constexpr char kJsonSpan[] = "json_span";
+  static constexpr char kResourceKind[] = "resource_kind";
+  static constexpr char kResourceIndex[] = "resource_index";
+  static constexpr char kResourceSpan[] = "resource_span";
+  static constexpr char kRuleId[] = "rule_id";
+  static constexpr char kDiagnostic[] = "diagnostic";
+  static constexpr char kComplete[] = "complete";
+  static constexpr char kNodeRows[] = "node_rows";
+  static constexpr char kMeshUsers[] = "mesh_users";
+  static constexpr char kScannedChannels[] = "scanned_channels";
+  static constexpr char kAffectedChannels[] = "affected_channels";
+  static constexpr char kDistinctSamplers[] = "distinct_samplers";
+  static constexpr char kKeysChecked[] = "keys_checked";
+  static constexpr char kDecodedBytesChecked[] = "decoded_bytes_checked";
+  static constexpr char kRelationshipSteps[] = "relationship_steps";
+  static constexpr char kNewRequestedBytes[] = "new_requested_bytes";
+  static constexpr char kEffectiveRequestCap[] = "effective_request_cap";
+  static constexpr char kWork[] = "work";
+  static constexpr char kExecution[] = "execution";
+  static constexpr char kPlannedJobs[] = "planned_jobs";
+  static constexpr char kLaunchedWorkers[] = "launched_workers";
+  static constexpr char kJoinedWorkers[] = "joined_workers";
+  static constexpr char kCallerJobs[] = "caller_jobs";
+  static constexpr char kMaxNodeRows[] = "max_node_rows";
+  static constexpr char kMaxMeshUsers[] = "max_mesh_users";
+  static constexpr char kMaxChannelReferences[] = "max_channel_references";
+  static constexpr char kMaxDistinctSamplers[] = "max_distinct_samplers";
+  static constexpr char kMaxKeysPerSampler[] = "max_keys_per_sampler";
+  static constexpr char kMaxTotalKeys[] = "max_total_keys";
+  static constexpr char kMaxRelationshipSteps[] = "max_relationship_steps";
+  static constexpr char kMaxMetadataBytes[] = "max_metadata_bytes";
+  static constexpr char kMaxDecodedBytes[] = "max_decoded_bytes";
+  static constexpr char kMaxNewRequestedBytes[] = "max_new_requested_bytes";
+  static constexpr char kParallelMinKeys[] = "parallel_min_keys";
+  static constexpr char kPartitionKeys[] = "partition_keys";
+  static constexpr char kCancellationBlockKeys[] = "cancellation_block_keys";
+  static constexpr char kMaxJobs[] = "max_jobs";
+  static constexpr char kProcessingProfile[] = "processing_profile";
+  static constexpr char kTranslationFacts[] = "translation_facts";
+  static constexpr char kDirectTranslationPolicy[] =
+      "_direct_translation_policy";
+};
+constexpr std::uint64_t kMaxGltfProcessingProfileBytes = 32;
 
 template <class T>
 struct Observation {
@@ -91,6 +148,20 @@ class GltfExecution {
       : name_(name),
         preset_(MakeGltfPreset(name)),
         context_(preset_.execution) {}
+  // A policy handle over the existing module context, without a new ledger.
+  GltfExecution DirectTranslationPolicy() const {
+    if (name_ != kBalancedGltfPreset)
+      throw nb::value_error(
+          "default policy requires the balanced static session");
+    GltfExecution policy(*this);
+    policy.name_ = kBalancedTranslationGltfPreset;
+    policy.preset_ = MakeGltfPreset(policy.name_);
+    return policy;
+  }
+  bool SupportsDirectTranslation() const noexcept {
+    return name_ == kBalancedTranslationGltfPreset ||
+           name_ == kSerialTranslationGltfPreset;
+  }
   const std::string& Name() const noexcept { return name_; }
   const GltfPreset& Preset() const noexcept { return preset_; }
   const geo::ExecutionContext& Context() const noexcept { return context_; }
@@ -250,15 +321,28 @@ void BoundedItems(nb::handle value, std::uint64_t limit, Function&& function) {
 nb::object Prepare(nb::handle source, nb::handle destination,
                    nb::handle targets, nb::handle primitive_ordinal,
                    nb::handle triangles, nb::handle values,
-                   nb::handle execution, nb::handle input_id,
-                   nb::handle resource_root, nb::handle row_local_attributes,
-                   nb::handle report_path, nb::handle cancellation,
-                   nb::handle retain_failure_facts) {
+                   nb::handle processing_profile, nb::handle execution,
+                   nb::handle input_id, nb::handle resource_root,
+                   nb::handle row_local_attributes, nb::handle report_path,
+                   nb::handle cancellation, nb::handle retain_failure_facts) {
   if (!PyBool_Check(retain_failure_facts.ptr()))
     throw nb::type_error("retain_failure_facts must be a bool");
   if (!nb::isinstance<GltfExecution>(execution))
     throw nb::type_error("execution must be a resolved GltfExecution session");
   const auto& session = nb::cast<const GltfExecution&>(execution);
+  const auto profile = Text(processing_profile, kMaxGltfProcessingProfileBytes);
+  ic::GltfProcessingProfile selected_profile;
+  if (profile == kStaticGltfProcessingProfile)
+    selected_profile = ic::GltfProcessingProfile::kStaticLocalTrianglesV1;
+  else if (profile == kDirectTranslationGltfProcessingProfile)
+    selected_profile = ic::GltfProcessingProfile::kDirectTranslationTrianglesV1;
+  else
+    throw nb::value_error("unknown glTF processing profile");
+  if (selected_profile ==
+          ic::GltfProcessingProfile::kDirectTranslationTrianglesV1 &&
+      !session.SupportsDirectTranslation())
+    throw nb::value_error(
+        "execution preset does not support direct translation");
   std::stop_source stop;
   if (!cancellation.is_none()) {
     if (!nb::isinstance<GltfCancellation>(cancellation))
@@ -273,6 +357,7 @@ nb::object Prepare(nb::handle source, nb::handle destination,
   auto* result = new (nb::inst_ptr<GltfFileWorkflowResult>(object))
       GltfFileWorkflowResult(session, std::move(stop));
   nb::inst_mark_ready(object);
+  result->extraction.processing_profile = selected_profile;
   if (retain_failure_facts.ptr() == Py_True)
     result->report_failure_retention =
         GltfReportFailureRetention::kRetainCompletedRepair;
@@ -435,6 +520,8 @@ nb::object SnapshotCounts(
                         view.face_offsets.size() - 1,
                         view.corner_vertices.size());
 }
+nb::dict PresetObservation(const ic::GltfDirectTranslationLimits& value);
+nb::dict PresetObservation(const ic::GltfDirectTranslationWorkPolicy& value);
 nb::dict PresetObservation(const geo::ExecutionOptions& value);
 nb::dict PresetObservation(const ic::GltfFileLimits& value);
 nb::dict PresetObservation(const ic::GltfReadLimits& value);
@@ -471,6 +558,41 @@ nb::object PresetValue(const T& value) {
     return nb::cast(value);
   else
     return PresetObservation(value);
+}
+nb::dict PresetObservation(const ic::GltfDirectTranslationLimits& value) {
+  nb::dict result;
+  result[GltfTranslationFields::kMaxNodeRows] =
+      PresetValue(value.max_node_rows);
+  result[GltfTranslationFields::kMaxMeshUsers] =
+      PresetValue(value.max_mesh_users);
+  result[GltfTranslationFields::kMaxChannelReferences] =
+      PresetValue(value.max_channel_references);
+  result[GltfTranslationFields::kMaxDistinctSamplers] =
+      PresetValue(value.max_distinct_samplers);
+  result[GltfTranslationFields::kMaxKeysPerSampler] =
+      PresetValue(value.max_keys_per_sampler);
+  result[GltfTranslationFields::kMaxTotalKeys] =
+      PresetValue(value.max_total_keys);
+  result[GltfTranslationFields::kMaxRelationshipSteps] =
+      PresetValue(value.max_relationship_steps);
+  result[GltfTranslationFields::kMaxMetadataBytes] =
+      PresetValue(value.max_metadata_bytes);
+  result[GltfTranslationFields::kMaxDecodedBytes] =
+      PresetValue(value.max_decoded_bytes);
+  result[GltfTranslationFields::kMaxNewRequestedBytes] =
+      PresetValue(value.max_new_requested_bytes);
+  return result;
+}
+nb::dict PresetObservation(const ic::GltfDirectTranslationWorkPolicy& value) {
+  nb::dict result;
+  result[GltfTranslationFields::kParallelMinKeys] =
+      PresetValue(value.parallel_min_keys);
+  result[GltfTranslationFields::kPartitionKeys] =
+      PresetValue(value.partition_keys);
+  result[GltfTranslationFields::kCancellationBlockKeys] =
+      PresetValue(value.cancellation_block_keys);
+  result[GltfTranslationFields::kMaxJobs] = PresetValue(value.max_jobs);
+  return result;
 }
 nb::dict PresetObservation(const geo::ExecutionOptions& value) {
   nb::dict result;
@@ -545,6 +667,9 @@ nb::dict PresetObservation(const ic::GltfExtractionLimits& value) {
   result["max_triangle_corners"] = PresetValue(value.max_triangle_corners);
   result["max_output_requested_bytes"] =
       PresetValue(value.max_output_requested_bytes);
+  if (value.direct_translation.max_new_requested_bytes != 0)
+    result[GltfTranslationFields::kDirectTranslation] =
+        PresetValue(value.direct_translation);
   return result;
 }
 nb::dict PresetObservation(const geo::MeshMaterializationLimits& value) {
@@ -618,6 +743,9 @@ nb::dict PresetObservation(const ic::GltfTopologyWriteLimits& value) {
   result["max_candidate_corners"] = PresetValue(value.max_candidate_corners);
   result["max_index_bytes"] = PresetValue(value.max_index_bytes);
   result["output"] = PresetValue(value.output);
+  if (value.direct_translation.max_new_requested_bytes != 0)
+    result[GltfTranslationFields::kDirectTranslation] =
+        PresetValue(value.direct_translation);
   return result;
 }
 nb::dict PresetObservation(
@@ -637,6 +765,9 @@ nb::dict PresetObservation(
   result["max_index_bytes"] = PresetValue(value.max_index_bytes);
   result["max_new_requested_bytes"] =
       PresetValue(value.max_new_requested_bytes);
+  if (value.direct_translation.max_new_requested_bytes != 0)
+    result[GltfTranslationFields::kDirectTranslation] =
+        PresetValue(value.direct_translation);
   return result;
 }
 nb::dict PresetObservation(const GltfDuplicateFileMemoryLimits& value) {
@@ -701,6 +832,9 @@ nb::dict PresetObservation(const ic::GltfWorkPolicy& value) {
       PresetValue(value.parallel_min_channel_components);
   result["channel_partition_elements"] =
       PresetValue(value.channel_partition_elements);
+  if (value.direct_translation.max_jobs != 0)
+    result[GltfTranslationFields::kDirectTranslation] =
+        PresetValue(value.direct_translation);
   return result;
 }
 nb::dict PresetObservation(const ic::GlbWorkPolicy& value) {
@@ -732,6 +866,9 @@ nb::dict PresetObservation(const ic::GltfTopologyWriteWorkPolicy& value) {
   result["cancellation_block_bytes"] =
       PresetValue(value.cancellation_block_bytes);
   result["max_jobs"] = PresetValue(value.max_jobs);
+  if (value.direct_translation.max_jobs != 0)
+    result[GltfTranslationFields::kDirectTranslation] =
+        PresetValue(value.direct_translation);
   return result;
 }
 nb::dict PresetObservation(
@@ -742,6 +879,9 @@ nb::dict PresetObservation(
   result["cancellation_block_bytes"] =
       PresetValue(value.cancellation_block_bytes);
   result["max_jobs"] = PresetValue(value.max_jobs);
+  if (value.direct_translation.max_jobs != 0)
+    result[GltfTranslationFields::kDirectTranslation] =
+        PresetValue(value.direct_translation);
   return result;
 }
 nb::dict PresetObservation(const GltfWorkflowByteWorkPolicy& value) {
@@ -785,6 +925,85 @@ nb::dict PresetObservation(const GltfPreset& value) {
   result["capture_work"] = PresetObservation(value.capture_work);
   result["workflow_limits"] = PresetObservation(value.workflow_limits);
   result["workflow_work"] = PresetObservation(value.workflow_work);
+  return result;
+}
+nb::object TranslationSpan(const std::optional<ic::GltfSourceSpan>& value) {
+  if (!value) return nb::none();
+  nb::dict result;
+  result[GltfTranslationFields::kOffset] = value->offset;
+  result[GltfTranslationFields::kLength] = value->length;
+  return result;
+}
+nb::dict TranslationDiagnostic(const ic::GltfDiagnostic& value) {
+  nb::dict result;
+  result[GltfTranslationFields::kStatus] =
+      static_cast<std::uint32_t>(value.status);
+  result[GltfTranslationFields::kCode] = static_cast<std::uint32_t>(value.code);
+  result[GltfTranslationFields::kJsonSpan] = TranslationSpan(value.json_span);
+  result[GltfTranslationFields::kResourceKind] =
+      value.resource_kind
+          ? nb::cast(static_cast<std::uint32_t>(*value.resource_kind))
+          : nb::none();
+  result[GltfTranslationFields::kResourceIndex] =
+      value.resource_index ? nb::cast(*value.resource_index) : nb::none();
+  result[GltfTranslationFields::kResourceSpan] =
+      TranslationSpan(value.resource_span);
+  result[GltfTranslationFields::kRuleId] = value.rule_id;
+  return result;
+}
+nb::object TranslationObservation(
+    const std::optional<ic::GltfDirectTranslationObservation>& value) {
+  if (!value) return nb::none();
+  nb::dict result;
+  result[GltfTranslationFields::kStatus] =
+      static_cast<std::uint32_t>(value->status);
+  result[GltfTranslationFields::kDiagnostic] =
+      TranslationDiagnostic(value->diagnostic);
+  result[GltfTranslationFields::kComplete] = value->complete;
+  result[GltfTranslationFields::kNodeRows] = value->node_rows;
+  result[GltfTranslationFields::kMeshUsers] = value->mesh_users;
+  result[GltfTranslationFields::kScannedChannels] = value->scanned_channels;
+  result[GltfTranslationFields::kAffectedChannels] = value->affected_channels;
+  result[GltfTranslationFields::kDistinctSamplers] = value->distinct_samplers;
+  result[GltfTranslationFields::kKeysChecked] = value->keys_checked;
+  result[GltfTranslationFields::kDecodedBytesChecked] =
+      value->decoded_bytes_checked;
+  result[GltfTranslationFields::kRelationshipSteps] = value->relationship_steps;
+  result[GltfTranslationFields::kNewRequestedBytes] =
+      value->new_requested_bytes;
+  result[GltfTranslationFields::kEffectiveRequestCap] =
+      value->effective_request_cap;
+  result[GltfTranslationFields::kWork] = PresetObservation(value->work);
+  nb::dict execution;
+  execution[GltfTranslationFields::kPlannedJobs] =
+      value->execution.planned_jobs;
+  execution[GltfTranslationFields::kLaunchedWorkers] =
+      value->execution.launched_workers;
+  execution[GltfTranslationFields::kJoinedWorkers] =
+      value->execution.joined_workers;
+  execution[GltfTranslationFields::kCallerJobs] = value->execution.caller_jobs;
+  result[GltfTranslationFields::kExecution] = std::move(execution);
+  return result;
+}
+nb::object TranslationFacts(const GltfFileWorkflowResult& value) {
+  value.RequireComplete();
+  if (value.extraction.processing_profile ==
+      ic::GltfProcessingProfile::kStaticLocalTrianglesV1)
+    return nb::none();
+  const auto& facts = value.workflow.translation;
+  nb::dict result;
+  result[GltfTranslationFields::kProfile] =
+      nb::str(kDirectTranslationGltfProcessingProfile.data());
+  result[GltfTranslationFields::kSource] = TranslationObservation(facts.source);
+  result[GltfTranslationFields::kWriting] =
+      TranslationObservation(facts.writing);
+  result[GltfTranslationFields::kReload] = TranslationObservation(facts.reload);
+  result[GltfTranslationFields::kVerification] =
+      TranslationObservation(facts.verification);
+  result[GltfTranslationFields::kPublicationReload] =
+      TranslationObservation(facts.publication_reload);
+  result[GltfTranslationFields::kPublicationVerification] =
+      TranslationObservation(facts.publication_verification);
   return result;
 }
 }  // namespace
@@ -2042,6 +2261,8 @@ void RegisterGltfBindings(nb::module_& module) {
   nb::class_<GltfExecution>(module, "GltfExecution")
       .def(nb::init<std::string_view>(), nb::kw_only(),
            nb::arg("preset") = kBalancedGltfPreset)
+      .def(GltfTranslationFields::kDirectTranslationPolicy,
+           &GltfExecution::DirectTranslationPolicy)
       .def_prop_ro("preset",
                    [](const GltfExecution& self) {
                      return nb::str(self.Name().c_str());
@@ -2066,6 +2287,17 @@ void RegisterGltfBindings(nb::module_& module) {
       .def("cancel", &GltfCancellation::Cancel)
       .def_prop_ro("cancelled", &GltfCancellation::Cancelled);
   nb::class_<GltfFileWorkflowResult>(module, "GltfFileWorkflowResult")
+      .def_prop_ro(
+          GltfTranslationFields::kProcessingProfile,
+          [](const GltfFileWorkflowResult& self) {
+            self.RequireComplete();
+            return self.extraction.processing_profile ==
+                           ic::GltfProcessingProfile::
+                               kDirectTranslationTrianglesV1
+                       ? nb::str(kDirectTranslationGltfProcessingProfile.data())
+                       : nb::str(kStaticGltfProcessingProfile.data());
+          })
+      .def_prop_ro(GltfTranslationFields::kTranslationFacts, &TranslationFacts)
       .def_prop_ro("workflow_started",
                    [](const GltfFileWorkflowResult& self) {
                      self.RequireComplete();
@@ -2213,8 +2445,10 @@ void RegisterGltfBindings(nb::module_& module) {
   module.def("_prepare_gltf_file", &Prepare, nb::arg("source"),
              nb::arg("destination").none(), nb::arg("targets"), nb::kw_only(),
              nb::arg("primitive_ordinal"), nb::arg("triangles"),
-             nb::arg("values"), nb::arg("execution"),
-             nb::arg("input_id") = kDefaultGltfInputId,
+             nb::arg("values"),
+             nb::arg(GltfTranslationFields::kProcessingProfile) =
+                 kStaticGltfProcessingProfile,
+             nb::arg("execution"), nb::arg("input_id") = kDefaultGltfInputId,
              nb::arg("resource_root") = nb::none(),
              nb::arg("row_local_attributes") = nb::tuple(),
              nb::arg("report_path") = kDefaultGltfReportPath,

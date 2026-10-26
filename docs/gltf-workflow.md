@@ -14,7 +14,8 @@ independent reload and reporting. Link `meshvale::gltf_workflow` to execute the
 supplied-memory operation. Its Interchange workflow-support dependency must
 provide the capped reader/extractor and independent output inspection below.
 The ordinary reader/writer cohort alone does not satisfy that dependency.
-Filesystem publication, Python bindings and commands remain separate work.
+[Filesystem publication](gltf-file-workflow.md), the [Python file API](gltf-python.md)
+and [commands](gltf-commands.md) have separate interface owners.
 Native implementation does not establish complete asset-workflow or release
 qualification.
 
@@ -32,9 +33,9 @@ verification and correspondence. Interchange owns
 and [checked topology writing](https://github.com/Meshvale/meshvale-interchange/blob/main/docs/gltf_topology_write.md).
 This contract owns their workflow composition; it changes none of those rules.
 
-The separately selected [direct-translation contract](gltf-translation.md)
-defines a future explicit animation-preserving profile. Its implementation and
-qualification are pending; the static/default behavior documented here is unchanged.
+The opt-in [direct-translation candidate](gltf-translation.md) is under
+qualification. Its contract selects bounded direct node-translation
+preservation during the same operation. Static processing remains the default.
 
 ## GWF-INPUT-001: Request and selected capability
 
@@ -54,8 +55,9 @@ Extraction is never chosen implicitly. Require-triangles or explicit strip/fan
 conversion and raw or raw-and-normalized values follow Interchange's existing
 profile. Both readiness states admitted by strong extraction remain eligible;
 the workflow does not reject a preliminary binary-admission state in place of
-performing extraction. Unsupported selected skin, morph, animation, extension
-effects or other channel shapes fail through their actual owner. Unrelated
+performing extraction. The default static profile rejects selected animation;
+the opt-in translation profile admits its defined subset. Unsupported selected
+skin, morph, extension effects or other channel shapes fail through their owner. Unrelated
 retained asset data remains subject to complete preservation verification.
 Supporting such selected edits remains separate required work.
 
@@ -153,6 +155,22 @@ or catch-all success/rejection conversion. Expected cancellation returns its
 real completed-stage facts and no unverified output. No source is mutated and
 no filesystem or published artifact is created on any path.
 
+`GltfWorkflowTranslationFacts` holds the producer profile and six optional actual
+returns: source, writing, reload, verification, publication reload and publication
+verification. `GltfDuplicateWorkflowResult::translation` exposes these inline
+even when no report owner survives. A record exposes `TranslationFacts()` as a
+borrowed const reference, valid while that record remains alive and unassigned.
+The memory operation performs the first four phases; its publication slots
+remain empty. [The translation contract](gltf-translation.md) owns phase
+nullability and failure meanings. Inline translation observations remain available with the default completed
+Repair retention policy; they do not create a missing report or record.
+
+Changed repair retains the existing explicit row-local declaration rule. For a
+captured `TEXCOORD_0` vertex channel, the caller must declare that exact name
+only when it knows the values contain no changed face/corner references. The
+[native example](../examples/consumer/gltf_workflow.cpp) keeps its declaration
+storage alive through the call. Attribute names and semantics are not inferred.
+
 ## GWF-VERIFY-001: Independent authority and public prerequisites
 
 The native target requires these two additive public Interchange seams.
@@ -210,7 +228,12 @@ inspection alone cannot prove those relations or binary resource retention.
 
 ## GWF-BUDGET-001: Admission, lifetime and work
 
-Every limit and work field, including nested fields, is required and positive.
+Every active limit and work field, including nested fields, is required and positive.
+In direct-translation mode, the trailing `GltfDuplicateWorkflowLimits` fields
+`report_publication_reload` and `report_publication_verification` supply positive,
+host-representable report configuration. Static mode ignores their zero defaults.
+They describe the two publication-phase caps in the six-object processing
+configuration; the memory operation does not execute publication phases.
 `max_new_requested_bytes` caps all concurrently live new requests from initial
 read through the returned record, report and reloaded output. Each stage also
 has its own cap. For a delegate with one complete operation cap, its effective
@@ -429,12 +452,11 @@ its output/report after source/context destruction. Applicable original-route
 allocation and sanitizer/profile qualification remains required; a composition
 probe or declarations alone establishes none of it.
 
-The full workflow still requires Interchange-owned glTF/GLB resource/filesystem
-publication, source/destination separation and atomic rollback, published-byte
-reload, compatible public packages, the reusable Python interface and single/
-batch commands using the same resolved policy/report semantics. Later surfaces
-reuse this orchestration rather than changing the operation into a different
-repair. Selected skin/morph/animation edits, arbitrary channel mutations and
-complete release/MVP obligations remain explicit future work. The existing
-[OBJ workflow](obj-workflow.md) continues to own its publication behavior and
-does not establish those glTF/GLB capabilities.
+The [retained-file interface](gltf-file-workflow.md) owns Interchange-backed
+publication, source/destination separation, rollback and published-byte reload.
+The [Python file API](gltf-python.md) and [single/batch commands](gltf-commands.md)
+compose that orchestration with the same policy/report owners. The opt-in
+[direct-translation candidate](gltf-translation.md) retains its separate
+qualification gate. Broader skin/morph/animation edits, arbitrary channel
+mutations, final package/release support and complete MVP obligations remain
+future work. The [OBJ workflow](obj-workflow.md) owns its own publication behavior.

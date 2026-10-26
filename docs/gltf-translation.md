@@ -4,16 +4,17 @@
 |---|---|
 | ID | REPAIR-GLTF-TRANSLATION-001 |
 | Version | 0.1.0 |
-| Status | Selected development contract; implementation and qualification pending |
+| Status | Development candidate; source/package/CI qualification in progress |
 | Owner | Explicit workflow selection, application presets, API/commands and report projection |
 | Producer | Interchange GLTF-DIRECT-TRANSLATION-001 |
 
 This contract selects an opt-in extension to the existing targeted duplicate-face
 workflow. It preserves directly authored node-translation tracks while editing
 one shared mesh primitive. It does not evaluate, bake, resample, normalize, blend,
-retarget or render animation. The new symbols, presets, option and batch schema
-below are selected for implementation; current installed builds do not provide
-them merely because this document exists.
+retarget or render animation. The native/Python/command interfaces below are
+a development candidate. [Implementation qualification](#gtran-verify-001-required-implementation-evidence)
+remains in progress. Use the [matching native SDK cohort](gltf-file-workflow.md)
+when building this candidate.
 
 The current static profile and its default, API behavior, report extension and
 closed batch schema remain unchanged. Skin/morph processing, affected
@@ -136,8 +137,7 @@ repair_gltf_file(
 )
 ```
 
-This is selected future syntax, not an invocation supported by the current
-implementation. Existing target, path, value/triangle, declaration, cancellation
+Existing target, path, value/triangle, declaration, cancellation
 and retention rules keep their owners. Empty targets explicitly request unchanged
 processing. No target discovery, automatic profile widening or transform baking
 is added. Argument/preset/profile mismatches fail structurally before capture.
@@ -167,7 +167,7 @@ points use the same parser and prepared operation. The existing
 [command owner](gltf-commands.md) retains path isolation, admission ceilings,
 report-reader preflight, ordered scheduling, fail-fast and delivery rules.
 
-The following is future syntax pending implementation:
+Select the profile explicitly with the single command:
 
 ```sh
 meshvale-repair gltf source/scene.glb output/new --primitive-ordinal 0 --triangles require-triangles --values raw --target 0:1 --processing-profile direct-translation-v1

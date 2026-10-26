@@ -10,7 +10,8 @@ endif()
 if(NOT TARGET meshvale::gltf_files)
   message(FATAL_ERROR "Reported glTF file workflow requires the installed Interchange gltf_files target")
 endif()
-# Development packages share 0.0.0; require the compiled ledger query and provider.
+# Require the selected result tails as well as the compiled ledger/provider.
+# The memory-workflow probe independently checks the compiled translation getters.
 function(meshvale_require_gltf_file_prerequisites)
   cmake_push_check_state(RESET)
   if(CMAKE_BUILD_TYPE)
@@ -30,12 +31,15 @@ function(meshvale_require_gltf_file_prerequisites)
     meshvale::geometry::ExecutionContext context;
     meshvale::interchange::GltfFilePublicationOptions options;
     options.verified_files_provider = {&Provide, nullptr};
+    meshvale::interchange::GltfFilePublicationResult published;
+    published.translation_extraction.reset();
+    published.translation_inspection.reset();
     auto read = meshvale::interchange::ReadGltfAssetCapped({}, {}, {}, {}, context);
     return read.asset && !read.asset->SharesExecutionBudget(context) ? 1 : 0;
   }" MESHVALE_INTERCHANGE_FILE_WORKFLOW_PREREQUISITES)
   cmake_pop_check_state()
   if(NOT MESHVALE_INTERCHANGE_FILE_WORKFLOW_PREREQUISITES)
-    message(FATAL_ERROR "Reported glTF file workflow requires the compiled Interchange asset ledger query and borrowed verified-files provider; use the documented producer revision")
+    message(FATAL_ERROR "Reported glTF file workflow requires the Interchange translation publication result, compiled asset ledger query and borrowed verified-files provider; use the documented matching producer revision")
   endif()
 endfunction()
 meshvale_require_gltf_file_prerequisites()

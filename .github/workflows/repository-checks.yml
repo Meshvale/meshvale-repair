@@ -378,6 +378,12 @@ jobs:
           path: .local/interchange-source
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: Meshvale/meshvale-interchange
+          ref: 33f483d2f5bed45dd2c3273957c08c404fc03bee
+          fetch-depth: 0
+          path: .local/interchange-native-source
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
           repository: microsoft/vcpkg
           ref: cb5a41b03cde4086d554b3f3e2eac39206b16eda
           path: .local/vcpkg-runtime
@@ -407,11 +413,11 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Install Interchange's pinned double-precision parser
         run: |
-          & "$env:VCPKG_ROOT/vcpkg" install --triplet $env:MESHVALE_TRIPLET "--x-manifest-root=${{ github.workspace }}/.local/interchange-source" "--x-install-root=${{ github.workspace }}/.local/dependencies"
+          & "$env:VCPKG_ROOT/vcpkg" install --triplet $env:MESHVALE_TRIPLET "--x-manifest-root=${{ github.workspace }}/.local/interchange-native-source" "--x-install-root=${{ github.workspace }}/.local/dependencies"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and install native Interchange file-workflow dependencies
         run: |
-          cmake -S .local/interchange-source -B .local/interchange-native -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON -DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON -DMESHVALE_INTERCHANGE_GLTF_FILES=ON "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/geometry-prefix;${{ github.workspace }}/.local/dependencies/$env:MESHVALE_TRIPLET"
+          cmake -S .local/interchange-native-source -B .local/interchange-native -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE=Release -DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON -DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON -DMESHVALE_INTERCHANGE_GLTF_FILES=ON "-DCMAKE_PREFIX_PATH=${{ github.workspace }}/.local/geometry-prefix;${{ github.workspace }}/.local/dependencies/$env:MESHVALE_TRIPLET"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build .local/interchange-native --config Release --parallel 2
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

@@ -9,7 +9,10 @@ Copy [environment.example.json](environment.example.json) to `.local/environment
 Follow [the charged native build instructions](docs/materialized_duplicates.md#dependency-build-and-test-selection) for the default-ON module, its Geometry producer and explicit test profile. The [legacy operation instructions](docs/duplicates.md#dependency-and-installation) select the module OFF for the earlier Geometry producer. Supply installed prefixes explicitly through `CMAKE_PREFIX_PATH`; this template does not change the build environment automatically. Native tests treat warnings as errors. CI evaluates Windows, Linux and macOS runners; configured checks do not establish a supported release matrix.
 
 The opt-in [native glTF workflow](docs/gltf-workflow.md) additionally requires an
-installed Interchange workflow-support target. The dedicated
+installed Interchange workflow-support target. Use the matching native SDK
+cohort in the [retained-file dependency instructions](docs/gltf-file-workflow.md);
+the optional Interchange Python wheel has a separate source revision in
+[Python packaging](docs/python.md). The dedicated
 [qualification workflow](.github/workflows/gltf-workflow.yml) pins public
 dependency revisions and matches compiler/sanitizer flags across their builds.
 [Its helper](scripts/gltf-workflow-ci.py) checks native inventories, actual report
@@ -21,8 +24,9 @@ their presence does not establish a supported release matrix.
 The opt-in [retained-file workflow](docs/gltf-file-workflow.md) additionally
 requires `MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON` and the memory workflow enabled.
 Use the Interchange producer pinned by the [file qualification workflow](.github/workflows/gltf-file-workflow.yml).
-Configuration checks the compiled asset ledger query and borrowed verified-file
-provider, in addition to the installed `meshvale::gltf_files` target. The
+Configuration links the producer translation fact/work getters, compiled asset
+ledger query and borrowed verified-file provider, in addition to checking the
+installed `meshvale::gltf_files` target. The
 [same helper](scripts/gltf-workflow-ci.py) selects this cohort with
 `--file-workflow`. Its configured native inventories contain ten tests in
 qualified profiles and six in unsupported profiles, with four installed

@@ -52,7 +52,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: b8e81599d6f08c3b55060c75e76d6b7e75144561
+          ref: 33f483d2f5bed45dd2c3273957c08c404fc03bee
           path: .local/gw/i
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
