@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-GLTF-COMMANDS-001 |
 | Version | 0.1.1 |
-| Status | Static development interface; translation candidate qualification in progress |
+| Status | Static and bounded direct-translation development commands; no supported release |
 | Owner | Command admission, ordered scheduling, receipt framing and delivery |
 
 These commands use the same [prepared file operation](gltf-python.md), native
@@ -28,9 +28,10 @@ correspondence. The default mode demonstrates the file API. The selected
 qualified profile is Windows x64 MSVC Release; `--unsupported-profile` checks
 explicit native refusal on other currently unqualified numerical profiles.
 
-The opt-in [direct-translation candidate](gltf-translation.md) is under
-qualification. Its contract selects bounded direct node-translation
-preservation during the same operation. Static processing remains the default.
+The implemented opt-in [direct-translation development profile](gltf-translation.md)
+preserves its bounded direct node-translation subset during the same operation.
+Static processing remains the default. The profile establishes no supported
+release or runtime floor.
 
 ## GLC-INVOCATION-001: Explicit operation
 

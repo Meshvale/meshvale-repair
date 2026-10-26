@@ -33,9 +33,10 @@ verification and correspondence. Interchange owns
 and [checked topology writing](https://github.com/Meshvale/meshvale-interchange/blob/main/docs/gltf_topology_write.md).
 This contract owns their workflow composition; it changes none of those rules.
 
-The opt-in [direct-translation candidate](gltf-translation.md) is under
-qualification. Its contract selects bounded direct node-translation
-preservation during the same operation. Static processing remains the default.
+The implemented opt-in [direct-translation development profile](gltf-translation.md)
+preserves its bounded direct node-translation subset during the same operation.
+Static processing remains the default. The profile establishes no supported
+release or runtime floor.
 
 ## GWF-INPUT-001: Request and selected capability
 
@@ -455,8 +456,8 @@ probe or declarations alone establishes none of it.
 The [retained-file interface](gltf-file-workflow.md) owns Interchange-backed
 publication, source/destination separation, rollback and published-byte reload.
 The [Python file API](gltf-python.md) and [single/batch commands](gltf-commands.md)
-compose that orchestration with the same policy/report owners. The opt-in
-[direct-translation candidate](gltf-translation.md) retains its separate
-qualification gate. Broader skin/morph/animation edits, arbitrary channel
+compose that orchestration with the same policy/report owners. The implemented opt-in
+[direct-translation development profile](gltf-translation.md) retains its
+required implementation-evidence inventory and bounded capability contract. Broader skin/morph/animation edits, arbitrary channel
 mutations, final package/release support and complete MVP obligations remain
 future work. The [OBJ workflow](obj-workflow.md) owns its own publication behavior.
