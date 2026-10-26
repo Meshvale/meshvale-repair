@@ -45,6 +45,7 @@ struct State {
   std::optional<MaterializedDuplicateRepair> retained_repair;
   // Inline reached facts survive memory report refusal even without its owner.
   std::optional<GltfWorkflowOutcomes> memory_outcomes;
+  GltfWorkflowTranslationFacts translation;
   std::optional<interchange::GltfPublishedBundle> published;
   GltfFileWorkflowOutcomes outcomes;
   GltfFileWorkflowDiagnostic diagnostic;

@@ -82,6 +82,8 @@ struct FileReportProjection {
   FileReportPublication publication = FileReportPublication::kNotRequested;
   FileReportFormat format = FileReportFormat::kJson;
   GltfWorkflowCoverage staged_primitive, physical_members;
+  GltfWorkflowTranslationFacts translation;
+  GltfWorkflowCoverage translation_coverage;
   const interchange::GltfTopologyOutputInspection* output = nullptr;
   std::string_view input_sha256, report_path;
   std::span<const FileReportArtifact> artifacts;

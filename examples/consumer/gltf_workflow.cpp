@@ -19,6 +19,8 @@
 #include <string_view>
 #include <variant>
 
+#include "../../tests/gltf_translation_workflow_fixture.h"
+
 namespace {
 namespace geo = meshvale::geometry;
 namespace ic = meshvale::interchange;
@@ -243,6 +245,8 @@ int main(int argc, char** argv) {
                         .find("\"memory_output_verified\":true") !=
                     std::string_view::npos,
             "Copied workflow lost exact lexemes or native report receipts");
+    if (!unsupported)
+      meshvale::repair::test_translation_workflow::MemoryPositive();
     std::cout << "Installed reported glTF workflow consumer passed\n";
   } catch (const std::exception& failure) {
     std::cerr << failure.what() << '\n';

@@ -109,7 +109,8 @@ GltfDuplicateWorkflowRequest MemoryRequest(
           request.report_failure_retention};
 }
 GltfDuplicateWorkflowLimits MemoryLimits(
-    const GltfDuplicateFileMemoryLimits& limits) {
+    const GltfDuplicateFileWorkflowLimits& outer) {
+  const auto& limits = outer.memory;
   return {limits.max_new_requested_bytes,
           limits.max_input_id_bytes,
           limits.max_reload_bindings,
@@ -121,7 +122,9 @@ GltfDuplicateWorkflowLimits MemoryLimits(
           limits.writing,
           limits.reload,
           limits.reload_extraction,
-          limits.verification};
+          limits.verification,
+          outer.publication.extraction.direct_translation,
+          outer.publication.inspection.direct_translation};
 }
 memory::RetainedSourceInitialization Initialization(
     const GltfDuplicateFileWorkflowRequest& request,
@@ -173,7 +176,7 @@ void Validate(const GltfDuplicateFileWorkflowRequest& request,
       !memory::IsWorkflowReportUtf8(request.publication->report_path))
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
          Code::kConfigurationExtent);
-  auto engine_limits = MemoryLimits(limits.memory);
+  auto engine_limits = MemoryLimits(limits);
   const auto init = Initialization(request, limits);
   if (auto failure = memory::ValidateRetainedWorkflow(
           init, MemoryRequest(request), engine_limits, work.memory))
@@ -245,6 +248,12 @@ void Compute(State& state, bool requested) {
       failed |= check->passed == false;
       incomplete |= check->state != CoverageState::kPerformed;
     }
+  if (state.translation.profile ==
+      ic::GltfProcessingProfile::kDirectTranslationTrianglesV1) {
+    const auto c = memory::TranslationCoverage(state.translation, requested);
+    failed |= c.state == CoverageState::kPerformed && c.passed == false;
+    incomplete |= c.state != CoverageState::kPerformed;
+  }
   outcomes.profile = failed       ? GltfWorkflowProfileOutcome::kFailed
                      : incomplete ? GltfWorkflowProfileOutcome::kIncomplete
                                   : GltfWorkflowProfileOutcome::kPassed;
@@ -283,6 +292,9 @@ memory::FileReportProjection Projection(
   file.format = state.source.Format() == ic::GltfFileFormat::kGltfJson
                     ? memory::FileReportFormat::kJson
                     : memory::FileReportFormat::kGlb;
+  file.translation = state.translation;
+  file.translation_coverage =
+      memory::TranslationCoverage(state.translation, file.requested);
   file.staged_primitive = state.staged_primitive;
   file.physical_members = state.physical_members;
   file.output = output;
@@ -510,6 +522,11 @@ std::span<const ic::GltfFileView> Provide(
     const ic::GltfFileVerifiedContent& content, void* opaque) {
   auto& provider = *static_cast<ProviderState*>(opaque);
   auto& state = provider.state;
+  if (const auto* facts =
+          content.inspection.ReloadedExtraction().DirectTranslationFacts())
+    state.translation.publication_reload = *facts;
+  if (const auto* facts = content.inspection.DirectTranslationFacts())
+    state.translation.publication_verification = *facts;
   state.staged_primitive.state = CoverageState::kPerformed;
   state.staged_primitive.passed = true;
   state.physical_members.state = CoverageState::kPerformed;
@@ -623,6 +640,7 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
     const geometry::ExecutionContext& context, std::stop_token stop,
     const FileWorkflowTestOptions& options) {
   GltfDuplicateFileWorkflowResult result;
+  result.translation.profile = request.extraction.processing_profile;
   result.outcomes.publication = request.publication
                                     ? Publication::kNotAttempted
                                     : Publication::kNotRequested;
@@ -642,6 +660,7 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
                 limits.max_wrapper_new_requested_bytes));
     state = std::allocate_shared<State>(
         allocation::Allocator<State>(allocation), allocation, request.source);
+    state->translation.profile = request.extraction.processing_profile;
     state->outcomes.publication = result.outcomes.publication;
     if (request.publication)
       state->report_path.assign(request.publication->report_path.begin(),
@@ -649,9 +668,9 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
     state->outcomes.stage = Stage::kMemory;
     const auto memory_request = MemoryRequest(request);
     const auto memory_result = memory::RunRetainedGltfDuplicateWorkflow(
-        Initialization(request, limits), memory_request,
-        MemoryLimits(limits.memory), work.memory, context, stop,
-        options.memory);
+        Initialization(request, limits), memory_request, MemoryLimits(limits),
+        work.memory, context, stop, options.memory);
+    state->translation = memory_result.translation;
     state->memory = memory_result.record;
     state->retained_repair = memory_result.retained_repair;
     state->memory_outcomes = memory_result.outcomes;
@@ -684,6 +703,10 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
           {state->source, *state->memory->OutputInspection()},
           request.publication->destination, publication_options,
           limits.publication, work.publication, stop);
+      state->translation.publication_reload =
+          result.publication->translation_extraction;
+      state->translation.publication_verification =
+          result.publication->translation_inspection;
       // Real publisher has completed all workers and attempted its actual
       // cleanup before an owning exception resumes propagation.
       if (provider.unexpected) std::rethrow_exception(provider.unexpected);
@@ -746,6 +769,7 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
     result.outcomes = state->outcomes;
     result.diagnostic = state->diagnostic;
     result.execution = state->execution;
+    result.translation = state->translation;
     result.record = Access::Make(state);
   } else if (result.status == Status::kCanceled) {
     result.outcomes.execution = GltfWorkflowExecutionOutcome::kCanceled;
@@ -815,6 +839,10 @@ GltfDuplicateFileWorkflowRecord::NewRequestedBytes() const noexcept {
 GltfFileWorkflowByteExecution GltfDuplicateFileWorkflowRecord::Execution()
     const noexcept {
   return state_->execution;
+}
+const GltfWorkflowTranslationFacts&
+GltfDuplicateFileWorkflowRecord::TranslationFacts() const noexcept {
+  return state_->translation;
 }
 GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflow(
     const GltfDuplicateFileWorkflowRequest& request,

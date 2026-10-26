@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
+#include <meshvale/geometry/attributes.h>
 #include <meshvale/repair/gltf_workflow.h>
 
 #include <algorithm>
@@ -9,6 +10,7 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -19,6 +21,8 @@
 #include <string_view>
 #include <variant>
 #include <vector>
+
+#include "gltf_translation_workflow_fixture.h"
 
 namespace {
 namespace repair = meshvale::repair;
@@ -566,6 +570,196 @@ void UnsupportedProfile() {
   Require(context.ActiveTrackedPayload() == 0 && context.ActiveWorkers() == 0,
           "Unsupported profile leaked returned workflow storage");
 }
+void DirectTranslationFailures() {
+  namespace moving = repair::test_translation_workflow;
+  geo::ExecutionContext context({moving::kWorkers, 1, moving::kLedgerBytes});
+  const auto run = [&](moving::MovingFixture& data, const auto& limits) {
+    const auto resources = data.Resources();
+    const auto original = data.binary;
+    const auto json = data.json;
+    auto result = repair::RunGltfDuplicateWorkflow(
+        moving::Request(data, resources), limits, moving::Work(), context);
+    Require(
+        data.binary == original && data.json == json &&
+            context.ActiveWorkers() == 0,
+        "translation failures preserve caller source and join actual workers");
+    return result;
+  };
+  const auto replace = [](std::string& text, std::string_view old,
+                          std::string_view value) {
+    const auto at = text.find(old);
+    Require(at != std::string::npos, "original authored mutation site");
+    text.replace(at, old.size(), value);
+  };
+  for (bool ancestor : {false, true}) {
+    moving::MovingFixture data;
+    if (ancestor)
+      replace(data.json, R"("node":1,"path":"translation")",
+              R"("node":0,"path":"translation")");
+    else {
+      replace(data.json, R"("children":[1,2])", R"("children":[1])");
+      replace(data.json, R"("node":2,"path":"translation")",
+              R"("node":2,"path":"scale")");
+    }
+    const auto result = run(data, moving::Limits());
+    Require(
+        result.status == repair::GltfWorkflowStatus::kUnsupported &&
+            result.translation.source && !result.translation.source->complete &&
+            !result.translation.writing && result.record &&
+            result.record->Coverage().back().state ==
+                repair::GltfWorkflowCoverageState::kUnsupported,
+        "actual hidden user or strict ancestor prevents translation repair");
+  }
+  {
+    moving::MovingFixture data;
+    // Core-valid four-row JOINTS_0 / WEIGHTS_0 with one joint and default
+    // identity inverse binds; only one of the two shared users selects a skin.
+    constexpr std::size_t kTailBytes = 8, kVertexRows = 4, kVectorWidth = 4;
+    constexpr std::uint32_t kOneBits = 0x3f800000;
+    std::vector<std::byte> attributes(kVertexRows * kVectorWidth, std::byte{});
+    for (std::size_t row = 0; row < kVertexRows; ++row) {
+      moving::Word(attributes, kOneBits);
+      for (std::size_t scalar = 1; scalar < kVectorWidth; ++scalar)
+        moving::Word(attributes, 0);
+    }
+    data.binary.insert(data.binary.end() - kTailBytes, attributes.begin(),
+                       attributes.end());
+    replace(data.json, R"("byteLength":148)", R"("byteLength":228)");
+    replace(
+        data.json, R"(],"accessors":[)",
+        R"(,{"buffer":0,"byteOffset":148,"byteLength":16},{"buffer":0,"byteOffset":164,"byteLength":64}],"accessors":[)");
+    replace(
+        data.json,
+        R"({"bufferView":5,"componentType":5126,"count":4,"type":"VEC2"}])",
+        R"({"bufferView":5,"componentType":5126,"count":4,"type":"VEC2"},{"bufferView":6,"componentType":5121,"count":4,"type":"VEC4"},{"bufferView":7,"componentType":5126,"count":4,"type":"VEC4"}])");
+    replace(data.json, R"("POSITION":0,"TEXCOORD_0":5)",
+            R"("POSITION":0,"TEXCOORD_0":5,"JOINTS_0":6,"WEIGHTS_0":7)");
+    replace(data.json, R"({"mesh":0,"translation":[1,0,0]})",
+            R"({"mesh":0,"skin":0,"translation":[1,0,0]})");
+    replace(data.json, R"("scenes":[)",
+            R"("skins":[{"joints":[3]}],"scenes":[)");
+    const auto result = run(data, moving::Limits());
+    Require(result.status == repair::GltfWorkflowStatus::kUnsupported &&
+                result.translation.source && !result.translation.writing,
+            "actual skin on a shared user refuses new profile");
+  }
+  {
+    moving::MovingFixture data;
+    replace(data.json, R"("indices":1,"material":0)",
+            R"("indices":1,"material":0,"targets":[{"POSITION":0}])");
+    const auto result = run(data, moving::Limits());
+    Require(result.status == repair::GltfWorkflowStatus::kUnsupported &&
+                result.translation.source && !result.translation.writing,
+            "actual morph declaration refuses new profile");
+  }
+  {
+    moving::MovingFixture data;
+    const auto resources = data.Resources();
+    auto request = moving::Request(data, resources);
+    request.repair.row_local_attributes = {};
+    const auto result = repair::RunGltfDuplicateWorkflow(
+        request, moving::Limits(), moving::Work(), context);
+    const auto* diagnostic =
+        std::get_if<repair::MaterializedDuplicateDiagnostic>(
+            &result.diagnostic.delegated);
+    Require(
+        result.status == repair::GltfWorkflowStatus::kRejected && diagnostic &&
+            diagnostic->stage ==
+                repair::MaterializedDuplicateStage::kEligibility &&
+            diagnostic->code == repair::MaterializedDuplicateDiagnosticCode::
+                                    kUnsupportedAttribute &&
+            diagnostic->attribute == 0 && result.translation.source &&
+            result.translation.source->complete &&
+            !result.translation.writing && result.record &&
+            result.record->Source() &&
+            result.outcomes.exit ==
+                repair::GltfWorkflowExitMeaning::kRejectedOrIncomplete,
+        "removing the explicit raw UV declaration keeps genuine old "
+        "eligibility refusal");
+    const auto attributes = result.record->Source()->Mesh().View().attributes;
+    Require(!attributes.empty(), "actual rejected source attribute exists");
+    const auto& attribute = attributes[0];
+    Require(attribute.domain == geo::AttributeDomain::vertex &&
+                attribute.name == "TEXCOORD_0" &&
+                attribute.semantic == "TEXCOORD_0" && attribute.components == 2,
+            "actual rejected attribute is the declared original UV row, not an "
+            "inferred channel");
+  }
+  {
+    moving::MovingFixture data;
+    constexpr std::size_t kSecondTimeByte = 64;
+    std::fill_n(data.binary.begin() + kSecondTimeByte, moving::kFloatBytes,
+                std::byte{});
+    const auto result = run(data, moving::Limits());
+    Require(
+        result.status == repair::GltfWorkflowStatus::kDelegatedFailure &&
+            result.translation.source &&
+            result.translation.source->status == ic::GltfStatus::kMalformed &&
+            result.record && result.record->Coverage().back().passed == false,
+        "actual duplicate time is malformed, evaluated translation predicate "
+        "false");
+  }
+  for (bool inspection : {false, true}) {
+    moving::MovingFixture data;
+    auto limits = moving::Limits();
+    if (inspection)
+      limits.verification.direct_translation.max_total_keys = 1;
+    else
+      limits.writing.direct_translation.max_total_keys = 1;
+    const auto result = run(data, limits);
+    const auto& failed = inspection ? result.translation.verification
+                                    : result.translation.writing;
+    Require(
+        failed && failed->status == ic::GltfStatus::kUnsupportedProfile &&
+            result.status ==
+                (inspection ? repair::GltfWorkflowStatus::kVerificationFailure
+                            : repair::GltfWorkflowStatus::kDelegatedFailure) &&
+            result.record && result.record->Repair() &&
+            result.record->Coverage().back().state ==
+                repair::GltfWorkflowCoverageState::kFailed &&
+            !result.record->Coverage().back().passed,
+        "real W/V logical count failure keeps actual internal and outer "
+        "projections distinct");
+  }
+  {
+    moving::MovingFixture data;
+    auto limits = moving::Limits();
+    limits.max_report_bytes = 1;
+    const auto result = run(data, limits);
+    moving::CheckFacts(result.translation, false);
+    Require(result.status == repair::GltfWorkflowStatus::kLimitExceeded &&
+                !result.record && result.retained_repair &&
+                result.diagnostic.stage == repair::GltfWorkflowStage::kReport,
+            "real report refusal retains all completed translation and Repair "
+            "facts without JSON");
+    moving::CheckRepair(*result.retained_repair, true);
+  }
+  {
+    moving::MovingFixture data;
+    auto limits = moving::Limits();
+    limits.report_publication_reload.max_total_keys = 0;
+    const auto result = run(data, limits);
+    Require(
+        result.status == repair::GltfWorkflowStatus::kInvalidConfiguration &&
+            !result.translation.source && !result.record,
+        "explicit carrier admission precedes all asset work");
+  }
+  {
+    moving::MovingFixture data;
+    const auto resources = data.Resources();
+    std::stop_source stop;
+    stop.request_stop();
+    const auto result = repair::RunGltfDuplicateWorkflow(
+        moving::Request(data, resources), moving::Limits(), moving::Work(),
+        context, stop.get_token());
+    Require(result.status == repair::GltfWorkflowStatus::kCanceled &&
+                !result.translation.source && !result.record,
+            "actual pre-entry cancellation has no invented validator facts");
+  }
+  Require(context.ActiveTrackedPayload() == 0 && context.ActiveWorkers() == 0,
+          "all new failure owners and leases released");
+}
+
 }  // namespace
 int main(int argc, char** argv) {
   try {
@@ -586,6 +780,8 @@ int main(int argc, char** argv) {
     LedgerAndConfiguration();
     ChannelsAndAliases(reports);
     ConvertedTopology(reports);
+    repair::test_translation_workflow::MemoryPositive();
+    DirectTranslationFailures();
     std::cout << "Reported native glTF workflow checks passed\n";
   } catch (const std::exception& error) {
     std::cerr << error.what() << '\n';

@@ -13,9 +13,11 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <exception>
+#include <initializer_list>
 #include <iostream>
 #include <limits>
 #include <mutex>
@@ -24,6 +26,7 @@
 #include <span>
 #include <stop_token>
 #include <string_view>
+#include <thread>
 #include <type_traits>
 #include <utility>
 #include <variant>
@@ -31,6 +34,7 @@
 
 #include "gltf_file_workflow_fixture.h"
 #include "gltf_file_workflow_test_internal.h"
+#include "gltf_translation_workflow_fixture.h"
 #include "gltf_workflow_test_internal.h"
 #include "materialized_duplicate_allocation.h"
 #include "materialized_duplicate_workers.h"
@@ -880,6 +884,214 @@ void UnexpectedExceptionsJoin() {
   observers.Joined();
   observers.Empty();
 }
+void TranslationResourceAndStop() {
+  namespace moving = repair::test_translation_workflow;
+  constexpr std::size_t kActualLedgerBytes = 2 * moving::kMiB;
+  constexpr std::size_t kRemainingBytes = 1;
+  constexpr std::byte kOwnedValue{0x5a};
+  using OwnedBytes = std::vector<std::byte, own::Allocator<std::byte>>;
+  const auto occupy = [&](const geo::ExecutionContext& context) {
+    const auto before = context.ActiveTrackedPayload();
+    const auto available = context.TrackedPayloadBudget() - before;
+    const auto prefix = own::AllocationRequestBytes(1, alignof(std::byte)) - 1;
+    Require(available > prefix + kRemainingBytes,
+            "real payload construction headroom");
+    const auto count = available - prefix - kRemainingBytes;
+    const auto charge = own::AllocationRequestBytes(count, alignof(std::byte));
+    const own::AllocationContext allocation(context, {});
+    OwnedBytes owner(count, kOwnedValue, own::Allocator<std::byte>(allocation));
+    Require(
+        owner.size() == count && owner.capacity() == count &&
+            owner.front() == kOwnedValue && owner.back() == kOwnedValue &&
+            owner.get_allocator().Context().SharesBudget(allocation) &&
+            context.ActiveTrackedPayload() - before == charge &&
+            context.TrackedPayloadBudget() - context.ActiveTrackedPayload() ==
+                kRemainingBytes,
+        "actual owned storage and shared ledger, not a synthetic reservation");
+    return owner;
+  };
+  geo::ExecutionContext context({moving::kWorkers, 1, kActualLedgerBytes});
+  moving::MovingFixture data;
+  const auto resources = data.Resources();
+  const auto original_bytes = data.binary;
+  const auto original_json = data.json;
+  const auto request = moving::Request(data, resources);
+  const auto run = [&](const auto& limits) {
+    return repair::RunGltfDuplicateWorkflow(request, limits, moving::Work(),
+                                            context);
+  };
+  {
+    const auto accepted = run(moving::Limits());
+    Require(
+        accepted.record &&
+            accepted.status == repair::GltfWorkflowStatus::kSuccess,
+        "unchanged positive operation caps admit real small-ledger workflow");
+    moving::CheckFacts(accepted.translation, false);
+  }
+  Require(context.ActiveTrackedPayload() == 0,
+          "positive workflow owners released");
+  {
+    auto capped = moving::Limits();
+    capped.max_new_requested_bytes = 1;
+    const auto limited = run(capped);
+    Require(limited.status == repair::GltfWorkflowStatus::kBudgetExceeded &&
+                !limited.record && !limited.translation.source &&
+                !limited.translation.writing && !limited.translation.reload &&
+                !limited.translation.verification &&
+                !limited.translation.publication_reload &&
+                !limited.translation.publication_verification,
+            "own operation-cap refusal without fake helper work");
+  }
+  {
+    geo::ExecutionContext foreign({moving::kWorkers, 1, kActualLedgerBytes});
+    const auto owner = occupy(foreign);
+    const auto accepted = run(moving::Limits());
+    Require(accepted.status == repair::GltfWorkflowStatus::kSuccess &&
+                !owner.empty(),
+            "foreign actual owned payload cannot occupy workflow ledger");
+  }
+  Require(context.ActiveTrackedPayload() == 0,
+          "foreign control releases only real workflow charges");
+  {
+    const auto owner = occupy(context);
+    const auto occupied = context.ActiveTrackedPayload();
+    const auto refused = run(moving::Limits());
+    Require(refused.status == repair::GltfWorkflowStatus::kBudgetExceeded &&
+                !refused.record && !refused.translation.source &&
+                !refused.retained_repair && !owner.empty() &&
+                context.ActiveTrackedPayload() == occupied &&
+                context.ActiveWorkers() == 0,
+            "actual shared-ledger seed refusal differs from operation cap with "
+            "unchanged configuration");
+  }
+  Require(context.ActiveTrackedPayload() == 0,
+          "last real payload storage free releases charge");
+  {
+    const auto retry = run(moving::Limits());
+    Require(
+        retry.status == repair::GltfWorkflowStatus::kSuccess && retry.record,
+        "same positive operation caps succeed after pressure release");
+    moving::CheckFacts(retry.translation, false);
+    moving::CheckRepair(*retry.record->Repair(), true);
+  }
+  {
+    constexpr std::size_t kSampleKeys = 4096, kPositionAndIndexBytes = 60;
+    constexpr std::uint64_t kKeyPartition = 1024;
+    constexpr std::size_t kOriginalUvOffset = 116, kTranslationWidth = 3;
+    constexpr std::uint64_t kSerialThreshold =
+        static_cast<std::uint64_t>(std::numeric_limits<std::ptrdiff_t>::max());
+    moving::MovingFixture large;
+    std::vector<std::byte> expanded(
+        large.binary.begin(), large.binary.begin() + kPositionAndIndexBytes);
+    for (std::size_t key = 0; key < kSampleKeys; ++key)
+      moving::Word(expanded,
+                   std::bit_cast<std::uint32_t>(static_cast<float>(key)));
+    for (std::size_t axis : {std::size_t{0}, std::size_t{1}})
+      for (std::size_t key = 0; key < kSampleKeys; ++key)
+        for (std::size_t scalar = 0; scalar < kTranslationWidth; ++scalar)
+          moving::Word(expanded, scalar == axis ? std::bit_cast<std::uint32_t>(
+                                                      static_cast<float>(key))
+                                                : 0);
+    expanded.insert(expanded.end(), large.binary.begin() + kOriginalUvOffset,
+                    large.binary.end());
+    large.binary = std::move(expanded);
+    const auto replace = [&](std::string_view old, std::string_view value) {
+      const auto at = large.json.find(old);
+      Require(at != std::string::npos, "large original literal site");
+      large.json.replace(at, old.size(), value);
+    };
+    replace(R"("byteLength":148)", R"("byteLength":114780)");
+    replace(R"("byteOffset":60,"byteLength":8)",
+            R"("byteOffset":60,"byteLength":16384)");
+    replace(R"("byteOffset":68,"byteLength":24)",
+            R"("byteOffset":16444,"byteLength":49152)");
+    replace(R"("byteOffset":92,"byteLength":24)",
+            R"("byteOffset":65596,"byteLength":49152)");
+    replace(R"("byteOffset":116,"byteLength":32)",
+            R"("byteOffset":114748,"byteLength":32)");
+    for (std::size_t accessor = 0; accessor < kTranslationWidth; ++accessor)
+      replace(R"("count":2)", R"("count":4096)");
+    replace(R"("type":"SCALAR","min":[0],"max":[1])",
+            R"("type":"SCALAR","min":[0],"max":[4095])");
+    const auto supplied = large.Resources();
+    auto limits = moving::Limits();
+    for (auto* cap : {&limits.extraction.direct_translation,
+                      &limits.writing.direct_translation,
+                      &limits.reload_extraction.direct_translation,
+                      &limits.verification.direct_translation})
+      cap->max_total_keys = 2 * kSampleKeys;
+    auto work = moving::Work();
+    work.interchange.parallel_min_resource_bytes = kSerialThreshold;
+    work.interchange.parallel_min_channel_components = kSerialThreshold;
+    work.geometry.parallel_min_bytes = work.writing.parallel_min_bytes =
+        work.verification.parallel_min_bytes = work.report.parallel_min_bytes =
+            kSerialThreshold;
+    work.interchange.direct_translation.partition_keys = kKeyPartition;
+    work.writing.direct_translation.partition_keys = kKeyPartition;
+    work.verification.direct_translation.partition_keys = kKeyPartition;
+    std::atomic<bool> done{false}, observed{false};
+    std::stop_source stop;
+    // Observe the real public shared worker lease. Other numerical/byte work is
+    // serial here; this is a caller-owned witness thread, not a product pool.
+    std::jthread witness([&](std::stop_token observer_stop) {
+      while (!observer_stop.stop_requested() && !done.load() &&
+             context.ActiveWorkers() == 0)
+        std::this_thread::yield();
+      if (!observer_stop.stop_requested() && !done.load()) {
+        observed = true;
+        stop.request_stop();
+      }
+    });
+    const auto canceled = repair::RunGltfDuplicateWorkflow(
+        moving::Request(large, supplied), limits, work, context,
+        stop.get_token());
+    done = true;
+    witness.request_stop();
+    witness.join();
+    Require(observed &&
+                canceled.status == repair::GltfWorkflowStatus::kCanceled &&
+                !canceled.record &&
+                canceled.outcomes.exit ==
+                    repair::GltfWorkflowExitMeaning::kCanceled &&
+                context.ActiveWorkers() == 0,
+            "real validation worker admission triggers actual stop, joined "
+            "result and no required JSON");
+    Require(canceled.translation.source.has_value(),
+            "validator was actually entered before worker admission");
+    for (const auto* value :
+         {&canceled.translation.source, &canceled.translation.writing,
+          &canceled.translation.reload, &canceled.translation.verification})
+      if (*value)
+        Require((*value)->keys_checked <= 2 * kSampleKeys &&
+                    (*value)->execution.launched_workers ==
+                        (*value)->execution.joined_workers,
+                "actual interrupted/completed work is bounded, retained and "
+                "joined, not a fabricated prefix count");
+  }
+  {
+    Observers observers(context);
+    observers.report.cancel_at = 1;
+    const auto stopped = memory::RunGltfDuplicateWorkflowForTest(
+        request, moving::Limits(), moving::Work(), context,
+        observers.stop.get_token(), observers.Options().memory);
+    moving::CheckFacts(stopped.translation, false);
+    Require(stopped.status == repair::GltfWorkflowStatus::kCanceled &&
+                !stopped.record && stopped.retained_repair &&
+                stopped.execution.report_copy.launched_workers > 0 &&
+                stopped.execution.report_copy.launched_workers ==
+                    stopped.execution.report_copy.joined_workers,
+            "real report-worker stop keeps completed nonprefix-capable "
+            "validator facts, joins and no invented JSON");
+    moving::CheckRepair(*stopped.retained_repair, true);
+    observers.Joined();
+    observers.Empty();
+  }
+  Require(data.binary == original_bytes && data.json == original_json &&
+              context.ActiveTrackedPayload() == 0 &&
+              context.ActiveWorkers() == 0,
+          "all resource/stop owners, workers and caller source preserved");
+}
+
 static_assert(
     std::is_nothrow_copy_constructible_v<repair::MaterializedDuplicateRepair>);
 static_assert(
@@ -904,6 +1116,7 @@ int main() {
     AdmissionAndRejection();
     CopyLifetimeAndHeadroom();
     UnexpectedExceptionsJoin();
+    TranslationResourceAndStop();
     std::cout << "independent retained Repair facts passed\n";
     return 0;
   } catch (const std::exception& error) {
