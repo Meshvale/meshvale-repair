@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-GLTF-TRANSLATION-001 |
 | Version | 0.1.0 |
-| Status | Development candidate; source/package/CI qualification in progress |
+| Status | Implemented development profile; no supported release |
 | Owner | Explicit workflow selection, application presets, API/commands and report projection |
 | Producer | Interchange GLTF-DIRECT-TRANSLATION-001 |
 
@@ -12,9 +12,12 @@ This contract selects an opt-in extension to the existing targeted duplicate-fac
 workflow. It preserves directly authored node-translation tracks while editing
 one shared mesh primitive. It does not evaluate, bake, resample, normalize, blend,
 retarget or render animation. The native/Python/command interfaces below are
-a development candidate. [Implementation qualification](#gtran-verify-001-required-implementation-evidence)
-remains in progress. Use the [matching native SDK cohort](gltf-file-workflow.md)
-when building this candidate.
+an implemented development profile. The required
+[implementation evidence](#gtran-verify-001-required-implementation-evidence) has
+passed source/archive, installed/relocated-consumer and applicable CI/sanitizer
+development checks for the documented producer cohort. Use the
+[matching native SDK cohort](gltf-file-workflow.md). Supported releases and runtime
+floor qualification remain open.
 
 The current static profile and its default, API behavior, report extension and
 closed batch schema remain unchanged. Skin/morph processing, affected

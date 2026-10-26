@@ -2,15 +2,16 @@
 
 ## Unreleased
 
-### Candidate features
+### Development features
 
-- Add the opt-in [direct-translation preservation candidate](docs/gltf-translation.md)
+- Add the implemented opt-in [direct-translation development profile](docs/gltf-translation.md)
   to native and Python glTF/GLB repair, with actual six-stage observations, two
   immutable execution presets, explicit single-command selection and closed
   version-2 mixed batches. Existing static defaults and version-1 batches stay
-  unchanged. This bounded development interface does not add skin/morph or
-  general animation processing. Source/package/installed/relocated and applicable
-  sanitizer/CI qualification must close before implementation/support claims.
+  unchanged. Source/archive, installed/relocated-consumer and applicable
+  CI/sanitizer development checks have passed for the documented producer cohort.
+  Skin/morph and general animation processing, supported releases and runtime
+  floor qualification remain outside this bounded implementation.
 
 ### Documentation
 

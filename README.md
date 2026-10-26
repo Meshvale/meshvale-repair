@@ -22,12 +22,12 @@ The optional [supplied-memory glTF workflow](docs/gltf-workflow.md) composes pub
 
 The development [glTF single and batch commands](docs/gltf-commands.md) use the same file operation for explicit JSON glTF or GLB targets. They prepare all jobs before capture, run in order and preserve exact native receipt bytes. The [installed walkthrough](examples/python/gltf_walkthrough.py) adds `--commands` to compare console, module and batch behavior, including unchanged copies and resource hashes. Final platform qualification remains pending.
 
-The [direct-translation development candidate](docs/gltf-translation.md) selects
-bounded LINEAR/STEP node-translation preservation during shared-primitive repair
-in JSON glTF or GLB. Its native/Python observations, explicit file/single-command
-selection and closed version-2 batch remain under source/package/CI
-qualification. Static defaults stay unchanged. Skin/morph processing and
-broader animation remain outside this candidate profile.
+The implemented [direct-translation development profile](docs/gltf-translation.md)
+preserves bounded LINEAR/STEP node-translation tracks during shared-primitive
+repair in JSON glTF or GLB. It includes native/Python observations, explicit
+file/single-command selection and closed version-2 batches. Static defaults stay
+unchanged. Skin/morph processing and broader animation remain outside this
+profile. No supported release or runtime floor is established.
 
 The [static shared-scene walkthrough](docs/gltf-scene-walkthrough.md) creates two
 transformed instances of one mesh and an unrelated mesh. It repairs the shared

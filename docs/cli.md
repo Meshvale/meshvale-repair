@@ -17,12 +17,12 @@ triangular output as separate states.
 
 The separately selected [glTF command interface](gltf-commands.md) owns its
 explicit primitive policies, prepared native operation, receipt availability and
-bounded batch behavior. Static development behavior and the opt-in translation
-candidate retain their respective qualification boundaries.
+bounded batch behavior. Static processing and the implemented opt-in translation
+profile retain their respective capability and release boundaries.
 
-The glTF command owner also specifies the opt-in
-[direct-translation candidate](gltf-translation.md), whose qualification remains
-in progress. This OBJ command contract is unchanged.
+The glTF command owner also specifies the implemented opt-in
+[direct-translation development profile](gltf-translation.md), which establishes
+no supported release or runtime floor. This OBJ command contract is unchanged.
 
 ## Single asset
 

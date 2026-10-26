@@ -1,5 +1,5 @@
 {
-  "status": "Selected positive development presets; candidate qualification in progress",
+  "status": "Implemented positive development presets; no supported release",
   "balanced-direct-translation-v1": {
     "execution": {
       "worker_budget": 4,

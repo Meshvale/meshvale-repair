@@ -153,6 +153,7 @@ Concurrent immutable reads through separate copies are supported. The separate
 [Python path interface](gltf-python.md) owns capture convenience, application
 presets and Python observations. [Single/batch commands](gltf-commands.md) use
 that same prepared file operation.
-The opt-in [direct-translation candidate](gltf-translation.md) is under
-qualification. Its contract selects bounded direct node-translation
-preservation during the same operation. Static processing remains the default.
+The implemented opt-in [direct-translation development profile](gltf-translation.md)
+preserves its bounded direct node-translation subset during the same operation.
+Static processing remains the default. The profile establishes no supported
+release or runtime floor.
