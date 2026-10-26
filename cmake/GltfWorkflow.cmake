@@ -12,6 +12,64 @@ if(NOT TARGET meshvale::gltf_workflow_support)
   message(FATAL_ERROR "Reported glTF workflow requires the installed Interchange gltf_workflow_support target")
 endif()
 
+# Development packages share 0.0.0; require the selected public feature and
+# compiled getters. The native SDK must still come from one matching producer.
+include(CheckCXXSourceCompiles)
+include(CMakePushCheckState)
+function(meshvale_require_gltf_translation_prerequisites)
+  cmake_push_check_state(RESET)
+  if(CMAKE_BUILD_TYPE)
+    set(CMAKE_TRY_COMPILE_CONFIGURATION "${CMAKE_BUILD_TYPE}")
+  else()
+    set(CMAKE_TRY_COMPILE_CONFIGURATION Release)
+  endif()
+  unset(MESHVALE_INTERCHANGE_TRANSLATION_PREREQUISITES CACHE)
+  set(CMAKE_REQUIRED_LIBRARIES meshvale::gltf_workflow_support)
+  check_cxx_source_compiles("#include <meshvale/interchange/gltf.h>
+  #include <meshvale/interchange/gltf_topology_write.h>
+  #include <meshvale/interchange/gltf_workflow_support.h>
+  namespace ic = meshvale::interchange;
+  static_assert(static_cast<unsigned>(ic::GltfProcessingProfile::kStaticLocalTrianglesV1) == 0);
+  static_assert(static_cast<unsigned>(ic::GltfProcessingProfile::kDirectTranslationTrianglesV1) == 1);
+  int main() {
+    static_assert(requires(ic::GltfExtractionRequest request,
+                           ic::GltfExtractionLimits extraction,
+                           ic::GltfTopologyWriteLimits writing,
+                           ic::GltfTopologyOutputInspectionLimits verification,
+                           ic::GltfWorkPolicy extraction_work,
+                           ic::GltfTopologyWriteWorkPolicy writing_work,
+                           ic::GltfTopologyOutputInspectionWorkPolicy verification_work,
+                           ic::GltfExtractionResult extracted,
+                           ic::GltfTopologyWriteResult written,
+                           ic::GltfTopologyOutputInspectionResult inspected) {
+      request.processing_profile = ic::GltfProcessingProfile::kDirectTranslationTrianglesV1;
+      extraction.direct_translation.max_new_requested_bytes = 1;
+      writing.direct_translation = extraction.direct_translation;
+      verification.direct_translation = extraction.direct_translation;
+      extraction_work.direct_translation.max_jobs = 1;
+      writing_work.direct_translation = extraction_work.direct_translation;
+      verification_work.direct_translation = extraction_work.direct_translation;
+      extracted.direct_translation.reset();
+      written.direct_translation.reset();
+      inspected.direct_translation.reset();
+    });
+    auto volatile source_facts = &ic::GltfPrimitiveExtraction::DirectTranslationFacts;
+    auto volatile source_profile = &ic::GltfPrimitiveExtraction::ProcessingProfile;
+    auto volatile source_proof = &ic::GltfPrimitiveExtraction::DirectTranslation;
+    auto volatile source_work = &ic::GltfAsset::DirectTranslationWork;
+    auto volatile writing_facts = &ic::GltfTopologyWriteBundle::DirectTranslationFacts;
+    auto volatile verification_facts = &ic::GltfTopologyOutputInspection::DirectTranslationFacts;
+    return source_facts == nullptr || source_profile == nullptr ||
+           source_proof == nullptr || source_work == nullptr ||
+           writing_facts == nullptr || verification_facts == nullptr;
+  }" MESHVALE_INTERCHANGE_TRANSLATION_PREREQUISITES)
+  cmake_pop_check_state()
+  if(NOT MESHVALE_INTERCHANGE_TRANSLATION_PREREQUISITES)
+    message(FATAL_ERROR "Reported glTF workflow requires the Interchange direct-translation profile, policy, result and compiled getter interfaces; use the documented matching producer revision")
+  endif()
+endfunction()
+meshvale_require_gltf_translation_prerequisites()
+
 add_library(meshvale_repair_gltf_workflow STATIC
   src/gltf_workflow.cpp src/gltf_workflow_report.cpp)
 add_library(meshvale::gltf_workflow ALIAS meshvale_repair_gltf_workflow)

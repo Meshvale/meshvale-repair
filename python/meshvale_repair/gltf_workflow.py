@@ -13,22 +13,31 @@ except AttributeError as error:
 
 # One module-owned session, with native ownership retained by returned records.
 _DEFAULT_EXECUTION = GltfExecution()
+_STATIC_PROFILE = "static-local-triangles-v1"
+_TRANSLATION_PROFILE = "direct-translation-v1"
+# An immutable policy handle copies the same native context; no second pool.
+_DEFAULT_TRANSLATION_EXECUTION = _DEFAULT_EXECUTION._direct_translation_policy()
 
 
 def _prepare_gltf_request(
     source, destination, targets, *,
     primitive_ordinal, triangles, values,
+    processing_profile=_STATIC_PROFILE,
     input_id="source", resource_root=None, row_local_attributes=(),
     report_path="receipts/report.json", execution=None, cancellation=None,
     retain_failure_facts=False,
 ):
     """Own all conversions and the final result without reading an asset."""
+    if execution is None:
+        execution = (_DEFAULT_TRANSLATION_EXECUTION
+                     if processing_profile == _TRANSLATION_PROFILE else _DEFAULT_EXECUTION)
     return _repair._prepare_gltf_file(
         source, destination, targets,
         primitive_ordinal=primitive_ordinal, triangles=triangles, values=values,
+        processing_profile=processing_profile,
         input_id=input_id, resource_root=resource_root,
         row_local_attributes=row_local_attributes, report_path=report_path,
-        execution=_DEFAULT_EXECUTION if execution is None else execution,
+        execution=execution,
         cancellation=cancellation,
         retain_failure_facts=retain_failure_facts,
     )
@@ -40,6 +49,7 @@ _run_gltf_request = _repair._run_gltf_file
 def repair_gltf_file(
     source, destination, targets, *,
     primitive_ordinal, triangles, values,
+    processing_profile=_STATIC_PROFILE,
     input_id="source", resource_root=None, row_local_attributes=(),
     report_path="receipts/report.json", execution=None, cancellation=None,
     retain_failure_facts=False,
@@ -53,6 +63,7 @@ def repair_gltf_file(
     prepared = _prepare_gltf_request(
         source, destination, targets,
         primitive_ordinal=primitive_ordinal, triangles=triangles, values=values,
+        processing_profile=processing_profile,
         input_id=input_id, resource_root=resource_root,
         row_local_attributes=row_local_attributes, report_path=report_path,
         execution=execution, cancellation=cancellation,

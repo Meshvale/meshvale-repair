@@ -16,13 +16,16 @@ separate development interfaces.
 The dependency baseline is Geometry
 [`48298b24be7c132816fb5580d22d58bde61558d0`](https://github.com/Meshvale/meshvale-geometry/tree/48298b24be7c132816fb5580d22d58bde61558d0)
 and Interchange
-[`1b1cf0583cd227c0845441c04cb720d231e9ec08`](https://github.com/Meshvale/meshvale-interchange/tree/1b1cf0583cd227c0845441c04cb720d231e9ec08).
+[`33f483d2f5bed45dd2c3273957c08c404fc03bee`](https://github.com/Meshvale/meshvale-interchange/tree/33f483d2f5bed45dd2c3273957c08c404fc03bee).
 Follow their public
 [Geometry build instructions](https://github.com/Meshvale/meshvale-geometry/blob/48298b24be7c132816fb5580d22d58bde61558d0/ENVIRONMENT.md)
-and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/1b1cf0583cd227c0845441c04cb720d231e9ec08/docs/gltf-files.md)
+and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/33f483d2f5bed45dd2c3273957c08c404fc03bee/docs/gltf-files.md)
 to install matching compiler/configuration/runtime packages. Enable Interchange
-files, topology writing and workflow support. Use fresh build directories and
-match sanitizer flags across all producers and the consumer.
+files, topology writing and workflow support. These native snapshots advertise
+version `0.0.0`; source/features and matching compiler/configuration/runtime
+remain part of the dependency selection. The optional Interchange Python
+wheel follows the separate [Python dependency](python.md). Use fresh build
+directories and match sanitizer flags across all producers and the consumer.
 
 With `GEOMETRY_PREFIX`, `INTERCHANGE_PREFIX` and `REPAIR_PREFIX` set to your
 installed/new output directories, the following CMake commands configure the
@@ -132,13 +135,24 @@ file-workflow total, peak or RSS guarantee. The report's wrapper byte sample is
 explicitly taken before receipt buffers/jobs; the record getter is the live
 counter.
 
+The file result exposes inline `translation` facts and its record exposes
+`TranslationFacts()` with the same borrowed-reference lifetime as the
+[memory result](gltf-workflow.md). Each optional slot copies an actual returned
+producer observation; staged publication can supply the final reload and
+verification slots. The publisher prepares its conditional receipt before
+finalization; later returned observations do not rewrite committed report bytes.
+The file wrapper copies its actual publication extraction/inspection caps into
+the memory operation's two report-only publication carriers.
+`GltfDuplicateFileMemoryLimits` has no additional carrier fields.
+
 All borrowed input/options/context/backend observer state remains unchanged and
 alive through synchronous return and every worker join. The copy-only record
 retains source, memory and any actual published owners after caller destruction.
 Original allocator backend state must outlive the last retained block free.
 Concurrent immutable reads through separate copies are supported. The separate
 [Python path interface](gltf-python.md) owns capture convenience, application
-presets and Python observations. Single/batch glTF commands remain later work.
-The separately selected [direct-translation contract](gltf-translation.md)
-defines a future explicit animation-preserving profile. Its implementation and
-qualification are pending; the static/default behavior documented here is unchanged.
+presets and Python observations. [Single/batch commands](gltf-commands.md) use
+that same prepared file operation.
+The opt-in [direct-translation candidate](gltf-translation.md) is under
+qualification. Its contract selects bounded direct node-translation
+preservation during the same operation. Static processing remains the default.

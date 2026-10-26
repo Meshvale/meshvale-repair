@@ -19,6 +19,8 @@ GEOMETRY_REVISION = "48298b24be7c132816fb5580d22d58bde61558d0"
 GEOMETRY_VERSION = "0.0.1.dev134+g48298b24b"
 INTERCHANGE_REVISION = "5b9b695ba1fef166baa8c7cf9ad21a5630691f70"
 INTERCHANGE_VERSION = "0.0.1.dev179+g5b9b695ba"
+# Native SDK and optional Python distribution have separate compatible owners.
+INTERCHANGE_NATIVE_REVISION = "33f483d2f5bed45dd2c3273957c08c404fc03bee"
 PACKAGE = Path(__file__).resolve().parents[1]
 
 
@@ -70,6 +72,13 @@ def prepare():
     assert not subprocess.check_output(["git", "status", "--porcelain"], cwd=source)
     producer = interchange()
     producer.prepare()
+    native_source = root / "interchange-native-source"
+    if not native_source.exists():
+        run("git", "clone", "--filter=blob:none", "--no-checkout",
+            "https://github.com/Meshvale/meshvale-interchange.git", native_source)
+    run("git", "checkout", "--detach", INTERCHANGE_NATIVE_REVISION, cwd=native_source)
+    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=native_source, text=True).strip() == INTERCHANGE_NATIVE_REVISION
+    assert not subprocess.check_output(["git", "status", "--porcelain"], cwd=native_source)
     assert (root / "geometry/NOTICE").read_text().strip() == (PACKAGE / "licenses/meshvale-geometry-notice.txt").read_text().strip()
     for notice in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt"]:
         installed = root / "prefix/share/MeshvaleGeometry/licenses" / notice
@@ -77,9 +86,12 @@ def prepare():
     for notice in ["cgltf.txt", "jsoncons.txt", "tinyobjloader.txt"]:
         assert (source / "licenses" / notice).read_text() == (PACKAGE / "licenses" / notice).read_text(), notice
     assert (source / "NOTICE").read_text() == (PACKAGE / "licenses/meshvale-interchange-notice.txt").read_text()
+    for notice in ["cgltf.txt", "jsoncons.txt", "tinyobjloader.txt"]:
+        assert (native_source / "licenses" / notice).read_text() == (PACKAGE / "licenses" / notice).read_text(), notice
+    assert (native_source / "NOTICE").read_text() == (PACKAGE / "licenses/meshvale-interchange-notice.txt").read_text()
     triplet = "x64-windows-static-md" if sys.platform == "win32" else "x64-linux"
     prefixes = str(root / "prefix") + ";" + str(root / "dependencies" / triplet)
-    run("cmake", "-S", source, "-B", root / "interchange-native",
+    run("cmake", "-S", native_source, "-B", root / "interchange-native",
         "-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release",
         "-DCMAKE_PREFIX_PATH=" + prefixes,
         "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON",
@@ -107,6 +119,7 @@ def prepare():
     (output / "cohort-inputs.json").write_text(json.dumps({
         "geometry_revision": GEOMETRY_REVISION, "geometry_version": GEOMETRY_VERSION,
         "geometry_native_version": "0.0.0", "interchange_revision": INTERCHANGE_REVISION,
+        "interchange_native_revision": INTERCHANGE_NATIVE_REVISION, "interchange_native_version": "0.0.0",
         "interchange_version": INTERCHANGE_VERSION,
         "interchange_native_features": ["gltf_topology_write", "gltf_workflow_support", "gltf_files"]},
         indent=2) + "\n", encoding="utf-8")
@@ -200,6 +213,18 @@ print('Installed reports-only reader passed with native product imports blocked'
 
 def manifest(output):
     root = dependency_root()
+    native_source = root / "interchange-native-source"
+    assert subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=native_source, text=True).strip() == INTERCHANGE_NATIVE_REVISION
+    assert not subprocess.check_output(["git", "status", "--porcelain"], cwd=native_source)
+    cohort_inputs = []
+    for name in ("source-wheels", "wheels"):
+        path = output / name / "cohort-inputs.json"
+        inputs = json.loads(path.read_text(encoding="utf-8"))
+        assert inputs["interchange_native_revision"] == INTERCHANGE_NATIVE_REVISION
+        assert inputs["interchange_revision"] == INTERCHANGE_REVISION
+        assert inputs["interchange_version"] == INTERCHANGE_VERSION
+        cohort_inputs.append({"path": path.relative_to(output).as_posix(),
+                              "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
     artifacts, versions = [], set()
     owners = {"meshvale-geometry": root / "geometry", "meshvale-interchange": root / "interchange", "meshvale-repair": PACKAGE}
     for path in sorted(output.rglob("*")):
@@ -248,6 +273,8 @@ def manifest(output):
     data = {"candidate_only": True, "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "package_version": next(iter(versions)), "geometry_revision": GEOMETRY_REVISION, "geometry_version": GEOMETRY_VERSION,
         "interchange_revision": INTERCHANGE_REVISION, "interchange_version": INTERCHANGE_VERSION,
+        "interchange_native_revision": INTERCHANGE_NATIVE_REVISION, "interchange_native_version": "0.0.0",
+        "cohort_inputs": cohort_inputs,
         "gltf_python_expected_profile": "qualified" if sys.platform == "win32" else "unsupported",
         "cibuildwheel": "4.2.0", "selected_build": os.environ["CIBW_BUILD"], "artifacts": artifacts}
     (output / "manifest.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

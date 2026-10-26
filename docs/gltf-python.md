@@ -11,12 +11,13 @@
 This interface captures one file asset through Interchange and calls the existing
 native retained-file Repair operation exactly once. Native capture, extraction,
 targeted repair, preservation, reporting and publication retain their existing
-owners. The interface handles the selected static primitive; native unsupported
-skin, morph, animation and extension cases remain explicit outcomes.
+owners. Static processing is the default; the explicit translation profile
+admits its bounded animation subset. Native unsupported skin, morph, other
+affected animation and extension cases remain explicit outcomes.
 
-The separately selected [direct-translation contract](gltf-translation.md)
-defines a future explicit animation-preserving profile. Its implementation and
-qualification are pending; the static/default behavior documented here is unchanged.
+The opt-in [direct-translation candidate](gltf-translation.md) is under
+qualification. Its contract selects bounded direct node-translation
+preservation during the same operation. Static processing remains the default.
 
 ## GLTF-PY-REQUEST-001: Explicit request
 
@@ -24,6 +25,7 @@ qualification are pending; the static/default behavior documented here is unchan
 repair_gltf_file(
     source, destination, targets, *,
     primitive_ordinal, triangles, values,
+    processing_profile="static-local-triangles-v1",
     input_id="source", resource_root=None, row_local_attributes=(),
     report_path="receipts/report.json", execution=None, cancellation=None,
     retain_failure_facts=False,
@@ -68,15 +70,24 @@ release of completed repair payload when no native memory record survives.
 It is per invocation, with no execution-session setting. Retained failures can
 consume later session headroom until their last owning result is released.
 
+`processing_profile` accepts `static-local-triangles-v1` or the opt-in
+`direct-translation-v1`. The [translation contract](gltf-translation.md) owns
+its admission rules, preset compatibility and reached-stage observations.
+An incompatible explicit preset is rejected before filesystem work.
+
 ## GLTF-PY-EXECUTION-001: Owned sessions and cancellation
 
 `GltfExecution(preset="balanced-v1")` owns one native execution context and the
 complete immutable application preset. `serial-reference-v1` uses the same caps
 with one worker and caller-only thresholds. Resolved preset values are observable;
-changing a detached observation never changes the session.
+changing a detached observation never changes the session. The opt-in
+`balanced-direct-translation-v1` and `serial-direct-translation-v1` presets
+supply the [complete translation policy](gltf-translation.md#gtran-presets-001-positive-configuration-and-real-shared-bounds).
+They may also run static processing; the original two presets retain their values.
 
 `execution=None` selects one Python module-owned default session for that
-interpreter. Default-session calls, including concurrent calls and retained
+interpreter. The static and translation balanced policy handles share that
+same context. Default-session calls, including concurrent calls and retained
 results, share its 512 MiB declared native payload ledger and at most four native
 workers. An explicit `GltfExecution()` creates an independent session. Native C++
 does not cache a process-global Python object. This selects no additional
@@ -115,6 +126,8 @@ and best-effort cleanup, without asserting an invented cleanup outcome.
 | Property | Observation |
 |---|---|
 | `workflow_started` | Whether the retained-file operation was invoked |
+| `processing_profile` | Actual selected string, including when capture fails |
+| `translation_facts` | `None` for static processing; otherwise a fresh detached seven-key dictionary of the selected profile and nullable actual producer returns, as defined by [GTRAN-REPORT-001](gltf-translation.md#gtran-report-001-closed-new-mode-observations) |
 | `capture_status`, `capture_diagnostic`, `capture_execution` | Exact native capture observations |
 | `status`, `outcomes`, `diagnostic`, `execution` | Exact native workflow observations; `None` when capture prevented the operation |
 | `memory_outcomes` | Exact optional returned inner outcomes, even without a memory record; `None` if the inner operation never returned |
@@ -125,6 +138,11 @@ and best-effort cleanup, without asserting an invented cleanup outcome.
 | `report_json` | Exact nonempty native report bytes copied on access; otherwise `None` |
 | `face_map`, `corner_map`, `source_faces`, `source_corners` | Immutable tuple copies of the reached native repair owner's actual maps; otherwise `None` |
 | `input_snapshot_counts`, `candidate_snapshot_counts` | Optional immutable `(vertices, faces, corners)` tuples from the actual completed Repair owner; otherwise `None` |
+
+`translation_facts` reads owned observations directly. It does not parse a
+report or run validation; changing the detached dictionary cannot change the
+native result or receipt. Enum observations use integer ordinals. The getter
+may allocate after completion; allocation failure cannot alter that completion.
 
 Maps and counts use the ordinary memory Repair owner or the mutually exclusive
 opt-in fallback. No pre-repair snapshot is inferred. `requested_bytes.retained_repair`

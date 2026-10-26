@@ -43,8 +43,10 @@ WorkflowState::WorkflowState(const allocation::AllocationContext& allocator)
     coverage[i].check = static_cast<GltfWorkflowCheck>(i);
     coverage[i].reason = GltfWorkflowDiagnosticCode::kBlockedByEarlierStage;
   }
-  coverage.back().state = GltfWorkflowCoverageState::kUnsupported;
-  coverage.back().reason = GltfWorkflowDiagnosticCode::kSolidCheckUnavailable;
+  auto& solid =
+      coverage[static_cast<std::size_t>(GltfWorkflowCheck::kSolidValidity)];
+  solid.state = GltfWorkflowCoverageState::kUnsupported;
+  solid.reason = GltfWorkflowDiagnosticCode::kSolidCheckUnavailable;
 }
 GltfWorkflowRequestedBytes WorkflowState::Bytes() const noexcept {
   GltfWorkflowRequestedBytes bytes;
@@ -87,7 +89,11 @@ GltfWorkflowOutcomes GltfDuplicateWorkflowRecord::Outcomes() const noexcept {
 }
 std::span<const GltfWorkflowCoverage> GltfDuplicateWorkflowRecord::Coverage()
     const noexcept {
-  return state_->coverage;
+  return std::span(state_->coverage)
+      .first(state_->translation.profile == interchange::GltfProcessingProfile::
+                                                kDirectTranslationTrianglesV1
+                 ? gltf_workflow_detail::kCoverageCount
+                 : gltf_workflow_detail::kStaticCoverageCount);
 }
 std::span<const std::byte> GltfDuplicateWorkflowRecord::ReportJson()
     const noexcept {
@@ -128,6 +134,10 @@ GltfDuplicateWorkflowRecord::ReloadExtractionPolicy() const noexcept {
 const std::optional<interchange::GltfTopologyOutputInspection>&
 GltfDuplicateWorkflowRecord::OutputInspection() const noexcept {
   return state_->inspection;
+}
+const GltfWorkflowTranslationFacts&
+GltfDuplicateWorkflowRecord::TranslationFacts() const noexcept {
+  return state_->translation;
 }
 GltfWorkflowRequestedBytes GltfDuplicateWorkflowRecord::NewRequestedBytes()
     const noexcept {
@@ -188,6 +198,19 @@ void Validate(const ic::GltfExtractionLimits& x) {
   Positive(x.max_triangle_corners);
   Positive(x.max_output_requested_bytes);
 }
+void ValidateTranslation(const ic::GltfDirectTranslationLimits& x) {
+  for (auto n :
+       {x.max_node_rows, x.max_mesh_users, x.max_channel_references,
+        x.max_distinct_samplers, x.max_keys_per_sampler, x.max_total_keys,
+        x.max_relationship_steps, x.max_metadata_bytes, x.max_decoded_bytes,
+        x.max_new_requested_bytes})
+    Positive(n);
+}
+void ValidateTranslation(const ic::GltfDirectTranslationWorkPolicy& x) {
+  for (auto n : {x.parallel_min_keys, x.partition_keys,
+                 x.cancellation_block_keys, x.max_jobs})
+    Positive(n);
+}
 template <class T>
 void ValidateByteWork(const T& x) {
   Positive(x.parallel_min_bytes);
@@ -196,7 +219,8 @@ void ValidateByteWork(const T& x) {
   Positive(x.max_jobs);
 }
 void Validate(const GltfDuplicateWorkflowLimits& x,
-              const GltfDuplicateWorkflowWorkPolicy& w, bool retained = false) {
+              const GltfDuplicateWorkflowWorkPolicy& w, bool retained = false,
+              bool translation = false) {
   for (auto n : {x.max_new_requested_bytes, x.max_input_id_bytes,
                  x.max_reload_bindings, x.max_report_bytes})
     Positive(n);
@@ -241,6 +265,17 @@ void Validate(const GltfDuplicateWorkflowLimits& x,
   ValidateByteWork(w.writing);
   ValidateByteWork(w.verification);
   ValidateByteWork(w.report);
+  if (translation) {
+    ValidateTranslation(x.extraction.direct_translation);
+    ValidateTranslation(x.writing.direct_translation);
+    ValidateTranslation(x.reload_extraction.direct_translation);
+    ValidateTranslation(x.verification.direct_translation);
+    ValidateTranslation(x.report_publication_reload);
+    ValidateTranslation(x.report_publication_verification);
+    ValidateTranslation(w.interchange.direct_translation);
+    ValidateTranslation(w.writing.direct_translation);
+    ValidateTranslation(w.verification.direct_translation);
+  }
   const auto bridge = x.materialization.max_bridge_new_requested_bytes;
   const auto capture =
       x.materialization.materialization.max_new_requested_bytes;
@@ -299,6 +334,13 @@ bool ValidUtf8(std::string_view value) {
 void ValidateRequest(const GltfDuplicateWorkflowRequest& r,
                      const GltfDuplicateWorkflowLimits& l,
                      bool retained = false) {
+  if (r.extraction.processing_profile !=
+          ic::GltfProcessingProfile::kStaticLocalTrianglesV1 &&
+      r.extraction.processing_profile !=
+          ic::GltfProcessingProfile::kDirectTranslationTrianglesV1)
+    Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
+         Code::kConfigurationExtent);
+
   if (r.report_failure_retention != GltfReportFailureRetention::kRelease &&
       r.report_failure_retention !=
           GltfReportFailureRetention::kRetainCompletedRepair)
@@ -367,6 +409,14 @@ void Observe(detail::WorkflowState& s, Check check, bool passed) {
 }
 void ComputeOutcomes(detail::WorkflowState& s, Status status) {
   bool incomplete = false, failed = false;
+  if (s.translation.profile ==
+      ic::GltfProcessingProfile::kDirectTranslationTrianglesV1) {
+    auto& c =
+        s.coverage[static_cast<std::size_t>(Check::kTranslationPreservation)];
+    c = detail::TranslationCoverage(s.translation, false);
+    failed |= c.state == State::kPerformed && c.passed == false;
+    incomplete |= c.state != State::kPerformed;
+  }
   for (std::size_t i = 0; i < detail::kRequiredCheckCount; ++i) {
     const auto& c = s.coverage[i];
     failed |= c.state == State::kPerformed && c.passed == false;
@@ -600,6 +650,7 @@ void RunStages(detail::WorkflowState& s,
         allowance.Cap(effective.max_output_requested_bytes);
     auto r = ic::ExtractGltfPrimitiveCapped(
         *s.read, *primitive, request.extraction, effective, stop);
+    s.translation.source = r.direct_translation;
     if (!r.extraction)
       DelegateFailure(Translate(r.diagnostic.status), Stage::kExtract,
                       Code::kExtract, r.diagnostic.status, r.diagnostic);
@@ -698,6 +749,7 @@ void RunStages(detail::WorkflowState& s,
     auto r = ic::WriteGltfTopologySelection(
         {*s.source, s.repair->CandidateInspection(), kept_faces, kept_corners},
         effective, work.writing, stop);
+    s.translation.writing = r.direct_translation;
     s.execution.writing = r.execution;
     if (!r.bundle) {
       auto status =
@@ -763,6 +815,7 @@ void RunStages(detail::WorkflowState& s,
         allowance.Cap(effective.max_output_requested_bytes);
     auto r = ic::ExtractGltfPrimitiveCapped(*s.reload, *output_primitive,
                                             *s.reload_policy, effective, stop);
+    s.translation.reload = r.direct_translation;
     if (!r.extraction)
       DelegateFailure(Translate(r.diagnostic.status), Stage::kReloadExtract,
                       Code::kReloadExtract, r.diagnostic.status, r.diagnostic);
@@ -783,6 +836,7 @@ void RunStages(detail::WorkflowState& s,
         {*s.source, s.repair->CandidateInspection(), kept_faces, kept_corners,
          *s.written, *s.reload, *s.reload_extraction},
         effective, work.verification, stop);
+    s.translation.verification = r.direct_translation;
     s.execution.verification = r.execution;
     ProjectInspection(s, r);
     if (!r.inspection) {
@@ -809,6 +863,46 @@ void RunStages(detail::WorkflowState& s,
 }  // namespace
 
 namespace gltf_workflow_detail {
+GltfWorkflowCoverage TranslationCoverage(
+    const GltfWorkflowTranslationFacts& facts, bool publication) noexcept {
+  using S = interchange::GltfStatus;
+  using C = interchange::GltfDiagnosticCode;
+  GltfWorkflowCoverage result{
+      GltfWorkflowCheck::kTranslationPreservation,
+      GltfWorkflowCoverageState::kBlocked,
+      {},
+      GltfWorkflowDiagnosticCode::kBlockedByEarlierStage};
+  const auto phase =
+      [&](const std::optional<interchange::GltfDirectTranslationObservation>&
+              value,
+          bool extraction) {
+        if (!value) return false;
+        if (value->status == S::kAccepted && value->complete) return true;
+        if (value->status == S::kMalformed ||
+            value->status == S::kResourceBindingMismatch ||
+            value->status == S::kInvalidSelection ||
+            value->status == S::kForeignOwner) {
+          result.state = GltfWorkflowCoverageState::kPerformed;
+          result.passed = false;
+          result.reason = GltfWorkflowDiagnosticCode::kNone;
+        } else if (value->status == S::kUnsupportedProfile &&
+                   (extraction || value->diagnostic.code != C::kLimitExceeded))
+          result.state = GltfWorkflowCoverageState::kUnsupported;
+        else if (value->status != S::kCanceled)
+          result.state = GltfWorkflowCoverageState::kFailed;
+        return false;
+      };
+  if (!phase(facts.source, true) || !phase(facts.writing, false) ||
+      !phase(facts.reload, true) || !phase(facts.verification, false))
+    return result;
+  if (publication && (!phase(facts.publication_reload, true) ||
+                      !phase(facts.publication_verification, false)))
+    return result;
+  result.state = GltfWorkflowCoverageState::kPerformed;
+  result.passed = true;
+  result.reason = GltfWorkflowDiagnosticCode::kNone;
+  return result;
+}
 namespace {
 struct BaselineCopy {
   std::span<const std::byte> input;
@@ -907,9 +1001,16 @@ GltfDuplicateWorkflowResult RunWorkflow(
     const WorkflowTestOptions& options,
     const RetainedSourceInitialization* retained) {
   GltfDuplicateWorkflowResult result;
+  result.translation.profile = request.extraction.processing_profile;
   std::shared_ptr<detail::WorkflowState> state;
   try {
-    Validate(limits, work, retained != nullptr);
+    Validate(limits, work, retained != nullptr,
+             request.extraction.processing_profile ==
+                 ic::GltfProcessingProfile::kDirectTranslationTrianglesV1);
+    if (retained &&
+        request.extraction.processing_profile ==
+            ic::GltfProcessingProfile::kDirectTranslationTrianglesV1)
+      ValidateTranslation(retained->source.DirectTranslationWork());
     ValidateRequest(request, limits, retained != nullptr);
     if (retained) ValidateRetained(*retained);
     auto allocator =
@@ -918,6 +1019,13 @@ GltfDuplicateWorkflowResult RunWorkflow(
                 static_cast<std::size_t>(limits.max_new_requested_bytes));
     state = std::allocate_shared<detail::WorkflowState>(
         allocation::Allocator<detail::WorkflowState>(allocator), allocator);
+    state->translation.profile = request.extraction.processing_profile;
+    state->translation_limits = {limits.extraction.direct_translation,
+                                 limits.writing.direct_translation,
+                                 limits.reload_extraction.direct_translation,
+                                 limits.verification.direct_translation,
+                                 limits.report_publication_reload,
+                                 limits.report_publication_verification};
     try {
       auto stage_request = request;
       if (retained) {
@@ -974,6 +1082,7 @@ GltfDuplicateWorkflowResult RunWorkflow(
       result.outcomes = state->outcomes;
       result.execution = state->execution;
       RetainCompletedRepair(request, state.get(), result);
+      result.translation = state->translation;
       return result;
     }
     state->UpdateDelegates();
@@ -1007,6 +1116,7 @@ GltfDuplicateWorkflowResult RunWorkflow(
     result.outcomes.exit = GltfWorkflowExitMeaning::kCanceled;
   }
   RetainCompletedRepair(request, state.get(), result);
+  if (state) result.translation = state->translation;
   return result;
 }
 }  // namespace
@@ -1019,7 +1129,12 @@ std::optional<GltfDuplicateWorkflowResult> ValidateRetainedWorkflow(
     const GltfDuplicateWorkflowLimits& limits,
     const GltfDuplicateWorkflowWorkPolicy& work) {
   try {
-    Validate(limits, work, true);
+    Validate(limits, work, true,
+             request.extraction.processing_profile ==
+                 ic::GltfProcessingProfile::kDirectTranslationTrianglesV1);
+    if (request.extraction.processing_profile ==
+        ic::GltfProcessingProfile::kDirectTranslationTrianglesV1)
+      ValidateTranslation(retained.source.DirectTranslationWork());
     ValidateRequest(request, limits, true);
     ValidateRetained(retained);
     return std::nullopt;

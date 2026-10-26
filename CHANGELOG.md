@@ -2,11 +2,17 @@
 
 ## Unreleased
 
-### Documentation
+### Candidate features
 
-- Select the [direct-translation preservation contract](docs/gltf-translation.md)
-  and positive preset table for future implementation. Current static defaults
-  remain unchanged; this is not an implemented feature or support declaration.
+- Add the opt-in [direct-translation preservation candidate](docs/gltf-translation.md)
+  to native and Python glTF/GLB repair, with actual six-stage observations, two
+  immutable execution presets, explicit single-command selection and closed
+  version-2 mixed batches. Existing static defaults and version-1 batches stay
+  unchanged. This bounded development interface does not add skin/morph or
+  general animation processing. Source/package/installed/relocated and applicable
+  sanitizer/CI qualification must close before implementation/support claims.
+
+### Documentation
 
 - Document the implemented [source-version profile](docs/versioning.md) and its
   compiler-free metadata checks. Release/runtime qualification remains separate.
@@ -56,7 +62,7 @@
 
 ### Changed
 
-- The default Python wheel enables the charged and glTF memory/file modules and builds against Geometry `48298b24be7c132816fb5580d22d58bde61558d0` (Python `0.0.1.dev134+g48298b24b`) and Interchange `5b9b695ba1fef166baa8c7cf9ad21a5630691f70` (Python `0.0.1.dev179+g5b9b695ba`). Rebuild all native producers together and retain their parser, Eigen and OBJ notices. Existing OBJ behavior and import boundaries are retained.
+- The default Python wheel enables the charged and glTF memory/file modules. Its native SDK cohort uses Geometry `48298b24be7c132816fb5580d22d58bde61558d0` and Interchange `33f483d2f5bed45dd2c3273957c08c404fc03bee`. Python runtime dependencies remain Geometry `0.0.1.dev134+g48298b24b` and, for assets, Interchange `0.0.1.dev179+g5b9b695ba` from source `5b9b695ba1fef166baa8c7cf9ad21a5630691f70`. Rebuild matching native producers and retain their parser, Eigen and OBJ notices. Existing OBJ behavior and import boundaries are retained.
 
 - Native builds enable the charged module by default and require Geometry `1a364acb0cba4fbf8cd9cccde5c04a1fa4428536`. Select `MESHVALE_REPAIR_MATERIALIZED_DUPLICATES=OFF` for legacy-only builds. Python packaging explicitly selects OFF and retains its existing exact dependency cohort.
 

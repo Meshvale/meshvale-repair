@@ -20,7 +20,9 @@ namespace allocation = materialized_duplicates_detail;
 template <class T>
 using Vector = std::vector<T, allocation::Allocator<T>>;
 inline constexpr std::size_t kRequiredCheckCount = 8;
-inline constexpr std::size_t kCoverageCount = kRequiredCheckCount + 1;
+inline constexpr std::size_t kStaticCoverageCount = kRequiredCheckCount + 1;
+inline constexpr std::size_t kCoverageCount = kStaticCoverageCount + 1;
+inline constexpr std::size_t kTranslationPhaseCount = 6;
 inline constexpr std::size_t kReportIdentityBytes = 256;
 struct ReportExtentFailure {};
 struct WorkflowTestOptions;
@@ -47,6 +49,9 @@ struct WorkflowState {
   GltfWorkflowOutcomes outcomes;
   GltfWorkflowDiagnostic diagnostic;
   GltfWorkflowExecutionStats execution;
+  GltfWorkflowTranslationFacts translation;
+  std::array<interchange::GltfDirectTranslationLimits, kTranslationPhaseCount>
+      translation_limits;
   std::array<GltfWorkflowCoverage, kCoverageCount> coverage;
   std::optional<interchange::GltfAsset> read;
   // A retained read owner is authoritative input, never fresh read traffic.
@@ -70,6 +75,10 @@ struct WorkflowState {
   GltfWorkflowRequestedBytes Bytes() const noexcept;
   void UpdateDelegates();
 };
+// Conjunction over actual called predicates; required phase absence is blocked.
+// Extraction logical limits remain unsupported; W/V logical limits are failed.
+[[nodiscard]] GltfWorkflowCoverage TranslationCoverage(
+    const GltfWorkflowTranslationFacts& facts, bool publication) noexcept;
 struct Access {
   static GltfDuplicateWorkflowRecord Make(
       std::shared_ptr<const WorkflowState> state) noexcept {

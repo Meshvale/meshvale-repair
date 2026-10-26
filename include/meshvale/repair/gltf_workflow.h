@@ -65,6 +65,11 @@ struct GltfDuplicateWorkflowLimits {
   interchange::GltfReadOperationLimits reload;
   interchange::GltfExtractionLimits reload_extraction;
   interchange::GltfTopologyOutputInspectionLimits verification;
+  // Explicit report configuration only: this memory operation never calls
+  // publication validators. Required positive in direct-translation mode;
+  // static mode ignores zero defaults. File wrappers supply their actual caps.
+  interchange::GltfDirectTranslationLimits report_publication_reload{};
+  interchange::GltfDirectTranslationLimits report_publication_verification{};
 };
 struct GltfWorkflowByteWorkPolicy {
   std::uint64_t parallel_min_bytes = 0;
@@ -179,7 +184,25 @@ enum class GltfWorkflowCheck {
   kReloadSelectedPrimitive,
   kRetainedAssetPreservation,
   kSourceUnchanged,
-  kSolidValidity
+  kSolidValidity,
+  kTranslationPreservation
+};
+// Inline actual-return observations, not successful-owner or report
+// projections. Static processing keeps every slot empty. A selected helper
+// remains empty until it actually returns, including configuration/allowance
+// failures before entry. Copies allocate nothing and retain facts after later
+// report refusal.
+struct GltfWorkflowTranslationFacts {
+  interchange::GltfProcessingProfile profile =
+      interchange::GltfProcessingProfile::kStaticLocalTrianglesV1;
+  std::optional<interchange::GltfDirectTranslationObservation> source;
+  std::optional<interchange::GltfDirectTranslationObservation> writing;
+  std::optional<interchange::GltfDirectTranslationObservation> reload;
+  std::optional<interchange::GltfDirectTranslationObservation> verification;
+  std::optional<interchange::GltfDirectTranslationObservation>
+      publication_reload;
+  std::optional<interchange::GltfDirectTranslationObservation>
+      publication_verification;
 };
 struct GltfWorkflowCoverage {
   GltfWorkflowCheck check = GltfWorkflowCheck::kSourceStorage;
@@ -269,6 +292,9 @@ class GltfDuplicateWorkflowRecord {
   [[nodiscard]] const std::optional<interchange::GltfTopologyOutputInspection>&
   OutputInspection() const noexcept;
   [[nodiscard]] GltfWorkflowRequestedBytes NewRequestedBytes() const noexcept;
+  // Borrows this alive, unreassigned record; no validation or allocation.
+  [[nodiscard]] const GltfWorkflowTranslationFacts& TranslationFacts()
+      const noexcept;
 
  private:
   friend struct gltf_workflow_detail::Access;
@@ -291,6 +317,7 @@ struct GltfDuplicateWorkflowResult {
   // allocation. This is not a report or proof of later workflow/publication
   // completion.
   std::optional<MaterializedDuplicateRepair> retained_repair;
+  GltfWorkflowTranslationFacts translation;
 };
 
 // Supplied-memory pipeline: read -> extract -> materialize -> repair ->

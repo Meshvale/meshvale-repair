@@ -273,6 +273,28 @@ constexpr GltfDuplicateFileWorkflowWorkPolicy kWorkflowWork{
     .report = kReportWork,
     .publication = kPublicationWork,
 };
+constexpr std::uint64_t kTranslationWorkflowAllowanceBytes = 301989888;
+constexpr std::uint64_t kTranslationExtractionOutputAllowanceBytes = 41943040;
+constexpr std::uint64_t kTranslationWriterOutputAllowanceBytes = 75497472;
+constexpr std::uint64_t kTranslationInspectionAllowanceBytes = 41943040;
+constexpr interchange::GltfDirectTranslationLimits kTranslationLimits{
+    .max_node_rows = 65536,
+    .max_mesh_users = 65536,
+    .max_channel_references = 4096,
+    .max_distinct_samplers = 4096,
+    .max_keys_per_sampler = 65536,
+    .max_total_keys = 262144,
+    .max_relationship_steps = 1048576,
+    .max_metadata_bytes = 2097152,
+    .max_decoded_bytes = 4194304,
+    .max_new_requested_bytes = 8388608,
+};
+constexpr interchange::GltfDirectTranslationWorkPolicy kTranslationWork{
+    .parallel_min_keys = 16384,
+    .partition_keys = 16384,
+    .cancellation_block_keys = 256,
+    .max_jobs = 64,
+};
 constexpr std::uint64_t kSerialThreshold =
     static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
 }  // namespace
@@ -280,8 +302,49 @@ constexpr std::uint64_t kSerialThreshold =
 GltfPreset MakeGltfPreset(std::string_view name) {
   GltfPreset preset{kExecution, kCaptureLimits, kCaptureWork, kWorkflowLimits,
                     kWorkflowWork};
-  if (name == kBalancedGltfPreset) return preset;
-  if (name != kSerialGltfPreset)
+  const bool translation = name == kBalancedTranslationGltfPreset ||
+                           name == kSerialTranslationGltfPreset;
+  if (translation) {
+    preset.workflow_limits.memory.max_new_requested_bytes =
+        kTranslationWorkflowAllowanceBytes;
+    preset.workflow_limits.memory.extraction.max_output_requested_bytes =
+        kTranslationExtractionOutputAllowanceBytes;
+    preset.workflow_limits.memory.writing.output.max_output_requested_bytes =
+        kTranslationWriterOutputAllowanceBytes;
+    preset.workflow_limits.memory.reload_extraction.max_output_requested_bytes =
+        kTranslationExtractionOutputAllowanceBytes;
+    preset.workflow_limits.memory.verification.max_new_requested_bytes =
+        kTranslationInspectionAllowanceBytes;
+    preset.workflow_limits.publication.extraction.max_output_requested_bytes =
+        kTranslationExtractionOutputAllowanceBytes;
+    preset.workflow_limits.publication.inspection.max_new_requested_bytes =
+        kTranslationInspectionAllowanceBytes;
+    preset.workflow_limits.memory.extraction.direct_translation =
+        kTranslationLimits;
+    preset.workflow_limits.memory.writing.direct_translation =
+        kTranslationLimits;
+    preset.workflow_limits.memory.reload_extraction.direct_translation =
+        kTranslationLimits;
+    preset.workflow_limits.memory.verification.direct_translation =
+        kTranslationLimits;
+    preset.workflow_limits.publication.extraction.direct_translation =
+        kTranslationLimits;
+    preset.workflow_limits.publication.inspection.direct_translation =
+        kTranslationLimits;
+    preset.capture_work.asset.direct_translation = kTranslationWork;
+    preset.workflow_work.memory.interchange.direct_translation =
+        kTranslationWork;
+    preset.workflow_work.memory.writing.direct_translation = kTranslationWork;
+    preset.workflow_work.memory.verification.direct_translation =
+        kTranslationWork;
+    preset.workflow_work.publication.reload.direct_translation =
+        kTranslationWork;
+    preset.workflow_work.publication.inspection.direct_translation =
+        kTranslationWork;
+  }
+  if (name == kBalancedGltfPreset || name == kBalancedTranslationGltfPreset)
+    return preset;
+  if (name != kSerialGltfPreset && name != kSerialTranslationGltfPreset)
     throw std::invalid_argument("unknown glTF execution preset");
   if (std::numeric_limits<std::size_t>::max() < kSerialThreshold)
     throw std::invalid_argument("serial reference requires a 64-bit host");
@@ -320,6 +383,21 @@ GltfPreset MakeGltfPreset(std::string_view name) {
   preset.workflow_work.publication.inspection.max_jobs = 1;
   preset.workflow_work.publication.container.parallel_min_bytes =
       kSerialThreshold;
+  if (translation) {
+    const interchange::GltfDirectTranslationWorkPolicy serial_work{
+        .parallel_min_keys = kSerialThreshold,
+        .partition_keys = kTranslationWork.partition_keys,
+        .cancellation_block_keys = kTranslationWork.cancellation_block_keys,
+        .max_jobs = 1,
+    };
+    preset.capture_work.asset.direct_translation = serial_work;
+    preset.workflow_work.memory.interchange.direct_translation = serial_work;
+    preset.workflow_work.memory.writing.direct_translation = serial_work;
+    preset.workflow_work.memory.verification.direct_translation = serial_work;
+    preset.workflow_work.publication.reload.direct_translation = serial_work;
+    preset.workflow_work.publication.inspection.direct_translation =
+        serial_work;
+  }
   return preset;
 }
 }  // namespace meshvale::repair::python

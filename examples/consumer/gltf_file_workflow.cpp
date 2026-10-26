@@ -18,7 +18,9 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iostream>
+#include <iterator>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -27,6 +29,8 @@
 #include <system_error>
 #include <variant>
 #include <vector>
+
+#include "../../tests/gltf_translation_workflow_fixture.h"
 
 namespace {
 namespace geo = meshvale::geometry;
@@ -288,6 +292,226 @@ repair::GltfDuplicateFileWorkflowWorkPolicy Work() {
       bytes,
       {files.files, files.asset, MemoryWork().verification, files.container}};
 }
+// Original moving-asset physical controls; the memory fixture owns only public
+// data/policy. This file's existing generic publisher oracles remain separate.
+void TranslationPublication() {
+  namespace moving = meshvale::repair::test_translation_workflow;
+  namespace mv = meshvale::repair;
+  namespace interchange = meshvale::interchange;
+  namespace filesystem = std::filesystem;
+  static constexpr std::string_view kRootPrefix =
+      "meshvale-moving-publication-";
+  const auto temporary =
+      filesystem::canonical(filesystem::temp_directory_path());
+  const auto root =
+      temporary /
+      (std::string(kRootPrefix) +
+       std::to_string(
+           std::chrono::steady_clock::now().time_since_epoch().count()));
+  moving::Require(filesystem::create_directory(root),
+                  "fresh owned moving publication root");
+  struct Cleanup {
+    filesystem::path root, parent;
+    ~Cleanup() {
+      std::error_code error;
+      const auto resolved = filesystem::weakly_canonical(root, error);
+      if (!error && resolved.parent_path() == parent &&
+          resolved.filename().string().starts_with(kRootPrefix))
+        filesystem::remove_all(resolved, error);
+    }
+  } cleanup{root, temporary};
+  const auto write = [](const filesystem::path& path,
+                        std::span<const std::byte> bytes) {
+    moving::Require(bytes.size() <= moving::kMiB,
+                    "bounded physical literal write");
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    moving::Require(stream.is_open(), "physical literal opened");
+    stream.write(reinterpret_cast<const char*>(bytes.data()),
+                 static_cast<std::streamsize>(bytes.size()));
+    stream.close();
+    moving::Require(!stream.fail(), "complete physical literal close");
+  };
+  const auto read = [](const filesystem::path& path) {
+    moving::Require(filesystem::file_size(path) <= moving::kMiB,
+                    "bounded physical reopen");
+    std::ifstream stream(path, std::ios::binary);
+    moving::Require(stream.is_open(), "physical bundle member reopened");
+    const std::string bytes{std::istreambuf_iterator<char>(stream), {}};
+    moving::Require(!stream.bad(), "physical full bundle read");
+    return std::vector<std::byte>(moving::Bytes(bytes).begin(),
+                                  moving::Bytes(bytes).end());
+  };
+  for (bool glb : {false, true})
+    for (bool changed : {false, true}) {
+      const auto case_name = std::string(glb ? "glb-" : "json-") +
+                             (changed ? "changed" : "unchanged");
+      const auto case_root = root / case_name;
+      const auto input = case_root / "input";
+      moving::Require(filesystem::create_directory(case_root) &&
+                          filesystem::create_directory(input),
+                      "distinct owned physical case");
+      std::optional<mv::GltfDuplicateFileWorkflowRecord> retained;
+      {
+        meshvale::geometry::ExecutionContext context(
+            {moving::kWorkers, 1, moving::kLedgerBytes});
+        moving::MovingFixture data;
+        std::vector<std::byte> entry;
+        if (glb) {
+          constexpr std::string_view kOriginal =
+              R"({"uri":"moving.bin","byteLength":148})";
+          constexpr std::string_view kEmbedded = R"({"byteLength":156})";
+          const auto at = data.json.find(kOriginal);
+          moving::Require(at != std::string::npos,
+                          "actual literal first-buffer rewrite only");
+          data.json.replace(at, kOriginal.size(), kEmbedded);
+          constexpr std::uint32_t kMagic = 0x46546c67, kVersion = 2;
+          constexpr std::uint32_t kJsonType = 0x4e4f534a, kBinType = 0x004e4942;
+          constexpr std::uint32_t kOpaqueType = 0x31415926,
+                                  kOpaqueWord = 0x1100fe42;
+          constexpr std::size_t kAlignment = 4, kHeaderBytes = 12,
+                                kChunkHeaderBytes = 8;
+          constexpr std::size_t kOriginalChunkCount = 3;
+          auto json = data.json;
+          while (json.size() % kAlignment) json.push_back(' ');
+          const auto size =
+              kHeaderBytes + kOriginalChunkCount * kChunkHeaderBytes +
+              json.size() + data.binary.size() + moving::kFloatBytes;
+          moving::Require(size <= moving::kMiB,
+                          "bounded exact original GLB framing");
+          moving::Word(entry, kMagic);
+          moving::Word(entry, kVersion);
+          moving::Word(entry, static_cast<std::uint32_t>(size));
+          moving::Word(entry, static_cast<std::uint32_t>(json.size()));
+          moving::Word(entry, kJsonType);
+          entry.insert(entry.end(), moving::Bytes(json).begin(),
+                       moving::Bytes(json).end());
+          moving::Word(entry, static_cast<std::uint32_t>(data.binary.size()));
+          moving::Word(entry, kBinType);
+          entry.insert(entry.end(), data.binary.begin(), data.binary.end());
+          moving::Word(entry, moving::kFloatBytes);
+          moving::Word(entry, kOpaqueType);
+          moving::Word(entry, kOpaqueWord);
+        } else {
+          entry.assign(moving::Bytes(data.json).begin(),
+                       moving::Bytes(data.json).end());
+          write(input / moving::kBuffer, data.binary);
+        }
+        write(input / moving::kEntry, entry);
+        write(input / moving::kUnusedBuffer, data.unused);
+        write(input / moving::kRedImage, data.red);
+        write(input / moving::kBlueImage, data.blue);
+        mv::GltfDuplicateFileWorkflowLimits limits;
+        const auto memory = moving::Limits();
+        limits.memory = {memory.max_new_requested_bytes,
+                         memory.max_input_id_bytes,
+                         moving::kMiB,
+                         moving::kCount,
+                         memory.max_reload_bindings,
+                         memory.max_report_bytes,
+                         memory.extraction,
+                         memory.materialization,
+                         memory.repair,
+                         memory.writing,
+                         memory.reload,
+                         memory.reload_extraction,
+                         memory.verification};
+        limits.max_wrapper_new_requested_bytes = moving::kWorkflowBytes;
+        limits.max_source_files = moving::kCount;
+        limits.max_supplemental_files = moving::kCount;
+        limits.max_report_path_bytes = moving::kIdentityBytes;
+        limits.max_report_bytes = moving::kMiB;
+        limits.max_hash_input_bytes = moving::kStageBytes;
+        limits.publication = {
+            {moving::kCount, moving::kCount, moving::kMiB, moving::kStageBytes,
+             moving::kMiB, moving::kMiB, moving::kMiB, moving::kWorkflowBytes},
+            moving::ReadLimits(),
+            memory.extraction,
+            memory.verification,
+            {moving::kMiB, moving::kCount, moving::kStageBytes}};
+        const auto work_memory = moving::Work();
+        constexpr std::uint64_t kFilePartitionBytes = 256, kFileStopBytes = 16;
+        const mv::GltfWorkflowByteWorkPolicy byte_work{
+            1, kFilePartitionBytes, kFileStopBytes, moving::kJobs};
+        const mv::GltfDuplicateFileWorkflowWorkPolicy work{
+            work_memory,
+            byte_work,
+            byte_work,
+            {{kFilePartitionBytes, 1, kFilePartitionBytes, kFileStopBytes,
+              moving::kJobs},
+             work_memory.interchange,
+             work_memory.verification,
+             {1, kFilePartitionBytes}}};
+        const interchange::GltfFileReadLimits capture_limits{
+            limits.publication.files, moving::ReadLimits(),
+            limits.publication.container};
+        const interchange::GltfFileReadWorkPolicy capture_work{
+            work.publication.files, work_memory.interchange,
+            work.publication.container};
+        auto captured = interchange::ReadGltfFileAsset(
+            input / moving::kEntry, {}, capture_limits, capture_work, context);
+        moving::Require(captured.asset.has_value(),
+                        "real moving JSON/GLB file capture");
+        moving::Require(filesystem::weakly_canonical(input).parent_path() ==
+                            filesystem::canonical(case_root),
+                        "owned source removal stays inside exact case root");
+        filesystem::remove_all(input);
+        moving::Require(!filesystem::exists(input),
+                        "captured source removed before real repair");
+        const mv::GltfDuplicateFilePublication publication{
+            case_root / "published", moving::kReport, {}};
+        const mv::GltfDuplicateFileWorkflowRequest request{
+            *captured.asset,
+            moving::kInputId,
+            0,
+            {interchange::GltfTriangleRequest::kRequireTriangles,
+             interchange::GltfValueRequest::kRaw,
+             interchange::GltfProcessingProfile::kDirectTranslationTrianglesV1},
+            changed ? std::span<const mv::DuplicateTarget>(moving::kTargets)
+                    : std::span<const mv::DuplicateTarget>{},
+            {moving::kRowLocalAttributes},
+            &publication};
+        auto result =
+            mv::RunGltfDuplicateFileWorkflow(request, limits, work, context);
+        moving::Require(
+            result.status == mv::GltfWorkflowStatus::kSuccess &&
+                result.record && result.publication &&
+                result.publication->bundle && result.record->Published(),
+            "actual moving file publication commits verified bundle");
+        moving::CheckFacts(result.translation, true);
+        moving::CheckRepair(*result.record->RepairFacts(), changed);
+        moving::CheckOutput(*result.record->Memory(), changed);
+        for (const auto& member : result.record->Published()->Files())
+          moving::Require(
+              std::ranges::equal(read(publication.destination / member.path),
+                                 member.bytes),
+              "physical published member equals actual retained bytes");
+        moving::Require(
+            std::ranges::equal(read(publication.destination / moving::kReport),
+                               result.record->ReportJson()),
+            "committed immutable report matches returned exact receipt");
+        moving::Require(
+            !result.record->ReportJson().empty() &&
+                moving::Text(result.record->ReportJson())
+                        .find("\"publication_reload\":{\"status\":0") !=
+                    std::string_view::npos,
+            "conditional receipt records actual staged facts before commit");
+        if (!changed)
+          moving::Require(std::ranges::equal(
+                              result.record->Published()->EntryBytes(), entry),
+                          "unchanged JSON/GLB retains exact original wire");
+        moving::Require(context.ActiveWorkers() == 0,
+                        "all actual physical workers joined");
+        retained = *result.record;
+      }
+      moving::CheckFacts(retained->TranslationFacts(), true);
+      moving::CheckRepair(*retained->RepairFacts(), changed);
+      moving::Require(
+          retained->Published() && !retained->Published()->Files().empty(),
+          "published source/inspection/report owners survive caller "
+          "destruction");
+    }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -451,6 +675,7 @@ int main(int argc, char** argv) {
         }
       }
     }
+    if (!unsupported) TranslationPublication();
     std::cout << "Installed JSON/GLB changed/no-op workflows, actual receipts, "
                  "reopen and "
                  "lifetime passed\n";

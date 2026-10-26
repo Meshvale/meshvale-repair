@@ -11,6 +11,14 @@
 namespace meshvale::repair::python {
 inline constexpr std::string_view kBalancedGltfPreset = "balanced-v1";
 inline constexpr std::string_view kSerialGltfPreset = "serial-reference-v1";
+inline constexpr std::string_view kBalancedTranslationGltfPreset =
+    "balanced-direct-translation-v1";
+inline constexpr std::string_view kSerialTranslationGltfPreset =
+    "serial-direct-translation-v1";
+inline constexpr std::string_view kStaticGltfProcessingProfile =
+    "static-local-triangles-v1";
+inline constexpr std::string_view kDirectTranslationGltfProcessingProfile =
+    "direct-translation-v1";
 inline constexpr std::string_view kRequireTrianglesPolicy = "require-triangles";
 inline constexpr std::string_view kConvertStripOrFanPolicy =
     "convert-strip-or-fan";

@@ -40,7 +40,8 @@ constexpr std::array<std::string_view, kCoverageCount> kCheckNames{
     "reload-selected-primitive",
     "retained-asset-preservation",
     "source-unchanged",
-    "solid-validity"};
+    "solid-validity",
+    "translation-preservation"};
 constexpr std::array<std::string_view, 11> kStageNames{
     "configuration", "read",   "extract", "materialize",
     "repair",        "write",  "reload",  "reload-extract",
@@ -631,7 +632,8 @@ void FileMaps(Sink& out) {
     out.Raw(kIdentity);
   }
 }
-void FilePublication(Sink& out, const FileReportProjection& file) {
+void FilePublication(Sink& out, const FileReportProjection& file,
+                     bool translation) {
   constexpr std::string_view kRequested = ",\"publication\":{\"requested\":";
   constexpr std::string_view kOutcome = ",\"outcome\":";
   constexpr std::string_view kSnapshot = ",\"snapshot\":";
@@ -673,11 +675,150 @@ void FilePublication(Sink& out, const FileReportProjection& file) {
     out.Raw("null");
   else
     out.String(kFailureReason);
-  out.Raw(kExtension);
+  constexpr std::string_view kTranslationExtension =
+      "},\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"2\",\"native_"
+      "stage\":";
+  out.Raw(translation ? kTranslationExtension : kExtension);
+}
+constexpr std::string_view kTranslationProfile = "direct-translation-v1";
+constexpr std::array<std::string_view, kTranslationPhaseCount>
+    kTranslationPhases{"source",
+                       "writing",
+                       "reload",
+                       "verification",
+                       "publication_reload",
+                       "publication_verification"};
+constexpr std::size_t kTranslationLimitFieldCount = 10;
+constexpr std::size_t kTranslationCounterFieldCount = 10;
+constexpr std::size_t kTranslationWorkFieldCount = 4;
+void TranslationLimits(Sink& out,
+                       const interchange::GltfDirectTranslationLimits& x) {
+  constexpr std::array<std::string_view, kTranslationLimitFieldCount> kKeys{
+      "max_node_rows",          "max_mesh_users",
+      "max_channel_references", "max_distinct_samplers",
+      "max_keys_per_sampler",   "max_total_keys",
+      "max_relationship_steps", "max_metadata_bytes",
+      "max_decoded_bytes",      "max_new_requested_bytes"};
+  const std::array values{x.max_node_rows,          x.max_mesh_users,
+                          x.max_channel_references, x.max_distinct_samplers,
+                          x.max_keys_per_sampler,   x.max_total_keys,
+                          x.max_relationship_steps, x.max_metadata_bytes,
+                          x.max_decoded_bytes,      x.max_new_requested_bytes};
+  out.Raw("{");
+  for (std::size_t i = 0; i < kKeys.size(); ++i) {
+    if (i) out.Raw(",");
+    out.String(kKeys[i]);
+    out.Raw(":");
+    out.Integer(values[i]);
+  }
+  out.Raw("}");
+}
+void TranslationObservation(
+    Sink& out,
+    const std::optional<interchange::GltfDirectTranslationObservation>& value) {
+  if (!value) {
+    out.Raw("null");
+    return;
+  }
+  const auto& x = *value;
+  const auto& d = x.diagnostic;
+  constexpr std::string_view kStatus = "{\"status\":";
+  constexpr std::string_view kDiagnostic = ",\"diagnostic\":{\"status\":";
+  constexpr std::string_view kCode = ",\"code\":";
+  constexpr std::string_view kJsonSpan = ",\"json_span\":";
+  constexpr std::string_view kKind = ",\"resource_kind\":";
+  constexpr std::string_view kIndex = ",\"resource_index\":";
+  constexpr std::string_view kResourceSpan = ",\"resource_span\":";
+  constexpr std::string_view kRule = ",\"rule_id\":";
+  constexpr std::string_view kComplete = "},\"complete\":";
+  constexpr std::string_view kWork = ",\"work\":{";
+  constexpr std::string_view kExecution = "},\"execution\":";
+  constexpr std::array<std::string_view, kTranslationCounterFieldCount>
+      kCounters{"node_rows",
+                "mesh_users",
+                "scanned_channels",
+                "affected_channels",
+                "distinct_samplers",
+                "keys_checked",
+                "decoded_bytes_checked",
+                "relationship_steps",
+                "new_requested_bytes",
+                "effective_request_cap"};
+  const std::array counters{x.node_rows,
+                            x.mesh_users,
+                            x.scanned_channels,
+                            x.affected_channels,
+                            x.distinct_samplers,
+                            x.keys_checked,
+                            x.decoded_bytes_checked,
+                            x.relationship_steps,
+                            x.new_requested_bytes,
+                            x.effective_request_cap};
+  constexpr std::array<std::string_view, kTranslationWorkFieldCount> kWorkKeys{
+      "parallel_min_keys", "partition_keys", "cancellation_block_keys",
+      "max_jobs"};
+  const std::array work{x.work.parallel_min_keys, x.work.partition_keys,
+                        x.work.cancellation_block_keys, x.work.max_jobs};
+  out.Raw(kStatus);
+  out.Integer(static_cast<std::uint64_t>(x.status));
+  out.Raw(kDiagnostic);
+  out.Integer(static_cast<std::uint64_t>(d.status));
+  out.Raw(kCode);
+  out.Integer(static_cast<std::uint64_t>(d.code));
+  out.Raw(kJsonSpan);
+  SpanReceipt(out, d.json_span);
+  out.Raw(kKind);
+  out.OptionalInteger(d.resource_kind);
+  out.Raw(kIndex);
+  out.OptionalInteger(d.resource_index);
+  out.Raw(kResourceSpan);
+  SpanReceipt(out, d.resource_span);
+  out.Raw(kRule);
+  out.Integer(d.rule_id);
+  out.Raw(kComplete);
+  out.Boolean(x.complete);
+  for (std::size_t i = 0; i < kCounters.size(); ++i) {
+    out.Raw(",");
+    out.String(kCounters[i]);
+    out.Raw(":");
+    out.Integer(counters[i]);
+  }
+  out.Raw(kWork);
+  for (std::size_t i = 0; i < kWorkKeys.size(); ++i) {
+    if (i) out.Raw(",");
+    out.String(kWorkKeys[i]);
+    out.Raw(":");
+    out.Integer(work[i]);
+  }
+  out.Raw(kExecution);
+  Stats(out, x.execution);
+  out.Raw("}");
+}
+void TranslationProcessing(Sink& out,
+                           const GltfWorkflowTranslationFacts& facts) {
+  constexpr std::string_view kProcessing = ",\"processing\":{\"profile\":";
+  out.Raw(kProcessing);
+  out.String(kTranslationProfile);
+  const std::array phases{&facts.source,
+                          &facts.writing,
+                          &facts.reload,
+                          &facts.verification,
+                          &facts.publication_reload,
+                          &facts.publication_verification};
+  for (std::size_t i = 0; i < phases.size(); ++i) {
+    out.Raw(",");
+    out.String(kTranslationPhases[i]);
+    out.Raw(":");
+    TranslationObservation(out, *phases[i]);
+  }
+  out.Raw("}");
 }
 void Prefix(Sink& out, const WorkflowState& s,
             const GltfDuplicateWorkflowRequest& r,
             const FileReportProjection* file = nullptr) {
+  const bool translation =
+      r.extraction.processing_profile ==
+      interchange::GltfProcessingProfile::kDirectTranslationTrianglesV1;
   constexpr std::string_view kCompletedExecution = "completed";
   constexpr std::string_view kCancelledExecution = "cancelled";
   constexpr std::string_view kFailedOutcome = "failed";
@@ -809,6 +950,20 @@ void Prefix(Sink& out, const WorkflowState& s,
   } else
     out.Raw(kSha256OperationKindNameVersionOptionsExtractionFields);
   ExtractionPolicy(out, r.extraction);
+  if (translation) {
+    constexpr std::string_view kProfile = ",\"processing_profile\":";
+    constexpr std::string_view kLimits = ",\"direct_translation_limits\":{";
+    out.Raw(kProfile);
+    out.String(kTranslationProfile);
+    out.Raw(kLimits);
+    for (std::size_t i = 0; i < kTranslationPhases.size(); ++i) {
+      if (i) out.Raw(",");
+      out.String(kTranslationPhases[i]);
+      out.Raw(":");
+      TranslationLimits(out, s.translation_limits[i]);
+    }
+    out.Raw("}");
+  }
   out.Raw(kRowLocalAttributesFields);
   bool comma = false;
   for (const auto& declaration : r.repair.row_local_attributes) {
@@ -860,7 +1015,15 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.String(kCandidateSnapshotId);
   else
     out.Raw("null");
-  if (file) {
+  if (translation) {
+    constexpr std::string_view kMemoryProfile =
+        "},\"profile\":{\"name\":\"gltf-direct-translation-duplicate-"
+        "preservation\",\"version\":\"1\",\"required_checks\":[";
+    constexpr std::string_view kFileProfile =
+        "},\"profile\":{\"name\":\"gltf-direct-translation-duplicate-"
+        "publication\",\"version\":\"1\",\"required_checks\":[";
+    out.Raw(file ? kFileProfile : kMemoryProfile);
+  } else if (file) {
     constexpr std::string_view kFileProfileFields =
         "},\"profile\":{\"name\":\"gltf-static-duplicate-publication\","
         "\"version\":\"1\",\"required_checks\":[";
@@ -870,6 +1033,11 @@ void Prefix(Sink& out, const WorkflowState& s,
   for (std::size_t i = 0; i < kRequiredCheckCount; ++i) {
     if (i) out.Raw(",");
     out.String(kCheckNames[i]);
+  }
+  if (translation) {
+    out.Raw(",");
+    out.String(
+        kCheckNames[static_cast<std::size_t>(Check::kTranslationPreservation)]);
   }
   if (file) {
     constexpr std::string_view kStagedChecks =
@@ -914,9 +1082,13 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.Raw("}}");
   }
   out.Raw(kCoverageFields);
-  for (std::size_t i = 0; i < s.coverage.size(); ++i) {
+  for (std::size_t i = 0;
+       i < (translation ? kCoverageCount : kStaticCoverageCount); ++i) {
     if (i) out.Raw(",");
-    const auto& c = s.coverage[i];
+    const auto& c =
+        file && i == static_cast<std::size_t>(Check::kTranslationPreservation)
+            ? file->translation_coverage
+            : s.coverage[i];
     out.Raw(kIdFields);
     out.String(kCheckNames[i]);
     out.Raw(kCheckFields);
@@ -924,7 +1096,8 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.Raw(kVersionScopeFields);
     const bool input_scope = c.check == Check::kSourceStorage ||
                              c.check == Check::kTargetPolicy ||
-                             c.check == Check::kSourceUnchanged;
+                             c.check == Check::kSourceUnchanged ||
+                             c.check == Check::kTranslationPreservation;
     Scope(out,
           input_scope ? (s.source ? kInputSnapshotId : "")
                       : (s.repair ? kCandidateSnapshotId : ""),
@@ -974,8 +1147,15 @@ void Prefix(Sink& out, const WorkflowState& s,
   out.Raw(kPreservationFields);
   Preservation(out, s);
   if (file)
-    FilePublication(out, *file);
-  else
+    FilePublication(out, *file, translation);
+  else if (translation) {
+    constexpr std::string_view kTranslationPublication =
+        ",\"publication\":{\"requested\":false,\"outcome\":\"not-requested\","
+        "\"snapshot\":null,\"artifacts\":[],\"verified\":false,\"reason\":null}"
+        ",\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"2\",\"native_"
+        "stage\":";
+    out.Raw(kTranslationPublication);
+  } else
     out.Raw(kPublicationRequestedOutcomeSnapshotNativeStageFields);
   out.String(kStageNames[static_cast<std::size_t>(s.outcomes.stage)]);
   out.Raw(kRequestedPrimitiveOrdinalFields);
@@ -1075,6 +1255,8 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.Raw(kValueReasonFields);
   } else
     out.Raw("null");
+  if (translation)
+    TranslationProcessing(out, file ? file->translation : s.translation);
   out.Raw(kMemoryOutputVerifiedFields);
   out.Boolean(s.output.has_value());
   out.Raw(kPhaseExecutionFields);

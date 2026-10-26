@@ -176,6 +176,8 @@ def _parser():
     gltf.add_argument("--triangles", required=True,
                       choices=("require-triangles", "convert-strip-or-fan"))
     gltf.add_argument("--values", required=True, choices=("raw", "raw-and-normalized"))
+    gltf.add_argument("--processing-profile", default="static-local-triangles-v1",
+                      choices=("static-local-triangles-v1", "direct-translation-v1"))
     selection = gltf.add_mutually_exclusive_group(required=True)
     selection.add_argument("--target", action="append", metavar="KEEP:REMOVE")
     selection.add_argument("--unchanged", action="store_true")
@@ -211,7 +213,11 @@ def _parser():
     ply_batch = commands.add_parser("ply-batch", help="Process a versioned typed PLY job request")
     ply_batch.add_argument("request")
     ply_batch.add_argument("--fail-fast", action="store_true")
-    for command in (gltf, gltf_batch, off, off_batch, ply, ply_batch):
+    for command in (gltf, gltf_batch):
+        command.add_argument("--preset",
+                             choices=("balanced-v1", "serial-reference-v1",
+                                      "balanced-direct-translation-v1", "serial-direct-translation-v1"))
+    for command in (off, off_batch, ply, ply_batch):
         command.add_argument("--preset", default="balanced-v1",
                              choices=("balanced-v1", "serial-reference-v1"))
     return parser
@@ -308,7 +314,7 @@ def _main_gltf(options, stdout, stderr):
     )
     from .gltf_workflow import GltfCancellation, GltfExecution
     token = GltfCancellation()
-    execution = GltfExecution(preset=options.preset)
+    execution = None if options.preset is None else GltfExecution(preset=options.preset)
     try:
         with _gltf_interrupt(token):
             if options.command == "gltf":
@@ -327,7 +333,7 @@ def _main_gltf(options, stdout, stderr):
                        "row_local_attributes": _pairs(options.row_local),
                        "report_path": options.report_path}
                 result = _run_gltf_single(job, base=Path.cwd(), execution=execution,
-                                           cancellation=token)
+                                           cancellation=token, processing_profile=options.processing_profile)
             else:
                 path = Path(options.request)
                 if not path.is_absolute():

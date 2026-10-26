@@ -210,6 +210,10 @@ class GltfDuplicateFileWorkflowRecord {
   [[nodiscard]] GltfFileWorkflowRequestedBytes NewRequestedBytes()
       const noexcept;
   [[nodiscard]] GltfFileWorkflowByteExecution Execution() const noexcept;
+  // Actual memory and staged helper returns. Borrows this alive, unreassigned
+  // record, independently of immutable receipt/final publisher timing.
+  [[nodiscard]] const GltfWorkflowTranslationFacts& TranslationFacts()
+      const noexcept;
 
  private:
   friend struct gltf_file_workflow_detail::Access;
@@ -228,6 +232,7 @@ struct GltfDuplicateFileWorkflowResult {
   // token.
   std::optional<interchange::GltfFilePublicationResult> publication;
   GltfFileWorkflowByteExecution execution;
+  GltfWorkflowTranslationFacts translation;
 };
 
 // Development native retained-file interface; link
