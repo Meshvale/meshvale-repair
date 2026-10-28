@@ -125,11 +125,14 @@ report and native publication receipt as exact UTF-8 strings; stdout failure
 cannot undo a committed directory. Console SIGINT handling is delayed until a
 Python interpreter boundary and does not promise prompt native interruption.
 
-Focused local Windows x64 MSVC Release CPython 3.13 development checks cover the
+Recorded Windows x64 MSVC Release checks with ordinary CPython 3.13 cover the
 native and installed SDK interfaces, the Python API, single/batch commands and
-legacy behavior. Source-archive, relocation, hosted and actual-main qualification
-remain open for this feature, as do supported releases. No published wheel or
-runtime floor is established.
+legacy behavior. Source-archive and relocated installed-SDK checks have also
+passed, including fresh default-branch CI. GNU 13 checks cover native
+unsupported-profile outcomes and relocated installed consumers. The
+[development workflow](../.github/workflows/off-glb-workflow.yml) owns these
+configured profiles; they do not establish a supported release, published wheel
+or runtime floor.
 
 ## Portable development cohort
 
