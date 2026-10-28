@@ -464,10 +464,11 @@ struct Access {
 };
 namespace {
 template <class T>
-void Retain(std::optional<T>& slot, const T& value) noexcept {
-  static_assert(std::is_nothrow_copy_constructible_v<T>);
+void Retain(std::optional<T>& slot, T&& value) noexcept {
+  // Nontrivial std::optional copies need not be noexcept across libraries.
+  static_assert(std::is_nothrow_move_constructible_v<T>);
   static_assert(std::is_nothrow_destructible_v<T>);
-  slot.emplace(value);
+  slot.emplace(std::move(value));
 }
 Status Map(OffWorkflowStatus s) noexcept {
   switch (s) {
@@ -592,13 +593,13 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflowForTest(
         state->source, request.input_id,   request.targets,
         request.text,  request.edge_count, std::nullopt};
     if (testing.off) {
-      const auto off = off_workflow_detail::RunOffDuplicateFileWorkflowForTest(
+      auto off = off_workflow_detail::RunOffDuplicateFileWorkflowForTest(
           off_request, limits.off, work.off, stop, *testing.off);
-      Retain(state->facts.off, off);
+      Retain(state->facts.off, std::move(off));
     } else {
-      const auto off =
+      auto off =
           RunOffDuplicateFileWorkflow(off_request, limits.off, work.off, stop);
-      Retain(state->facts.off, off);
+      Retain(state->facts.off, std::move(off));
     }
     const auto& off = *state->facts.off;
     Require(off.status == OffWorkflowStatus::kSuccess && off.record, Map(off),
@@ -616,10 +617,10 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflowForTest(
     Checkpoint(testing, *state, stage);
     stage = Stage::kTriangulation;
     {
-      const auto triangulation = geo::TriangulateCharged(
+      auto triangulation = geo::TriangulateCharged(
           repair->Candidate(), request.triangulation_options,
           limits.triangulation, work.triangulation, stop);
-      Retain(state->facts.triangulation, triangulation);
+      Retain(state->facts.triangulation, std::move(triangulation));
     }
     const auto& triangulation = *state->facts.triangulation;
     Require(
@@ -641,9 +642,9 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflowForTest(
           {},
           request.numeric,
           destination};
-      const auto encoding = ic::EncodeSurface(encode_request, limits.encoding,
-                                              work.encoding, stop);
-      Retain(state->facts.encoding, encoding);
+      auto encoding = ic::EncodeSurface(encode_request, limits.encoding,
+                                        work.encoding, stop);
+      Retain(state->facts.encoding, std::move(encoding));
     }
     const auto& encoding = *state->facts.encoding;
     Require(encoding.status == ic::SurfaceStatus::kSuccess && encoding.output,
@@ -659,10 +660,10 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflowForTest(
       state->members.push_back({member.path, member.bytes});
     }
     {
-      const auto inspection =
+      auto inspection =
           ic::InspectSurfaceOutput(*encoding.output, state->members,
                                    limits.inspection, work.inspection, stop);
-      Retain(state->facts.inspection, inspection);
+      Retain(state->facts.inspection, std::move(inspection));
     }
     const auto& inspection = *state->facts.inspection;
     Require(inspection.status == ic::SurfaceStatus::kSuccess &&
@@ -673,7 +674,7 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflowForTest(
     const ic::SurfaceFilePublicationOptions publication_options{
         request.receipt_path, {Provide, state.get()}};
     {
-      const auto publication =
+      auto publication =
           testing.publication_invoker
               ? testing.publication_invoker(
                     *inspection.inspection, request.destination,
@@ -683,7 +684,7 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflowForTest(
                     *inspection.inspection, request.destination,
                     publication_options, limits.publication, work.publication,
                     stop);
-      Retain(state->facts.publication, publication);
+      Retain(state->facts.publication, std::move(publication));
     }
     const auto& publication = *state->facts.publication;
     Require(
