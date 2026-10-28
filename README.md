@@ -68,9 +68,11 @@ directory containing GLB, its polygon/correspondence capsule and a separate
 publication receipt. The Python [prepare/run API and commands](docs/python.md#off-to-annotated-glb)
 require explicit coordinates, precision and projection acknowledgments. The
 original OFF repair report and separately reached export facts remain readable
-after later export failures. Focused Windows x64 MSVC Release CPython 3.13
-development checks have passed; broader package/platform qualification and
-supported releases remain open. No published wheel is established.
+after later export failures. Windows x64 MSVC Release with ordinary CPython 3.13,
+source-archive and relocated installed-SDK development checks have passed,
+including fresh default-branch CI. GNU 13 checks cover native unsupported-profile
+outcomes and relocated installed consumers. A supported release, published wheel
+and runtime floor remain unestablished.
 
 The opt-in [PLY file workflow](docs/ply-workflow.md) captures typed PLY,
 removes explicit duplicate-face targets, verifies canonical output and publishes

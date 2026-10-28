@@ -4,7 +4,7 @@
 |---|---|
 | ID | REPAIR-OFF-SURFACE-001 |
 | Version | 0.3.0 |
-| Status | Implemented opt-in development interface; qualification in progress |
+| Status | Implemented opt-in development interface; recorded development checks passed |
 
 This opt-in workflow repairs explicit duplicate OFF faces once, verifies
 the polygon candidate, and publishes a new annotated GLB directory. It composes
@@ -14,11 +14,13 @@ inspection and file publication. Native/Python APIs and single/batch commands
 are implemented in source. Existing OFF/OBJ/PLY/glTF APIs, command
 names, defaults and producer pins remain unchanged.
 
-Focused local Windows x64 MSVC Release CPython 3.13 development checks cover the
+Recorded Windows x64 MSVC Release checks with ordinary CPython 3.13 cover the
 native and installed SDK interfaces, Python API, single/batch commands and legacy
-behavior. Source-archive, relocation, hosted and actual-main qualification remain
-open for this feature, as do supported releases. No published wheel or runtime
-floor is established.
+behavior. Source-archive and relocated installed-SDK checks have also passed,
+including fresh default-branch CI. GNU 13 checks cover native unsupported-profile
+outcomes and relocated installed consumers. The [development workflow](../.github/workflows/off-glb-workflow.yml)
+owns these configured profiles; they do not establish a supported release,
+published wheel or runtime floor.
 
 The native option is `MESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON` (default
 OFF). Native composition requires matching Geometry/Interchange development
