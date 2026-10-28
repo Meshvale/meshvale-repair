@@ -62,6 +62,16 @@ single command and ordered batch share actual outcomes and correspondence maps.
 The walkthrough checks cyclic quads, unrelated faces and unused signed-zero
 vertices. Qualification remains in progress.
 
+The opt-in [OFF to annotated GLB workflow](docs/off-surface-export.md) repairs
+explicit duplicate faces, verifies the polygon candidate, then publishes a new
+directory containing GLB, its polygon/correspondence capsule and a separate
+publication receipt. The Python [prepare/run API and commands](docs/python.md#off-to-annotated-glb)
+require explicit coordinates, precision and projection acknowledgments. The
+original OFF repair report and separately reached export facts remain readable
+after later export failures. Focused Windows x64 MSVC Release CPython 3.13
+development checks have passed; broader package/platform qualification and
+supported releases remain open. No published wheel is established.
+
 The opt-in [PLY file workflow](docs/ply-workflow.md) captures typed PLY,
 removes explicit duplicate-face targets, verifies canonical output and publishes
 a new PLY entry with its hashed report. It preserves ordered narrow wire schemas,

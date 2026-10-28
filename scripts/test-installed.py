@@ -17,6 +17,23 @@ def run(*args,cwd,env=None):
     subprocess.run([str(part) for part in args],cwd=cwd,env=env,check=True)
 
 
+def off_glb_suite(python, source, count, directory):
+    # A missing test directory, unsupported producer, or skipped drive test must
+    # fail this qualified Windows candidate rather than produce a green gate.
+    code = """import pathlib, sys, unittest
+import meshvale_geometry, meshvale_repair, meshvale_reports
+assert all(pathlib.Path(module.__file__).resolve().is_relative_to(pathlib.Path(sys.prefix).resolve())
+           for module in (meshvale_geometry, meshvale_repair, meshvale_reports))
+suite = unittest.defaultTestLoader.discover(sys.argv[1])
+expected = int(sys.argv[2])
+assert suite.countTestCases() == expected, suite.countTestCases()
+result = unittest.TextTestRunner(verbosity=2).run(suite)
+assert result.testsRun == expected and not result.skipped, (result.testsRun, result.skipped)
+raise SystemExit(0 if result.wasSuccessful() else 1)
+"""
+    run(python, "-I", "-c", code, source, count, cwd=directory)
+
+
 
 def ply_journal_counts(events):
     attempts = sum(event["route"] in ("api", "api-control", "module-batch-job", "console-batch-job",
@@ -126,6 +143,8 @@ if __name__ == "__main__":
                         help="Exercise the installed glTF API with an explicit numerical profile")
     parser.add_argument("--off", choices=["qualified", "unsupported"],
                         help="Exercise the installed OFF API and commands with an explicit numerical profile")
+    parser.add_argument("--off-glb", action="store_true",
+                        help="Exercise all 15 API and 10 command tests on Windows ordinary x64 CPython 3.13")
     parser.add_argument("--interchange-wheel",type=Path,help="Also install and exercise the optional asset workflow")
     parser.add_argument("--ply", action="store_true", help="Run the qualified Windows installed PLY integration")
     parser.add_argument("--ply-fixture-root", type=Path)
@@ -133,6 +152,11 @@ if __name__ == "__main__":
     parser.add_argument("--ply-cases", type=Path, help="Actual public make-cases manifest for the same native run")
     parser.add_argument("--ply-native-version", help="Actual producing native CMake version, not wheel version")
     options = parser.parse_args(); root = Path(__file__).resolve().parents[1]
+    if options.off_glb and (options.off != "qualified" or options.ply or
+            sys.platform != "win32" or sys.version_info[:2] != (3, 13) or
+            sys.implementation.name != "cpython" or sysconfig.get_config_var("Py_GIL_DISABLED") or
+            sys.maxsize <= 2**32 or (hasattr(sys, "_is_gil_enabled") and not sys._is_gil_enabled())):
+        parser.error("--off-glb requires --off qualified and Windows ordinary x64 CPython 3.13, without PLY mode")
     ply_inputs = (options.ply_fixture_root, options.ply_output_root, options.ply_native_version, options.ply_cases)
     if options.ply:
         if not all(ply_inputs) or options.workflow or options.gltf or options.off or options.interchange_wheel:
@@ -190,6 +214,9 @@ if __name__ == "__main__":
                 cwd=directory,env=off_environment)
             run(python,"-I",root/"examples/python/off_walkthrough.py","--commands",*profile_arguments,
                 cwd=directory,env=off_environment)
+        if options.off_glb:
+            off_glb_suite(python, root / "tests/off-glb-python", 15, directory)
+            off_glb_suite(python, root / "tests/off-glb-cli", 10, directory)
         if options.interchange_wheel:
             run(python,"-m","pip","install","--no-index",options.interchange_wheel.resolve(),cwd=directory)
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[assets]",cwd=directory)

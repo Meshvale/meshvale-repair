@@ -22,7 +22,7 @@ def inspect(path):
                 assert len(parts) == 1 or parts[0].endswith(".dist-info"), name
                 continue
             if parts[0] == "meshvale_repair":
-                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","_obj_export.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py","ply_workflow.py","ply_commands.py"} or
+                assert len(parts) == 2 and (parts[1] in {"__init__.py","__main__.py","_version.py","workflow.py","obj_workflow.py","_obj_export.py","commands.py","gltf_workflow.py","gltf_commands.py","off_workflow.py","off_commands.py","ply_workflow.py","ply_commands.py","off_surface_export.py","off_glb_commands.py","_off_glb_schema.py"} or
                     (parts[1].startswith("_repair.") and parts[1].endswith((".pyd",".so")))), name
             else:
                 assert parts[1:] in [("METADATA",), ("WHEEL",), ("RECORD",), ("entry_points.txt",),
@@ -61,6 +61,27 @@ def inspect(path):
                          "cmake/SourceVersion.cmake", "docs/versioning.md", "scripts/check-source-version.py",
                          "scripts/check-cpp-format.py","include/meshvale/repair/duplicates.h",
                          "scripts/check-native-tests.py", "scripts/diagnose-windows-startup.py",
+                         "cmake/OffSurfaceExport.cmake",
+                         "include/meshvale/repair/off_surface_export.h",
+                         "src/off_surface_export.cpp", "src/off_surface_export_internal.h",
+                         "tests/off_surface_export_fixture.h",
+                         "tests/off_surface_export_semantics.cpp",
+                         "tests/off_surface_export_requests.cpp",
+                         "tests/off_surface_export_consumer.cpp",
+                         "tests/off_surface_export_publication_faults.cpp",
+                         "tests/headers/off_surface_export_h.cpp",
+                         "docs/off-surface-export.md", "docs/off-surface-export-presets.json",
+                         "python/off_surface_export_bindings.h",
+                         "python/off_surface_export_bindings.cpp",
+                         "python/off_surface_export_presets.h",
+                         "python/off_surface_export_presets.cpp",
+                         "python/meshvale_repair/off_surface_export.py",
+                         "python/meshvale_repair/off_glb_commands.py",
+                         "python/meshvale_repair/_off_glb_schema.py",
+                         "scripts/off-glb-workflow-ci.py",
+                         "tests/off-glb-python/off_glb_fixture.py",
+                         "tests/off-glb-python/test_off_glb_export.py",
+                         "tests/off-glb-cli/test_off_glb_commands.py",
                          "scripts/check-gltf-python-return.py",
                          "tests/python_native/gltf_binding_module.cpp",
                          "tests/python_native/gltf_binding_observer.h",

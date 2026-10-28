@@ -47,6 +47,90 @@ else:
 
 See the [runnable installed example](../examples/python/remove_duplicate.py), [original Python tests](../tests/python/test_duplicates.py), [dependency inventory](../THIRD_PARTY.md) and [changelog](../CHANGELOG.md). Real format/asset integration and CLI/report policy remain separate work.
 
+## OFF to annotated GLB
+
+The implemented opt-in `meshvale_repair.off_surface_export` module follows
+[REPAIR-OFF-SURFACE-001 v0.3.0](off-surface-export.md). It repairs explicit OFF
+duplicate targets, verifies the polygon candidate, and publishes `surface.glb`,
+`surface.json`, `surface.bin` and the separate `publication.json` receipt into a
+new destination directory, which must not already exist. Coordinates must already
+be meters in a right-handed Y-up basis. No units, basis, normals or materials are
+inferred.
+
+Enable both `MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON` and
+`MESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON` when building the wheel; surface export
+defaults OFF and its Python bindings are compiled only when enabled. In addition
+to the existing OFF/default-wheel requirements, the installed native SDKs must
+export Geometry's `meshvale::charged_triangulation` and Interchange's
+`meshvale::surface_output` and `meshvale::surface_files` targets. Supply compatible
+SDK prefixes; the older default SDK revisions above do not establish these
+features. Native SDK selection remains separate from the unchanged Geometry
+`0.0.1.dev134+g48298b24b` and optional Interchange `0.0.1.dev179+g5b9b695ba` Python
+dependency pins. This module requires no Interchange Python extension. Commands
+use the report dependencies supplied by the `workflow` or `assets` extra.
+
+```sh
+python -m pip wheel . --no-deps --wheel-dir .local/wheels \
+  --config-settings=cmake.define.CMAKE_PREFIX_PATH="$NATIVE_PREFIXES" \
+  --config-settings=cmake.define.MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON \
+  --config-settings=cmake.define.MESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON
+```
+
+Prepare once without capturing the source, then run its fresh native operation:
+
+```python
+from meshvale_repair.off_surface_export import prepare_off_glb_export, run_off_glb_export
+
+prepared = prepare_off_glb_export(
+    "input.off", "output-glb", [(0, 1)],
+    text="canonical-ascii", edge_count="unknown-zero",
+    coordinates="meters-right-handed-y-up", precision="exact32",
+    max_position_error=0.0,
+    acknowledge_triangle_conversion=True,
+    acknowledge_corner_expansion=True,
+    acknowledge_unused_vertices=True,
+)
+result = run_off_glb_export(prepared)
+print(result.exit)
+```
+
+`repair_off_to_glb` accepts the same declarations and performs prepare then run.
+`bounded-rne32` instead requires an explicit finite nonnegative position error
+bound. `OffGlbExecution` selects `balanced-v1` or `serial-reference-v1` without
+automatic cap growth; `OffCancellation` requests cooperative stop. Readonly
+results retain actual capture/native observations, candidate/export views and
+maps. `off_report_bytes` and `publication_receipt_bytes` expose exact available
+bytes. Export failure does not rewrite the accepted polygon candidate or its
+OFF report. The [contract](off-surface-export.md#osg-observations-001-exact-python-getters-and-map-scopes)
+owns each getter's availability and map scope.
+
+The installed console command and `python -m meshvale_repair.off_glb_commands`
+share `single` and `batch` subcommands:
+
+```sh
+meshvale-repair-off-glb single --input input.off --destination output-glb \
+  --targets '[[0,1]]' --text canonical-ascii --edge-count unknown-zero \
+  --coordinates meters-right-handed-y-up --precision exact32 --max-position-error 0 \
+  --ack-triangle-conversion --ack-corner-expansion --ack-unused-vertices
+meshvale-repair-off-glb batch --request jobs.json --fail-fast
+```
+
+`jobs.json` uses the closed [off-glb-jobs/1 request](off-surface-export.md#osg-command-001-single-and-whole-batch-admission).
+Every row is admitted before any source capture; relative paths use the logical
+request-file parent unless `--base` is supplied. The reusable
+`run_off_glb_jobs` in `meshvale_repair.off_glb_commands` leaves process signal
+handlers and stdout alone and returns a readonly holder of all attempted results
+and bounded prepared bytes. Detached stdout documents embed the original OFF
+report and native publication receipt as exact UTF-8 strings; stdout failure
+cannot undo a committed directory. Console SIGINT handling is delayed until a
+Python interpreter boundary and does not promise prompt native interruption.
+
+Focused local Windows x64 MSVC Release CPython 3.13 development checks cover the
+native and installed SDK interfaces, the Python API, single/batch commands and
+legacy behavior. Source-archive, relocation, hosted and actual-main qualification
+remain open for this feature, as do supported releases. No published wheel or
+runtime floor is established.
+
 ## Portable development cohort
 
 The [candidate workflow](../.github/workflows/portable-candidates.yml) evaluates ordinary GIL-enabled CPython 3.13 on Linux x86_64 with a manylinux_2_28 floor and Windows x64 on `windows-2022`. Artifacts are development candidates retained for 14 days; they do not establish a supported release matrix. A clean Windows 11 consumer floor, macOS and additional interpreter/architecture combinations remain unevaluated by this workflow.
