@@ -26,6 +26,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iostream>
 #include <limits>
 #include <map>
 #include <optional>
@@ -153,6 +154,56 @@ inline void Require(
     throw std::runtime_error(std::string(where.file_name()) + ":" +
                              std::to_string(where.line()) + ": " +
                              std::string(message));
+}
+// Failure-only observations use the current public enum values. They do not
+// replace assertions or infer the outcome of an uninvoked delegate.
+inline void LogUnsupportedFacts(const OffGlbSurfaceWorkflowResult& result,
+                                std::string_view context) {
+  std::cerr << "OFF to GLB unsupported observation: " << context
+            << " status=" << static_cast<int>(result.status)
+            << " stage=" << static_cast<int>(result.diagnostic.stage)
+            << " code=" << static_cast<int>(result.diagnostic.code)
+            << " record=" << result.record.has_value() << '\n';
+  if (!result.record) return;
+  const auto& facts = result.record->Facts();
+  std::cerr << "reached off=" << facts.off.has_value()
+            << " triangulation=" << facts.triangulation.has_value()
+            << " encoding=" << facts.encoding.has_value()
+            << " inspection=" << facts.inspection.has_value()
+            << " publication=" << facts.publication.has_value() << '\n';
+  if (facts.off)
+    std::cerr << "off status=" << static_cast<int>(facts.off->status)
+              << " stage=" << static_cast<int>(facts.off->diagnostic.stage)
+              << " code=" << static_cast<int>(facts.off->diagnostic.code)
+              << " record=" << facts.off->record.has_value() << '\n';
+  if (facts.triangulation)
+    std::cerr << "triangulation status="
+              << static_cast<int>(facts.triangulation->status) << " stage="
+              << static_cast<int>(facts.triangulation->diagnostic.stage)
+              << " code="
+              << static_cast<int>(facts.triangulation->diagnostic.code)
+              << " owner=" << facts.triangulation->triangulation.has_value()
+              << '\n';
+  if (facts.encoding)
+    std::cerr << "encoding status=" << static_cast<int>(facts.encoding->status)
+              << " stage=" << static_cast<int>(facts.encoding->diagnostic.stage)
+              << " code=" << static_cast<int>(facts.encoding->diagnostic.code)
+              << " output=" << facts.encoding->output.has_value() << '\n';
+  if (facts.inspection)
+    std::cerr << "inspection status="
+              << static_cast<int>(facts.inspection->status) << " stage="
+              << static_cast<int>(facts.inspection->diagnostic.stage)
+              << " code=" << static_cast<int>(facts.inspection->diagnostic.code)
+              << " owner=" << facts.inspection->inspection.has_value() << '\n';
+  if (facts.publication)
+    std::cerr << "publication outcome="
+              << static_cast<int>(facts.publication->outcome) << " status="
+              << static_cast<int>(facts.publication->diagnostic.status)
+              << " stage="
+              << static_cast<int>(facts.publication->diagnostic.stage)
+              << " code="
+              << static_cast<int>(facts.publication->diagnostic.code)
+              << " bundle=" << facts.publication->bundle.has_value() << '\n';
 }
 inline std::span<const std::byte> Bytes(std::string_view value) {
   return std::as_bytes(std::span(value));

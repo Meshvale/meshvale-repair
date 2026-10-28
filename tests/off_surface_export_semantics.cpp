@@ -202,6 +202,9 @@ void Unsupported() {
             "actual empty capture in unsupported Geometry profile");
     const auto result = rep::RunOffGlbSurfaceWorkflow(
         f::Request(*empty.asset, destination, {}), f::Limits(), f::Work());
+    if (!(result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
+          result.record))
+      f::LogUnsupportedFacts(result, "semantics empty input");
     Require(result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
                 result.record,
             "actual empty export must retain reached unsupported delegate");

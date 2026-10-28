@@ -43,17 +43,23 @@ void Retained(bool unsupported) {
                        ? std::span<const rep::DuplicateTarget>{}
                        : std::span<const rep::DuplicateTarget>(f::kTargets)),
         f::Limits(), f::Work());
+    if (unsupported && !result.record)
+      f::LogUnsupportedFacts(result, "consumer empty input missing record");
     Require(result.record.has_value(),
             "installed workflow returns retained reached facts");
     if (unsupported) {
-      Require(result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
-                  result.record->Facts().inspection &&
-                  result.record->Facts().inspection->status ==
-                      ic::SurfaceStatus::kUnsupported &&
-                  result.record->Facts().inspection->diagnostic.code ==
-                      ic::SurfaceCode::kNumericProfile &&
-                  !result.record->Facts().inspection->inspection &&
-                  !result.record->Facts().publication,
+      const bool expected_unsupported =
+          result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
+          result.record->Facts().inspection &&
+          result.record->Facts().inspection->status ==
+              ic::SurfaceStatus::kUnsupported &&
+          result.record->Facts().inspection->diagnostic.code ==
+              ic::SurfaceCode::kNumericProfile &&
+          !result.record->Facts().inspection->inspection &&
+          !result.record->Facts().publication;
+      if (!expected_unsupported)
+        f::LogUnsupportedFacts(result, "consumer empty input");
+      Require(expected_unsupported,
               "installed unsupported parser keeps genuine earlier stages "
               "without fake proof or commit");
     } else
