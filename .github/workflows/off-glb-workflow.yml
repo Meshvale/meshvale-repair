@@ -103,3 +103,199 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
+
+  unsupported:
+    name: OFF annotated GLB GNU 13 unsupported producer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      CMAKE_BUILD_PARALLEL_LEVEL: "2"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+          architecture: x64
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-geometry
+          ref: 5dd210b19d05bf651b853b8fdac398c7feceeba9
+          path: .local/ogu/g
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: Meshvale/meshvale-interchange
+          ref: 3bd6f0d6c1189410689e6b1dcddb5d31eac4f1fe
+          path: .local/ogu/i
+          fetch-depth: 0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: microsoft/vcpkg
+          ref: cb5a41b03cde4086d554b3f3e2eac39206b16eda
+          path: .local/ogu/v
+      - name: Select actual GNU 13 and native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-13 ninja-build
+          command -v gcc-13
+          command -v g++-13
+          command -v ninja
+          python -m pip install cmake==4.3.1
+      - name: Check genuine unsupported OFF to GLB and relocated SDK
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import os
+          from pathlib import Path
+          import platform
+          import shutil
+          import sys
+          import xml.etree.ElementTree as ET
+
+          root = Path.cwd().resolve()
+          spec = importlib.util.spec_from_file_location("off_glb_gnu_common", root / "scripts/gltf-workflow-ci.py")
+          common = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = common
+          spec.loader.exec_module(common)
+          work = root / ".local/ogu"
+          runner = common.Runner(root, work, common.PROFILES["gnu-unsupported"])
+          inputs = {"sources": {}, "profile": vars(runner.profile),
+                    "event": {key: os.environ.get(key) for key in ("GITHUB_SHA", "GITHUB_REF", "GITHUB_EVENT_NAME")}}
+          result = {"gate_passed": False, "scope": "GNU 13 native unsupported OFF to GLB; installed relocated SDK",
+                    "python_packages_selected": False, "source_coupled_faults_selected": False}
+
+          def executed(build, expected):
+              junit = build / "Testing/unsupported-junit.xml"
+              actual_log = build / "Testing/Temporary/LastTest.log"
+              try:
+                  runner.run("ctest", "--test-dir", build, "-C", "Release", "--verbose",
+                             "--output-on-failure", "--no-tests=error", "--timeout", "600",
+                             "--output-junit", junit, timeout=1800)
+              finally:
+                  if actual_log.is_file():
+                      shutil.copyfile(actual_log, runner.evidence / (build.name + "-actual-LastTest.log"))
+              cases = list(ET.parse(junit).getroot().iter("testcase"))
+              if (len(cases) != len(expected) or {case.get("name") for case in cases} != expected or
+                      any(case.get("status", "run") != "run" for case in cases) or
+                      any(case.find(kind) is not None for case in cases for kind in ("failure", "error", "skipped"))):
+                  raise RuntimeError("Actual executed inventory failed, skipped or differs from the required tests")
+
+          try:
+              if platform.system() != "Linux" or platform.machine() not in ("x86_64", "AMD64"):
+                  raise RuntimeError("This gate requires Linux x64 with genuine GNU 13")
+              for name, revision in (("g", "5dd210b19d05bf651b853b8fdac398c7feceeba9"),
+                                     ("i", "3bd6f0d6c1189410689e6b1dcddb5d31eac4f1fe"),
+                                     ("v", "cb5a41b03cde4086d554b3f3e2eac39206b16eda"), ("repair", None)):
+                  source = root if name == "repair" else work / name
+                  head = runner.run("git", "-C", source, "rev-parse", "HEAD").strip()
+                  if (revision and head != revision) or runner.run("git", "-C", source, "status", "--porcelain").strip():
+                      raise RuntimeError(name + ": exact clean committed source required")
+                  inputs["sources"][name] = head
+              version = runner.run("g++-13", "-dumpfullversion").strip()
+              if version.split(".")[0] != "13":
+                  raise RuntimeError("Selected compiler must actually be GNU 13")
+              inputs["compiler_version"] = version
+              runner.run("cmake", "--version")
+              runner.run("ninja", "--version")
+              runner.environment["CMAKE_GENERATOR"] = "Ninja"
+              runner.run("bash", work / "v/bootstrap-vcpkg.sh", "-disableMetrics")
+              prefix, relocated, dependencies = (work / name for name in ("p", "q", "d"))
+              tiny = dependencies / "x64-linux"
+              runner.configure(work / "g", work / "gb", "-DBUILD_TESTING=OFF",
+                               "-DMESHVALE_GEOMETRY_PYTHON=OFF", "-DCMAKE_DISABLE_FIND_PACKAGE_Eigen3=ON")
+              runner.build(work / "gb")
+              runner.install(work / "gb", prefix)
+              overlay = runner.evidence / "triplets"
+              overlay.mkdir()
+              (overlay / "x64-linux.cmake").write_text(
+                  f'include("{(work / "v/triplets/x64-linux.cmake").as_posix()}")\n'
+                  'list(APPEND VCPKG_CMAKE_CONFIGURE_OPTIONS -DCMAKE_EXPORT_COMPILE_COMMANDS=ON\n'
+                  f'  "-DCMAKE_CXX_COMPILER={Path(shutil.which("g++-13")).resolve().as_posix()}"\n'
+                  f'  "-DCMAKE_C_COMPILER={Path(shutil.which("gcc-13")).resolve().as_posix()}")\n'
+                  'list(APPEND VCPKG_ENV_PASSTHROUGH CC CXX)\n', encoding="utf-8")
+              runner.configure(work / "i", work / "ib", "-DBUILD_TESTING=OFF", f"-DCMAKE_PREFIX_PATH={prefix}",
+                  f"-DCMAKE_TOOLCHAIN_FILE={work}/v/scripts/buildsystems/vcpkg.cmake",
+                  "-DVCPKG_TARGET_TRIPLET=x64-linux", f"-DVCPKG_OVERLAY_TRIPLETS={overlay}",
+                  f"-DVCPKG_INSTALLED_DIR={dependencies}", "-DMESHVALE_INTERCHANGE_PYTHON=OFF",
+                  "-DMESHVALE_INTERCHANGE_USD=OFF", "-DMESHVALE_INTERCHANGE_FBX=OFF",
+                  "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=OFF", "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=OFF",
+                  "-DMESHVALE_INTERCHANGE_GLTF_FILES=OFF", "-DMESHVALE_INTERCHANGE_PLY_FILES=OFF",
+                  "-DMESHVALE_INTERCHANGE_OFF_FILES=ON", "-DMESHVALE_INTERCHANGE_SURFACE_OUTPUT=ON",
+                  "-DMESHVALE_INTERCHANGE_SURFACE_FILES=ON")
+              runner.build(work / "ib")
+              runner.compilation(work / "v/buildtrees/tinyobjloader/x64-linux-rel/compile_commands.json")
+              runner.install(work / "ib", prefix)
+              native, consumer = work / "rb", work / "cb"
+              # The selector changes test expectations; the GNU-built SDKs retain their actual capabilities.
+              runner.configure(root, native, "-DBUILD_TESTING=ON", f"-DCMAKE_PREFIX_PATH={prefix};{tiny}",
+                  "-DMESHVALE_REPAIR_PYTHON=OFF", "-DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON",
+                  "-DMESHVALE_REPAIR_GLTF_WORKFLOW=OFF", "-DMESHVALE_REPAIR_GLTF_FILE_WORKFLOW=OFF",
+                  "-DMESHVALE_REPAIR_PLY_FILE_WORKFLOW=OFF", "-DMESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON",
+                  "-DMESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON", "-DMESHVALE_REPAIR_INTERCHANGE_TEST_SOURCE=",
+                  "-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=unsupported")
+              runner.build(native)
+              selection = ("--gltf-workflow", "OFF", "--gltf-file-workflow", "OFF", "--ply-file-workflow", "OFF",
+                           "--off-file-workflow", "ON", "--off-surface-export", "ON", "--off-surface-publication-faults", "OFF")
+              runner.check_inventory(root, native, *selection, "--compiler-version", version)
+              inventory = runner.inventory(native, "native-unsupported", 9)
+              surface = {"off_surface_export_semantics", "off_surface_export_requests", "off_surface_export_consumer"}
+              if any(test["command"][-1] != "--unsupported-profile" for test in inventory if test["name"] in surface):
+                  raise RuntimeError("Every new Surface test must invoke the actual unsupported path")
+              executed(native, {test["name"] for test in inventory})
+              runner.install(native, prefix)
+              installed = [{"path": path.relative_to(prefix).as_posix(), "sha256": common.sha256(path)}
+                           for path in sorted(prefix.rglob("*")) if path.is_file()]
+              if not (prefix / "include/meshvale/repair/off_surface_export.h").is_file() or any(
+                      "test_internal" in item["path"] or item["path"].startswith("include/src/") or
+                      item["path"].endswith("/off_surface_export_internal.h") for item in installed):
+                  raise RuntimeError("Installed SDK must contain the public Surface header without private test headers")
+              if prefix.parent != work or relocated.parent != work or relocated.exists():
+                  raise RuntimeError("SDK relocation requires an absent sibling inside the job work directory")
+              prefix.rename(relocated)
+              moved = [{"path": path.relative_to(relocated).as_posix(), "sha256": common.sha256(path)}
+                       for path in sorted(relocated.rglob("*")) if path.is_file()]
+              if prefix.exists() or moved != installed:
+                  raise RuntimeError("Physical relocation must remove the original prefix and preserve every SDK byte")
+              common.write_json(runner.evidence / "sdk-relocation.json", {"original_absent": True, "files": moved})
+              runner.configure(root / "examples/consumer", consumer, f"-DCMAKE_PREFIX_PATH={relocated};{tiny}",
+                  "-DMESHVALE_REPAIR_TEST_GLTF_WORKFLOW=OFF", "-DMESHVALE_REPAIR_TEST_GLTF_FILE_WORKFLOW=OFF",
+                  "-DMESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW=ON", "-DMESHVALE_REPAIR_TEST_OFF_SURFACE_EXPORT=ON",
+                  "-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=unsupported")
+              runner.build(consumer)
+              if any(line.partition("=")[2] for line in (consumer / "CMakeCache.txt").read_text().splitlines()
+                     if line.startswith("MESHVALE_REPAIR_INTERCHANGE_TEST_SOURCE:")):
+                  raise RuntimeError("Installed consumers must not select private Interchange test source")
+              runner.check_inventory(root, native, *selection, "--compiler-version", version, "--installed-build-dir", consumer)
+              inventory = runner.inventory(consumer, "installed-unsupported", 4)
+              if any(test["command"][-1] != "--unsupported-profile" for test in inventory
+                     if test["name"] == "installed_off_surface_export"):
+                  raise RuntimeError("Installed Surface consumer must invoke the actual unsupported path")
+              executed(consumer, {test["name"] for test in inventory})
+              result.update(gate_passed=True, native_tests=9, relocated_installed_tests=4,
+                            skips_allowed=False, original_sdk_absent=not prefix.exists())
+          except BaseException as error:
+              result["error"] = {"type": type(error).__name__, "message": str(error)}
+              raise
+          finally:
+              common.write_json(runner.evidence / "inputs.json", inputs)
+              common.write_json(runner.evidence / "result.json", result)
+          PY
+      - name: Retain actual unsupported candidate records
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: off-glb-gnu13-unsupported-${{ github.sha }}
+          path: |
+            .local/ogu/e
+            .local/ogu/*b/CMakeCache.txt
+            .local/ogu/*b/CMakeFiles/*/CMakeCXXCompiler.cmake
+            .local/ogu/*b/compile_commands.json
+            .local/ogu/*b/Testing
+            .local/ogu/v/buildtrees/tinyobjloader/*.log
+            .local/ogu/v/buildtrees/tinyobjloader/*/compile_commands.json
+            .local/ogu/q
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
