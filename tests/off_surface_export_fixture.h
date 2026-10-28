@@ -1136,6 +1136,35 @@ inline void CheckOff(const OffGlbSurfaceWorkflowRecord& record,
   Require(report.At(kSchemaKey).String() == kReportSchema,
           "unchanged OFF report core schema");
 }
+inline std::vector<std::byte> EmptyOffReferenceReport(
+    const OffGlbSurfaceWorkflowRequest& request) {
+  Require(request.targets.empty() &&
+              std::ranges::equal(request.source.EntryBytes(), Bytes(kEmpty)),
+          "separate empty OFF reference uses the same literal and no targets");
+  const auto limits = Limits();
+  const auto work = Work();
+  const OffDuplicateFileWorkflowRequest reference{
+      request.source, request.input_id,   request.targets,
+      request.text,   request.edge_count, std::nullopt};
+  // This separate reference ends before the composed operation begins. It
+  // cannot supply an owner, result or proof to the composed operation.
+  const auto result =
+      RunOffDuplicateFileWorkflow(reference, limits.off, work.off);
+  Require(result.status == OffWorkflowStatus::kSuccess && result.record &&
+              result.record->RepairFacts() &&
+              result.record->RepairFacts()->Outcome() ==
+                  CandidateOutcome::unchanged &&
+              result.record->Output() && result.record->Reload() &&
+              result.outcomes.profile == OffWorkflowProfileOutcome::kPassed &&
+              result.outcomes.publication ==
+                  OffWorkflowPublicationOutcome::kNotRequested &&
+              !result.publication && !result.record->Published(),
+          "separate genuine empty OFF call succeeds unchanged without "
+          "publication");
+  const auto bytes = result.record->ReportJson();
+  Require(!bytes.empty(), "separate OFF reference has complete report bytes");
+  return {bytes.begin(), bytes.end()};
+}
 inline void CheckCsr(std::span<const std::uint64_t> forward,
                      std::size_t source_rows,
                      std::span<const std::uint64_t> offsets,

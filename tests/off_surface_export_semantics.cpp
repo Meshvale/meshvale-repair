@@ -200,25 +200,18 @@ void Unsupported() {
     const auto empty = f::Capture(input, context);
     Require(empty.asset.has_value(),
             "actual empty capture in unsupported Geometry profile");
-    const auto result = rep::RunOffGlbSurfaceWorkflow(
-        f::Request(*empty.asset, destination, {}), f::Limits(), f::Work());
-    if (!(result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
-          result.record))
-      f::LogUnsupportedFacts(result, "semantics empty input");
-    Require(result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
-                result.record,
-            "actual empty export must retain reached unsupported delegate");
-    f::CheckOff(*result.record, f::kEmpty, false);
-    const auto& facts = result.record->Facts();
-    Require(
-        facts.triangulation && facts.triangulation->triangulation &&
-            facts.encoding && facts.encoding->output && facts.inspection &&
-            facts.inspection->status == ic::SurfaceStatus::kUnsupported &&
-            facts.inspection->diagnostic.code ==
-                ic::SurfaceCode::kNumericProfile &&
-            !facts.inspection->inspection && !facts.publication &&
-            !std::filesystem::exists(destination),
-        "empty unsupported parser creates neither fake proof nor publication");
+    const auto request = f::Request(*empty.asset, destination, {});
+    const auto reference_report = f::EmptyOffReferenceReport(request);
+    const auto result =
+        rep::RunOffGlbSurfaceWorkflow(request, f::Limits(), f::Work());
+    if (!(result.status == rep::OffGlbSurfaceStatus::kSuccess && result.record))
+      f::LogUnsupportedFacts(result, "semantics empty publication");
+    f::Complete(result, destination, f::kEmpty, false);
+    Require(std::ranges::equal(result.record->Facts().off->record->ReportJson(),
+                               reference_report) &&
+                std::ranges::equal(f::Read(input), f::Bytes(f::kEmpty)),
+            "genuine empty export retains the whole unchanged OFF report and "
+            "physical source bytes");
   }
   f::Released(context);
 }

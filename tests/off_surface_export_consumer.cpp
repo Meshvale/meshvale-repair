@@ -25,55 +25,45 @@ namespace rep = meshvale::repair;
 using f::Require;
 void Retained(bool unsupported) {
   f::Root root;
+  const auto source = unsupported ? f::kEmpty : f::kMixed;
+  const auto targets = unsupported
+                           ? std::span<const rep::DuplicateTarget>{}
+                           : std::span<const rep::DuplicateTarget>(f::kTargets);
   const auto input = root.Path() / f::kEntry,
              destination = root.Path() / "published";
   std::optional<rep::OffGlbSurfaceWorkflowRecord> retained;
   std::vector<std::byte> off_report, receipt;
   {
     geo::ExecutionContext caller_context({4, 1, f::kLedgerBytes});
-    f::Write(input, unsupported ? f::kEmpty : f::kMixed);
+    f::Write(input, source);
     auto capture = f::Capture(input, caller_context);
     Require(capture.asset.has_value(),
             "installed public OFF capture returns genuine source");
     Require(std::filesystem::remove(input),
             "captured source file is removed before composed export");
-    const auto result = rep::RunOffGlbSurfaceWorkflow(
-        f::Request(*capture.asset, destination,
-                   unsupported
-                       ? std::span<const rep::DuplicateTarget>{}
-                       : std::span<const rep::DuplicateTarget>(f::kTargets)),
-        f::Limits(), f::Work());
-    if (unsupported && !result.record)
-      f::LogUnsupportedFacts(result, "consumer empty input missing record");
+    const auto request = f::Request(*capture.asset, destination, targets);
+    if (unsupported) off_report = f::EmptyOffReferenceReport(request);
+    const auto result =
+        rep::RunOffGlbSurfaceWorkflow(request, f::Limits(), f::Work());
+    if (unsupported &&
+        !(result.status == rep::OffGlbSurfaceStatus::kSuccess && result.record))
+      f::LogUnsupportedFacts(result, "consumer empty publication");
     Require(result.record.has_value(),
             "installed workflow returns retained reached facts");
-    if (unsupported) {
-      const bool expected_unsupported =
-          result.status == rep::OffGlbSurfaceStatus::kUnsupported &&
-          result.record->Facts().inspection &&
-          result.record->Facts().inspection->status ==
-              ic::SurfaceStatus::kUnsupported &&
-          result.record->Facts().inspection->diagnostic.code ==
-              ic::SurfaceCode::kNumericProfile &&
-          !result.record->Facts().inspection->inspection &&
-          !result.record->Facts().publication;
-      if (!expected_unsupported)
-        f::LogUnsupportedFacts(result, "consumer empty input");
-      Require(expected_unsupported,
-              "installed unsupported parser keeps genuine earlier stages "
-              "without fake proof or commit");
-    } else
-      f::Complete(result, destination, f::kMixed, true);
+    f::Complete(result, destination, source, !unsupported);
     retained = *result.record;
     const auto report = retained->Facts().off->record->ReportJson();
-    off_report.assign(report.begin(), report.end());
-    if (!unsupported) {
-      const auto bytes = retained->Facts().publication->bundle->Receipt().bytes;
-      receipt.assign(bytes.begin(), bytes.end());
-    }
+    if (unsupported)
+      Require(std::ranges::equal(report, off_report),
+              "empty export retains every byte of the separate unchanged OFF "
+              "report");
+    else
+      off_report.assign(report.begin(), report.end());
+    const auto bytes = retained->Facts().publication->bundle->Receipt().bytes;
+    receipt.assign(bytes.begin(), bytes.end());
   }
   // Caller capture, source file, result and original execution handle are gone.
-  f::CheckOff(*retained, unsupported ? f::kEmpty : f::kMixed, !unsupported);
+  f::CheckOff(*retained, source, !unsupported);
   Require(!std::filesystem::exists(input) &&
               std::ranges::equal(retained->Facts().off->record->ReportJson(),
                                  off_report),
@@ -89,27 +79,30 @@ void Retained(bool unsupported) {
                 copy.NewRequestedBytes() == retained->NewRequestedBytes(),
             "copy sharing adds no charge to genuine retained scopes");
     retained.reset();
-    f::CheckOff(copy, unsupported ? f::kEmpty : f::kMixed, !unsupported);
-    if (!unsupported) {
-      Require(std::ranges::equal(
-                  copy.Facts().publication->bundle->Receipt().bytes, receipt),
-              "last copy preserves actual receipt after original destruction");
-      f::Physical(destination, copy);
-      const auto before = f::Read(destination / f::kGlbPath),
-                 before_receipt = f::Read(destination / f::kReceiptPath);
-      const auto refused = rep::RunOffGlbSurfaceWorkflow(
-          f::Request(copy.Source(), destination), f::Limits(), f::Work());
-      Require(refused.status != rep::OffGlbSurfaceStatus::kSuccess &&
-                  refused.record && refused.record->Facts().publication &&
-                  refused.record->Facts().publication->diagnostic.status ==
-                      ic::SurfaceFileStatus::kDestinationExists,
-              "installed rerun genuinely refuses existing destination");
-      f::CheckOff(*refused.record, f::kMixed, true);
-      Require(f::Read(destination / f::kGlbPath) == before &&
-                  f::Read(destination / f::kReceiptPath) == before_receipt,
-              "installed no-replace refusal preserves original payload and "
-              "receipt");
-    }
+    f::CheckOff(copy, source, !unsupported);
+    Require(std::ranges::equal(
+                copy.Facts().publication->bundle->Receipt().bytes, receipt),
+            "last copy preserves actual receipt after original destruction");
+    f::Physical(destination, copy);
+    const auto before = f::Read(destination / f::kGlbPath),
+               before_receipt = f::Read(destination / f::kReceiptPath);
+    const auto refused = rep::RunOffGlbSurfaceWorkflow(
+        f::Request(copy.Source(), destination, targets), f::Limits(),
+        f::Work());
+    Require(refused.status != rep::OffGlbSurfaceStatus::kSuccess &&
+                refused.record && refused.record->Facts().publication &&
+                refused.record->Facts().publication->diagnostic.status ==
+                    ic::SurfaceFileStatus::kDestinationExists,
+            "installed rerun genuinely refuses existing destination");
+    f::CheckOff(*refused.record, source, !unsupported);
+    Require(std::ranges::equal(
+                refused.record->Facts().off->record->ReportJson(), off_report),
+            "no-replace refusal retains the whole original OFF report");
+    Require(f::Read(destination / f::kGlbPath) == before &&
+                f::Read(destination / f::kReceiptPath) == before_receipt,
+            "installed no-replace refusal preserves original payload and "
+            "receipt");
+    f::Physical(destination, copy);
   }
   f::Released(ledger);
 }
