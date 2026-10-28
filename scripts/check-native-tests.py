@@ -19,6 +19,9 @@ INSTALLED_FILE_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_GLTF_FILE_WORKFLOW"
 OFF_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_OFF_FILE_WORKFLOW"
 INSTALLED_OFF_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW"
 PLY_WORKFLOW_CACHE_KEY = "MESHVALE_REPAIR_PLY_FILE_WORKFLOW"
+OFF_SURFACE_CACHE_KEY = "MESHVALE_REPAIR_OFF_SURFACE_EXPORT"
+INSTALLED_OFF_SURFACE_CACHE_KEY = "MESHVALE_REPAIR_TEST_OFF_SURFACE_EXPORT"
+PUBLICATION_SOURCE_CACHE_KEY = "MESHVALE_REPAIR_INTERCHANGE_TEST_SOURCE"
 TRUE_CACHE_VALUES = frozenset({"ON", "TRUE", "YES", "1"})
 FALSE_CACHE_VALUES = frozenset({"OFF", "FALSE", "NO", "0"})
 COMMON_TESTS = frozenset({"targeted_duplicates"})
@@ -76,7 +79,8 @@ def validate_configuration(cache, configuration):
 
 
 def validate_cache(cache, profile, configuration, installed=False, workflow=False,
-                   file_workflow=False, off_file_workflow=False, ply_file_workflow=False):
+                   file_workflow=False, off_file_workflow=False, ply_file_workflow=False,
+                   off_surface_export=False, publication_faults=False):
     validate_configuration(cache, configuration)
     if not installed:
         if not cache_bool(cache, "BUILD_TESTING"):
@@ -101,6 +105,19 @@ def validate_cache(cache, profile, configuration, installed=False, workflow=Fals
         configured_ply = cache_bool(cache, PLY_WORKFLOW_CACHE_KEY) if PLY_WORKFLOW_CACHE_KEY in cache else False
         if configured_ply != ply_file_workflow:
             raise ValueError("PLY workflow selection differs between the requested and configured inventory")
+    surface_key = INSTALLED_OFF_SURFACE_CACHE_KEY if installed else OFF_SURFACE_CACHE_KEY
+    configured_surface = cache_bool(cache, surface_key) if surface_key in cache else False
+    if configured_surface != off_surface_export:
+        raise ValueError("OFF surface export selection differs between the requested and configured inventory")
+    if off_surface_export and (profile == DISABLED_PROFILE or not off_file_workflow):
+        raise ValueError("OFF surface export requires the enabled OFF and charged workflows")
+    if not installed:
+        configured_faults = (bool(cache_value(cache, PUBLICATION_SOURCE_CACHE_KEY, "PATH"))
+                             if PUBLICATION_SOURCE_CACHE_KEY in cache else False)
+        if configured_faults != publication_faults:
+            raise ValueError("publication fault selection differs from configured source-coupled tests")
+    if publication_faults and (installed or profile != QUALIFIED_PROFILE or not off_surface_export):
+        raise ValueError("publication faults require the qualified native OFF surface profile")
 
 
 def validate_compiler(build_dir, expected_id, expected_version):
@@ -117,7 +134,8 @@ def validate_compiler(build_dir, expected_id, expected_version):
 
 
 def expected_inventory(profile, installed=False, workflow=False, file_workflow=False,
-                       off_file_workflow=False, ply_file_workflow=False):
+                       off_file_workflow=False, ply_file_workflow=False,
+                       off_surface_export=False, publication_faults=False):
     common = COMMON_INSTALLED_TESTS if installed else COMMON_TESTS
     specific = PROFILE_INSTALLED_TESTS if installed else PROFILE_TESTS
     expected = common | specific[profile]
@@ -150,6 +168,16 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
             raise ValueError("PLY requires an enabled native profile; installed inventory is separate")
         expected |= (frozenset({"ply_workflow_semantics", "ply_workflow_requests"})
                      if profile == QUALIFIED_PROFILE else frozenset({"ply_workflow_unsupported"}))
+    if off_surface_export:
+        if profile == DISABLED_PROFILE or not off_file_workflow:
+            raise ValueError("OFF surface export requires the enabled OFF and charged workflows")
+        expected |= (frozenset({"installed_off_surface_export"}) if installed else
+                     frozenset({"off_surface_export_semantics", "off_surface_export_requests",
+                                "off_surface_export_consumer"}))
+    if publication_faults:
+        if installed or profile != QUALIFIED_PROFILE or not off_surface_export:
+            raise ValueError("publication faults require the qualified native OFF surface profile")
+        expected |= frozenset({"off_surface_export_publication_faults"})
     return expected
 
 
@@ -179,6 +207,10 @@ def main():
                         help="Defaults to the native configured OFF workflow option")
     parser.add_argument("--ply-file-workflow", choices=("ON", "OFF"),
                         help="Defaults to the native configured PLY workflow option")
+    parser.add_argument("--off-surface-export", choices=("ON", "OFF"),
+                        help="Defaults to the native configured OFF surface export option")
+    parser.add_argument("--off-surface-publication-faults", choices=("ON", "OFF"),
+                        help="Defaults to presence of the configured matching Interchange test source")
     parser.add_argument("--ctest", default="ctest")
     args = parser.parse_args()
     try:
@@ -193,17 +225,26 @@ def main():
         ply_file_workflow = (cache_bool(native_cache, PLY_WORKFLOW_CACHE_KEY)
                              if args.ply_file_workflow is None and PLY_WORKFLOW_CACHE_KEY in native_cache
                              else args.ply_file_workflow == "ON")
+        off_surface_export = (cache_bool(native_cache, OFF_SURFACE_CACHE_KEY)
+                              if args.off_surface_export is None and OFF_SURFACE_CACHE_KEY in native_cache
+                              else args.off_surface_export == "ON")
+        publication_faults = (bool(cache_value(native_cache, PUBLICATION_SOURCE_CACHE_KEY, "PATH"))
+                              if args.off_surface_publication_faults is None and
+                              PUBLICATION_SOURCE_CACHE_KEY in native_cache else
+                              args.off_surface_publication_faults == "ON")
         for build_dir, installed in ((args.build_dir, False), (args.installed_build_dir, True)):
             if build_dir is None:
                 continue
             validate_cache(cache_entries(build_dir / "CMakeCache.txt"),
                            args.materialization_profile, args.configuration, installed, workflow,
-                           file_workflow, off_file_workflow, ply_file_workflow)
+                           file_workflow, off_file_workflow, ply_file_workflow,
+                           off_surface_export, publication_faults and not installed)
             validate_compiler(build_dir, args.compiler_id, args.compiler_version)
             checked.append(("installed" if installed else "native", validate_inventory(
                 build_dir, args.configuration,
                 expected_inventory(args.materialization_profile, installed, workflow, file_workflow,
-                                   off_file_workflow, ply_file_workflow),
+                                   off_file_workflow, ply_file_workflow, off_surface_export,
+                                   publication_faults and not installed),
                 args.ctest)))
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.error(str(error))
@@ -216,6 +257,10 @@ def main():
 
     if ply_file_workflow:
         print(f"PLY workflow ON; {args.materialization_profile} native inventory")
+    if off_surface_export:
+        print(f"OFF surface export ON; {args.materialization_profile} inventory")
+    if publication_faults:
+        print("Composed publication faults ON; matching producer-source native inventory")
 
 
 if __name__ == "__main__":

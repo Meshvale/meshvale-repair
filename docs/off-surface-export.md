@@ -3,26 +3,31 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-OFF-SURFACE-001 |
-| Version | 0.2.0 |
-| Status | Draft contract; implementation and dependency selection pending |
+| Version | 0.3.0 |
+| Status | Implemented opt-in development interface; qualification in progress |
 
-This proposed opt-in workflow repairs explicit duplicate OFF faces once, verifies
+This opt-in workflow repairs explicit duplicate OFF faces once, verifies
 the polygon candidate, and publishes a new annotated GLB directory. It composes
 the existing [OFF workflow](off-workflow.md), [charged repair](materialized_duplicates.md),
 Geometry charged triangulation and Interchange Surface encoding, independent
-inspection and file publication. It selects no installed API yet. The names and
-requirements below are the interface to implement after independent review and
-acceptance of the required producer main. Existing OFF/OBJ/PLY/glTF APIs, command
+inspection and file publication. Native/Python APIs and single/batch commands
+are implemented in source. Existing OFF/OBJ/PLY/glTF APIs, command
 names, defaults and producer pins remain unchanged.
 
-The proposed native option is `MESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON` (default
+Focused local Windows x64 MSVC Release CPython 3.13 development checks cover the
+native and installed SDK interfaces, Python API, single/batch commands and legacy
+behavior. Source-archive, relocation, hosted and actual-main qualification remain
+open for this feature, as do supported releases. No published wheel or runtime
+floor is established.
+
+The native option is `MESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON` (default
 OFF). Native composition requires matching Geometry/Interchange development
 SDKs exporting `meshvale::charged_triangulation`, `meshvale::surface_output`
 and `meshvale::surface_files`, alongside the OFF dependencies. Equal development
-version strings alone do not prove feature or ABI compatibility. The later
-implementation gate must select source identities and actual installed feature
-checks. Native SDK identity is separate from Python owned-record dependencies;
-this draft selects no change to existing Python package pins, requires no
+version strings alone do not prove feature or ABI compatibility. Compatible
+source identities require actual installed feature checks. Native SDK identity
+is separate from Python owned-record dependencies;
+this module changes no existing Python package pins, requires no
 Interchange Python extension, and does not claim native features are exposed by
 an older Geometry Python wheel. The new opt-in binding and its affected wheel
 must be tested deliberately with their chosen native and Python dependencies.
@@ -66,10 +71,10 @@ OFF output. Input IDs retain the existing ASCII report grammar and limit.
 
 ## OSG-NATIVE-001: Native interface and retained observations
 
-Proposed owning header: `meshvale/repair/off_surface_export.h`; target:
+Owning header: `meshvale/repair/off_surface_export.h`; target:
 `meshvale::repair_off_surface_export`, default OFF, requiring the existing OFF
 workflow and the reviewed Interchange Surface output/files targets. This is a
-future build interface, not a dependency-version selection.
+build interface, not a dependency-version selection.
 
 ```cpp
 struct OffGlbSurfaceWorkflowRequest {
@@ -150,7 +155,7 @@ OffGlbSurfaceWorkflowResult RunOffGlbSurfaceWorkflow(
 ```
 
 The declaration outline specifies the complete visible fields, enumerators and
-methods, not an implemented header or an enum wire-ordinal promise. The owner has
+methods, without an enum wire-ordinal promise. The owner has
 no public default constructor, caller-supplied proof constructor or move-empty
 state. Views borrow a live unreassigned copy. Copies allocate nothing and keep
 the original allocator/backend state alive until its last actual free. Distinct
@@ -170,7 +175,7 @@ construction with no record; cancellation after construction retains the record.
 ## OSG-ORDER-001: Admission, one repair and strong lifetime
 
 Validate in this order before stop, allocation, source traversal or stage
-creation: all required active limit/work leaves and checked host extents;
+creation: all required active limit/work leaves and wrapper-visible host extents;
 delegated allowance sums; the fixed OFF/GLB/annotated policies and triangulation
 option extents; coordinate selector; numeric mode/bound/empty UV bounds;
 projection acknowledgments; input-ID grammar; portable receipt path. For ties
@@ -179,6 +184,17 @@ outside this route is a policy refusal. Do not drop a zero or unknown field from
 validation because a later stage might not run. Receipt path admission uses the
 publisher's portable ASCII segment, alias/prefix/device/dot/trailing rules;
 destination native Unicode admission stays with the file publisher.
+
+Wrapper-visible extents are the published integer/count/byte representations and
+the sizes of storage the wrapper itself allocates. A delegate ceiling that
+depends on its private compiled type layout remains that delegate's admission
+responsibility at its actual call. For example, do not guess a private JSON-node
+size, include a producer's private header or fabricate an input merely to query
+that ceiling. Required public fields still receive the complete ordered
+positivity/range/checked-sum checks above. A private delegate extent refusal is
+retained at the invoked stage with its actual typed diagnostic and prior OFF
+facts; it is not reclassified as an earlier wrapper preflight result. An
+uninvoked delegate has no invented configuration result, including on prestop.
 
 After valid configuration, honor stop; derive the ledger from
 `request.source.Document().Mesh().ShareExecutionContext()`. Do not create a
@@ -285,7 +301,7 @@ later cancellation observation or delivery failure.
 ## OSG-PRESETS-001: Complete finite application configuration
 
 [off-surface-export-presets.json](off-surface-export-presets.json) owns the two
-fully expanded proposed application configurations `balanced-v1` and
+fully expanded development application configurations `balanced-v1` and
 `serial-reference-v1`. They are development contract values, not measured
 capacity, a performance promise or a selected runtime floor. Native callers
 still supply explicit structures. Python preparation copies a named preset once
@@ -336,7 +352,7 @@ worker launches. Preset names do not imply that jobs actually parallelized.
 
 ## OSG-PYTHON-001: Prepare once, execute once
 
-Proposed opt-in module `meshvale_repair.off_surface_export` exposes:
+The opt-in module `meshvale_repair.off_surface_export` exposes:
 
 ```python
 prepare_off_glb_export(source, destination, targets, *, text, edge_count,
@@ -436,7 +452,7 @@ handler/callback runs inside the GIL-free native region.
 
 ## OSG-COMMAND-001: Single and whole-batch admission
 
-Proposed entry points are console `meshvale-repair-off-glb` and
+Entry points are console `meshvale-repair-off-glb` and
 `python -m meshvale_repair.off_glb_commands`, both calling the same `main(argv)`.
 Subcommands are `single` and `batch`; no existing command changes meaning.
 Single accepts required `--input`, `--destination`, `--targets` (JSON pair array),
@@ -693,7 +709,7 @@ propagate without modifying native owners already retained by the caller.
 
 ## OSG-ACCEPT-001: Required evidence before availability claims
 
-Implementation requires reviewed independent literal O→R maps and
+Qualification requires reviewed independent literal O→R maps and
 order-independent R→triangle/triangle→wire coverage, exact physical GLB/capsule
 oracles and independent receipt validation. Do not assert one ear order, infer
 identity from equal positions or replace genuine producers with fake owners.

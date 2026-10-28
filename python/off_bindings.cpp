@@ -800,6 +800,13 @@ nb::dict PresetObservation(const OffPreset& value) {
   return result;
 }
 }  // namespace
+std::stop_source ShareOffCancellation(nb::handle value) {
+  if (value.is_none()) return {};
+  if (!nb::isinstance<OffCancellation>(value))
+    throw nb::type_error("cancellation must be an OffCancellation");
+  return nb::cast<const OffCancellation&>(value).Source();
+}
+
 void RegisterOffBindings(nb::module_& module) {
   if (!nb::type<CandidateOutcome>().is_valid()) {
     nb::enum_<CandidateOutcome>(module, "CandidateOutcome")

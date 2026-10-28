@@ -13,6 +13,24 @@ endif()
 enable_testing()
 option(MESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW
   "Exercise the installed reported OFF file workflow development target" OFF)
+option(MESHVALE_REPAIR_TEST_OFF_SURFACE_EXPORT
+  "Exercise the installed OFF to annotated GLB development target" OFF)
+if(MESHVALE_REPAIR_TEST_OFF_SURFACE_EXPORT)
+  if(NOT TARGET meshvale::repair_off_surface_export)
+    message(FATAL_ERROR "OFF surface consumer requires an installed Repair package built with MESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON")
+  endif()
+  add_executable(meshvale_off_surface_export_consumer
+    ../../tests/off_surface_export_consumer.cpp)
+  target_include_directories(meshvale_off_surface_export_consumer PRIVATE ../../tests)
+  target_link_libraries(meshvale_off_surface_export_consumer PRIVATE
+    meshvale::repair_off_surface_export)
+  if(MSVC)
+    target_compile_options(meshvale_off_surface_export_consumer PRIVATE /W4 /WX /fp:strict)
+  else()
+    target_compile_options(meshvale_off_surface_export_consumer PRIVATE
+      -Wall -Wextra -Wpedantic -Werror -fno-fast-math -ffp-contract=off)
+  endif()
+endif()
 if(MESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW)
   if(NOT TARGET meshvale::off_file_workflow)
     message(FATAL_ERROR "OFF workflow consumer requires an installed Repair package built with MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON")
@@ -103,5 +121,14 @@ if(MESHVALE_REPAIR_TEST_OFF_FILE_WORKFLOW)
   else()
     add_test(NAME installed_off_workflow
       COMMAND meshvale_off_workflow_consumer --unsupported-profile)
+  endif()
+endif()
+if(MESHVALE_REPAIR_TEST_OFF_SURFACE_EXPORT)
+  if(MESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE STREQUAL "qualified")
+    add_test(NAME installed_off_surface_export
+      COMMAND meshvale_off_surface_export_consumer)
+  else()
+    add_test(NAME installed_off_surface_export
+      COMMAND meshvale_off_surface_export_consumer --unsupported-profile)
   endif()
 endif()

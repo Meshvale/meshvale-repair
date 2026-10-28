@@ -172,6 +172,7 @@ include(cmake/GltfWorkflow.cmake)
 include(cmake/GltfFileWorkflow.cmake)
 include(cmake/OffWorkflow.cmake)
 include(cmake/PlyWorkflow.cmake)
+include(cmake/OffSurfaceExport.cmake)
 install(TARGETS meshvale_repair EXPORT MeshvaleRepairTargets
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
 install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
@@ -179,7 +180,8 @@ install(DIRECTORY include/ DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}"
   PATTERN "gltf_workflow.h" EXCLUDE
   PATTERN "gltf_file_workflow.h" EXCLUDE
   PATTERN "off_workflow.h" EXCLUDE
-  PATTERN "ply_workflow.h" EXCLUDE)
+  PATTERN "ply_workflow.h" EXCLUDE
+  PATTERN "off_surface_export.h" EXCLUDE)
 if(MESHVALE_REPAIR_MATERIALIZED_DUPLICATES)
   install(TARGETS meshvale_repair_materialized_duplicates EXPORT MeshvaleRepairTargets
     ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
@@ -238,6 +240,13 @@ if(MESHVALE_REPAIR_PYTHON)
     target_compile_definitions(_repair PRIVATE MESHVALE_REPAIR_PLY_PYTHON=1)
     meshvale_strict_floating_point(_repair)
   endif()
+  if(TARGET meshvale::repair_off_surface_export)
+    target_sources(_repair PRIVATE
+      python/off_surface_export_bindings.cpp python/off_surface_export_presets.cpp)
+    target_link_libraries(_repair PRIVATE meshvale::repair_off_surface_export)
+    target_compile_definitions(_repair PRIVATE MESHVALE_REPAIR_OFF_SURFACE_PYTHON=1)
+    meshvale_strict_floating_point(_repair)
+  endif()
   meshvale_warnings(_repair)
   install(TARGETS _repair LIBRARY DESTINATION meshvale_repair COMPONENT python)
   if(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
@@ -263,6 +272,10 @@ if(MESHVALE_REPAIR_PYTHON)
 endif()
 
 include(CTest)
+if(MESHVALE_REPAIR_INTERCHANGE_TEST_SOURCE AND
+    (NOT BUILD_TESTING OR NOT MESHVALE_REPAIR_OFF_SURFACE_EXPORT))
+  message(FATAL_ERROR "Interchange test source requires BUILD_TESTING and OFF surface export")
+endif()
 if(BUILD_TESTING)
   add_library(meshvale_repair_header_checks OBJECT tests/header_canonical.cpp)
   target_link_libraries(meshvale_repair_header_checks PRIVATE meshvale::repair)
@@ -337,5 +350,8 @@ if(BUILD_TESTING)
   endif()
   if(MESHVALE_REPAIR_PLY_FILE_WORKFLOW)
     meshvale_add_ply_workflow_tests()
+  endif()
+  if(MESHVALE_REPAIR_OFF_SURFACE_EXPORT)
+    meshvale_add_off_surface_export_tests()
   endif()
 endif()

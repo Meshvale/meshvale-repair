@@ -4,6 +4,18 @@
 
 ### Development features
 
+- Add the opt-in [OFF to annotated GLB workflow](docs/off-surface-export.md),
+  with the Python prepare/run and `repair_off_to_glb` APIs plus
+  `meshvale-repair-off-glb single`/`batch` commands. Explicit coordinate,
+  precision and projection declarations produce a verified new GLB/capsule
+  directory with a separate publication receipt; retained OFF repair facts and
+  exact report bytes survive later export or delivery failures. The native
+  option defaults OFF and requires the OFF workflow and compatible Geometry
+  charged-triangulation/Interchange Surface SDK targets. Focused local Windows
+  MSVC Release CPython 3.13 development checks have passed; archive, relocation,
+  hosted, actual-main and supported-release qualification remain open. Existing
+  Python dependency pins are unchanged; no published wheel is established.
+
 - Add the implemented opt-in [direct-translation development profile](docs/gltf-translation.md)
   to native and Python glTF/GLB repair, with actual six-stage observations, two
   immutable execution presets, explicit single-command selection and closed

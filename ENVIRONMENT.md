@@ -188,4 +188,37 @@ CPython 3.13 development execution reached that scope. This does not establish a
 clean runtime floor, package-index wheel, supported release, complete fault
 coverage or additional platform/interpreter qualification.
 
+## Source-coupled OFF to GLB publication checks
+
+The optional [OFF to GLB workflow](docs/off-surface-export.md) also has a
+non-installed composition test that exercises genuine Interchange publication
+faults. `INTERCHANGE_SOURCE` must be the exact publisher source used to build
+the linked Interchange SDK, including its private test hooks. Record that source
+and SDK identity together; a compatible public header alone does not establish
+the private test ABI. The native SDKs must provide the Geometry charged
+triangulation and Interchange surface output/files targets.
+
+Use a fresh qualified native test build:
+
+```sh
+cmake -S "$REPAIR_SOURCE" -B "$SURFACE_TEST_BUILD" \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$NATIVE_PREFIXES" \
+  -DBUILD_TESTING=ON -DMESHVALE_REPAIR_PYTHON=OFF \
+  -DMESHVALE_REPAIR_MATERIALIZED_DUPLICATES=ON \
+  -DMESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON \
+  -DMESHVALE_REPAIR_OFF_SURFACE_EXPORT=ON \
+  -DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified \
+  -DMESHVALE_REPAIR_INTERCHANGE_TEST_SOURCE="$INTERCHANGE_SOURCE"
+cmake --build "$SURFACE_TEST_BUILD" --config Release \
+  --target meshvale_off_surface_export_publication_faults_tests
+ctest --test-dir "$SURFACE_TEST_BUILD" -C Release \
+  -R '^off_surface_export_publication_faults$' --output-on-failure
+```
+
+The producer's private headers are confined to this source-coupled test target;
+installed consumers use public SDK headers. Omit the test-source option from
+production builds, wheels and installed-consumer configurations. These commands
+select a test scope; qualification requires its actual recorded outcome and the
+other acceptance checks in the workflow contract.
+
 Public files use repository-relative links, public URLs, tool names, and symbolic environment values. Run these checks before committing or publishing. The portability check scans working files and staged content for machine paths and private local files; it does not scan all secrets or determine whether a document should be public. Review public content and package contents separately.
