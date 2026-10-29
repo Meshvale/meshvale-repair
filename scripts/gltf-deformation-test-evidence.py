@@ -294,7 +294,7 @@ def resolved_module_links(build, output, libraries, roots):
     success(commands, "actual module link recipe")
     lines = [line for line in commands.stdout.decode("utf-8").splitlines() if
              module.name.lower() in line.lower() and
-             ("link.exe" in line.lower() or " -shared " in line)]
+             ("link.exe" in line.lower() or " -shared " in line or " -bundle " in line)]
     require(len(lines) == 1, "missing/ambiguous link command")
     actual_stdout = (output / "wheel-build/stdout").read_text(encoding="utf-8", errors="replace")
     # Ninja verbose prints this exact recipe when executing it. Do not accept
