@@ -559,7 +559,7 @@ def validated_compile(record, roots):
         prefix = resolve(record["predicate_source"], roots).read_text(encoding="utf-8")
         assertion = "" if label == "common" else ("kMeshvaleDomainGuard" if label == "expected-true" else "!kMeshvaleDomainGuard")
         message = "MESHVALE_DOMAIN_" + label.replace("-", "_").upper()
-        expected_source = prefix + ("\nstatic_assert(" + assertion + ', "' + message + '");\n' if assertion else "\n") + "int meshvale_domain_probe() { return 0; }\n"
+        expected_source = prefix + ("\nstatic_assert(" + assertion + ', "' + message + '");\n' if assertion else "\n") + "int meshvale_domain_probe() { return static_cast<int>(kMeshvaleDomainGuard); }\n"
         require(source.read_text(encoding="utf-8") == expected_source, "probe source changed")
         if process["returncode"] == 0:
             require(probe["output"] is not None, "missing actual probe library")

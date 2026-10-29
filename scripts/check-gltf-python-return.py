@@ -10,6 +10,33 @@ import sys
 import sysconfig
 
 
+OBSERVER_SOURCES = (
+    "python/gltf_bindings.cpp",
+    "python/gltf_presets.cpp",
+    "python/gltf_deformation_observations.cpp",
+    "tests/python_native/gltf_binding_module.cpp",
+    "tests/python_native/gltf_binding_observer.cpp",
+    "tests/python_native/gltf_binding_allocation.cpp",
+)
+PRODUCTION_SOURCES = (
+    "python/bindings.cpp",
+    "python/gltf_bindings.cpp",
+    "python/gltf_presets.cpp",
+    "python/gltf_deformation_observations.cpp",
+)
+
+
+def check_compile_sources(rows, source, expected):
+    names = []
+    for row in rows:
+        path = Path(row["file"])
+        if not path.is_absolute():
+            path = Path(row["directory"]) / path
+        names.append(path.resolve(strict=True).relative_to(source).as_posix())
+    assert len(names) == len(set(expected)) and set(names) == set(expected), (
+        "Unexpected compile source inventory", names, sorted(expected))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", required=True, type=Path)
@@ -23,8 +50,10 @@ def main():
     build, output = args.build.resolve(), args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     commands = []
-    files = {"python/gltf_bindings.cpp", "python/gltf_bindings.h", "python/gltf_presets.cpp",
-             "python/gltf_presets.h", "CMakeLists.txt", "scripts/check-gltf-python-return.py"}
+    files = set(OBSERVER_SOURCES + PRODUCTION_SOURCES) | {
+        "python/gltf_bindings.h", "python/gltf_presets.h",
+        "python/gltf_deformation_observations.h", "python/gltf_deformation_presets.inc",
+        "CMakeLists.txt", "scripts/check-gltf-python-return.py"}
     for directory in ("src", "include", "cmake", "tests/python_native"):
         files.update(path.relative_to(source).as_posix() for path in (source / directory).rglob("*")
                      if path.is_file() and "__pycache__" not in path.parts)
@@ -55,14 +84,15 @@ def main():
     run("build", ["cmake", "--build", build, "--target", "_repair_gltf_return_test",
                   "--config", "Release", "--parallel", "2", "--verbose"], 600)
     database = json.loads((build / "compile_commands.json").read_text())
+    (output / "compile-commands.json").write_text(json.dumps(database, indent=2) + "\n", encoding="utf-8")
     observed = [row for row in database if "CMakeFiles/_repair_gltf_return_test.dir/" in row["command"].replace("\\", "/")]
     production = [row for row in database if "CMakeFiles/_repair.dir/" in row["command"].replace("\\", "/")]
-    assert len(observed) == 5 and len(production) == 3
+    check_compile_sources(observed, source, OBSERVER_SOURCES)
+    check_compile_sources(production, source, PRODUCTION_SOURCES)
     assert all("MESHVALE_REPAIR_GLTF_BINDING_TESTS=1" in row["command"] for row in observed)
     assert all("MESHVALE_REPAIR_GLTF_BINDING_TESTS" not in row["command"] for row in production)
     assert all(all(flag in row["command"] for flag in ("/W4", "/WX", "/fp:strict"))
                for row in observed + production)
-    (output / "compile-commands.json").write_text(json.dumps(database, indent=2) + "\n", encoding="utf-8")
     module, = build.glob("_repair_gltf_return_test*.pyd")
     run("actual-return", [sys.executable, "-I", source / "tests/python_native/test_gltf_return.py",
                           module, output / "actual"], 120)

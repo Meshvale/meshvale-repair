@@ -67,7 +67,7 @@ def probe_compile(build, entry, argv, native_source, output, roots, configuratio
         source = directory / "probe.cpp"
         message = "MESHVALE_DOMAIN_" + label.replace("-", "_").upper()
         source.write_text(predicate + ("\nstatic_assert(" + assertion + ', "' + message + '");\n'
-                                      if assertion else "\n") + "int meshvale_domain_probe() { return 0; }\n",
+                                      if assertion else "\n") + "int meshvale_domain_probe() { return static_cast<int>(kMeshvaleDomainGuard); }\n",
                           encoding="utf-8")
         obj = directory / ("probe.obj" if compiler.name.lower() == "cl.exe" else "probe.o")
         command = clone_compile(argv, entry["file"], obj, source)
