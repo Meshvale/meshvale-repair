@@ -16,10 +16,10 @@ separate development interfaces.
 The dependency baseline is Geometry
 [`48298b24be7c132816fb5580d22d58bde61558d0`](https://github.com/Meshvale/meshvale-geometry/tree/48298b24be7c132816fb5580d22d58bde61558d0)
 and Interchange
-[`88acdba9046352b84d3dea90648e3d271629f511`](https://github.com/Meshvale/meshvale-interchange/tree/88acdba9046352b84d3dea90648e3d271629f511).
+[`82e955bdce6671ce4d1a930124c3b2a551dd81ff`](https://github.com/Meshvale/meshvale-interchange/tree/82e955bdce6671ce4d1a930124c3b2a551dd81ff).
 Follow their public
 [Geometry build instructions](https://github.com/Meshvale/meshvale-geometry/blob/48298b24be7c132816fb5580d22d58bde61558d0/ENVIRONMENT.md)
-and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/88acdba9046352b84d3dea90648e3d271629f511/docs/gltf-files.md)
+and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/82e955bdce6671ce4d1a930124c3b2a551dd81ff/docs/gltf-files.md)
 to install matching compiler/configuration/runtime packages. Enable Interchange
 files, topology writing and workflow support. These native snapshots advertise
 version `0.0.0`; source/features and matching compiler/configuration/runtime

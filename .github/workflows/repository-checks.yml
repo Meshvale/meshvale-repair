@@ -379,7 +379,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: 88acdba9046352b84d3dea90648e3d271629f511
+          ref: 82e955bdce6671ce4d1a930124c3b2a551dd81ff
           fetch-depth: 0
           path: .local/interchange-native-source
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -365,9 +365,13 @@ def wheel(options):
             extract_regular_sdist(package, extracted)
         top = list(extracted.iterdir())
         require(len(top) == 1 and top[0].is_dir() and not (top[0] / ".git").exists(), "sdist is not Git-free")
-        source = top[0]
+        pristine = top[0]
+        member_manifest = manifest_files(pristine, output / "sdist-members.json", roots)
+        # The backend regenerates _version.py from Git-free package metadata.
+        # Preserve the archive input separately from the actual build source.
+        source = output / "sdist-build-source" / pristine.name
+        shutil.copytree(pristine, source)
         roots["receiver_source"] = str(source)
-        member_manifest = manifest_files(source, output / "sdist-members.json", roots)
     original_rows = load(resolve(input_manifest, roots))["files"]
     bridge = []
     # Every shipped native/binding/pure/test/schema input must be identical.

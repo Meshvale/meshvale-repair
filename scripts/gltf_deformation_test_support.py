@@ -5,6 +5,7 @@ success. Evidence is generated locally and is not a signature or a release claim
 """
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -12,7 +13,10 @@ from pathlib import Path, PurePosixPath
 import re
 import shlex
 import subprocess
+import tarfile
+import zipfile
 from datetime import datetime, timezone
+from email.parser import BytesParser
 
 DATA = Path(__file__).resolve().parent / "gltf-deformation-domain"
 ROOT_NAMES = {"evidence", "producer_source", "receiver_source", "sdk",
@@ -364,6 +368,24 @@ def compile_object(entry):
     return obj
 
 
+def dependency_records(build, raw_paths, observations):
+    """Retain every spelling; coalesce only identical canonical file identities."""
+    canonical = {}
+    for raw in raw_paths:
+        path = Path(raw)
+        if not path.is_absolute():
+            path = Path(build) / path
+        require(path.is_file(), "missing actual dependency")
+        row = {"path": str(path.resolve(strict=True)), "bytes": path.stat().st_size,
+               "sha256": sha(path)}
+        observations.append({"raw": raw, **row})
+        previous = canonical.get(row["path"])
+        require(previous is None or previous == row, "conflicting dependency alias observation")
+        canonical[row["path"]] = row
+    require(canonical, "empty dependency record")
+    return list(canonical.values())
+
+
 def capture_dependencies(build, entry, output, roots):
     records = cache_records(Path(build) / "CMakeCache.txt")
     ninja = records.get("CMAKE_MAKE_PROGRAM", (None, ""))[1]
@@ -376,16 +398,21 @@ def capture_dependencies(build, entry, output, roots):
     lines = process.stdout.decode("utf-8").splitlines()
     require(lines and "VALID" in lines[0] and not any("STALE" in row for row in lines),
             "missing/stale actual Ninja dependency record")
+    raw_paths = [line.strip() for line in lines[1:] if line.startswith("    ")]
+    observations = []
     dependencies = []
-    for line in lines[1:]:
-        if line.startswith("    "):
-            path = Path(line.strip())
-            if not path.is_absolute():
-                path = Path(build) / path
-            require(path.is_file(), "missing actual dependency")
-            dependencies.append({"path": str(path.resolve()), "bytes": path.stat().st_size, "sha256": sha(path)})
-    require(dependencies and len({row["path"] for row in dependencies}) == len(dependencies),
-            "empty/duplicate dependency record")
+    complete = False
+    try:
+        dependencies = dependency_records(build, raw_paths, observations)
+        complete = True
+    finally:
+        # Raw Ninja stdout remains authoritative, including an incomplete or
+        # conflicting collection. This sidecar preserves each observed alias.
+        save(output / "dependency-observations.json", {
+            "complete": complete, "raw_count": len(raw_paths),
+            "observed_count": len(observations),
+            "canonical_count": len({row["path"] for row in observations}),
+            "observations": observations})
     configure_source = Path(build) / "gltf-domain-configure-inputs.json"
     require(configure_source.is_file(), "missing before-build input record")
     configure_copy = output / "configure-inputs-copy.json"
@@ -601,6 +628,126 @@ def validated_producer(path):
     return producer
 
 
+def distribution_identity(payload):
+    fields = BytesParser().parsebytes(payload, headersonly=True)
+    names, versions = fields.get_all("Name", []), fields.get_all("Version", [])
+    require(len(names) == len(versions) == 1, "ambiguous package identity")
+    require(all(type(value) is str and value.isascii() for value in (names[0], versions[0])),
+            "non-ASCII or non-string package identity")
+    name, full = names[0].strip(" \t"), versions[0].strip(" \t")
+    require(re.sub(r"[-_.]+", "-", name).lower() == "meshvale-repair", "wrong package identity")
+    # The owning source-version contract admits three release components with
+    # optional dev/local data; this is not a general Python version parser.
+    match = re.fullmatch(r"([0-9]+)\.([0-9]+)\.([0-9]+)(?:\.dev([0-9]+))?(?:\+([A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*))?", full, re.I)
+    require(match is not None, "unsupported generated FULL profile")
+    version_tuple = tuple(int(match[index]) for index in (1, 2, 3))
+    if match[4] is not None:
+        version_tuple += ("dev" + str(int(match[4])),)
+    if match[5] is not None:
+        local = ".".join(str(int(part)) if part.isdecimal() else part.lower()
+                         for part in re.split(r"[._-]", match[5]))
+        version_tuple += (local,)
+    return full, version_tuple
+
+
+def generated_version_identity(payload, full, version_tuple):
+    names = {"__version__", "version", "__version_tuple__", "version_tuple",
+             "__commit_id__", "commit_id"}
+    values = {}
+    try:
+        tree = ast.parse(payload)
+        for node in tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name) and target.id in names:
+                        require(target.id not in values, "duplicate generated version assignment")
+                        values[target.id] = ast.literal_eval(node.value)
+    except (SyntaxError, ValueError, TypeError) as error:
+        raise SelectionError("invalid generated version AST") from error
+    require(values.keys() == names, "missing generated version identity")
+    require(type(values["version"]) is str and values["version"] == values["__version__"] == full,
+            "generated FULL mismatch")
+    require(all(type(values[name]) is tuple and
+                all(type(value) in {int, str} for value in values[name])
+                for name in ("version_tuple", "__version_tuple__")) and
+            values["version_tuple"] == values["__version_tuple__"] == version_tuple,
+            "generated version tuple mismatch")
+    commit = values["commit_id"]
+    require((commit is None or type(commit) is str and commit) and
+            commit == values["__commit_id__"], "invalid generated commit identity")
+    # Closed observed vcs-versioning 2.6.0 .py template, used by the selected
+    # build. Check each complete module independently; equal unsupported input
+    # and output shapes must not authorize executable writes. AST comparison
+    # permits formatting/comments and only these already validated literal slots.
+    expected = ast.parse("""from __future__ import annotations
+__all__ = ["__version__", "__version_tuple__", "version", "version_tuple", "__commit_id__", "commit_id"]
+version: str
+__version__: str
+__version_tuple__: tuple[int | str, ...]
+version_tuple: tuple[int | str, ...]
+commit_id: str | None
+__commit_id__: str | None
+__version__ = version = {full!r}
+__version_tuple__ = version_tuple = {version_tuple!r}
+__commit_id__ = commit_id = {commit!r}
+""".format(full=full, version_tuple=version_tuple, commit=commit))
+    require(ast.dump(tree, include_attributes=False) == ast.dump(expected, include_attributes=False),
+            "unsupported generated version module shape")
+    return commit
+
+
+def verify_sdist_regeneration(archive, pristine_manifest, built_manifest, wheel,
+                              native_member, native_sha256):
+    pristine = verify_file_manifest(pristine_manifest)
+    built = verify_file_manifest(built_manifest)
+    pristine_root, built_root = Path(pristine["root"]).resolve(), Path(built["root"]).resolve()
+    require(pristine_root != built_root and not pristine_root.is_relative_to(built_root) and
+            not built_root.is_relative_to(pristine_root), "SDIST input witness is mutable build source")
+    before = {row["path"]: row for row in pristine["files"]}
+    after = {row["path"]: row for row in built["files"]}
+    require(before.keys() == after.keys(), "SDIST build member inventory changed")
+    generated = "python/meshvale_repair/_version.py"
+    require(generated in before and "PKG-INFO" in before, "missing SDIST version inputs")
+    require(all(row == after[name] for name, row in before.items() if name != generated),
+            "ordinary SDIST member changed during wheel build")
+    archived = {}
+    top_names = set()
+    with tarfile.open(archive) as package:
+        for member in package.getmembers():
+            relative = PurePosixPath(member.name)
+            require(not relative.is_absolute() and ".." not in relative.parts and
+                    (member.isfile() or member.isdir()), "invalid bound SDIST member")
+            if member.isdir():
+                continue
+            require(len(relative.parts) >= 2, "SDIST member lacks source root")
+            top_names.add(relative.parts[0])
+            name = "/".join(relative.parts[1:])
+            require(name in before and name not in archived, "unexpected bound SDIST member")
+            payload = package.extractfile(member).read()
+            archived[name] = {"path": name, "bytes": len(payload),
+                              "sha256": hashlib.sha256(payload).hexdigest(),
+                              "lf_sha256": hashlib.sha256(payload.replace(b"\r\n", b"\n")).hexdigest()}
+    require(len(top_names) == 1 and archived == before, "SDIST archive/input witness mismatch")
+    full, version_tuple = distribution_identity((pristine_root / "PKG-INFO").read_bytes())
+    input_bytes, output_bytes = (pristine_root / generated).read_bytes(), (built_root / generated).read_bytes()
+    input_commit = generated_version_identity(input_bytes, full, version_tuple)
+    output_commit = generated_version_identity(output_bytes, full, version_tuple)
+    require(output_commit is None or output_commit == input_commit, "regenerated commit identity changed")
+    with zipfile.ZipFile(wheel) as package:
+        metadata = [name for name in package.namelist() if name.endswith(".dist-info/METADATA")]
+        require(len(metadata) == 1 and distribution_identity(package.read(metadata[0])) == (full, version_tuple),
+                "SDIST/wheel FULL mismatch")
+        require(package.read("meshvale_repair/_version.py") == output_bytes,
+                "wheel generated version differs from actual build output")
+        require(native_member.startswith("meshvale_repair/_repair.") and native_member.endswith((".pyd", ".so")) and
+                hashlib.sha256(package.read(native_member)).hexdigest() == native_sha256,
+                "regenerated wheel/native mismatch")
+    return {"full": full, "version_tuple": list(version_tuple),
+            "input_version": before[generated], "output_version": after[generated],
+            "input_commit": input_commit, "output_commit": output_commit,
+            "archive_members": len(before), "unchanged_members": len(before) - 1}
+
+
 def validated_receiver(path):
     receiver = checked_schema(load(path), "receiver")
     roots = receiver["roots"]
@@ -621,6 +768,11 @@ def validated_receiver(path):
     if receiver["origin"] == "sdist":
         verify_file_manifest(resolve(receiver["sources"]["sdist_member_manifest"], roots))
         require(not (Path(roots["receiver_source"]) / ".git").exists(), "sdist has Git state")
+        module = receiver["module_build"]
+        verify_sdist_regeneration(resolve(receiver["sources"]["sdist"], roots),
+            resolve(receiver["sources"]["sdist_member_manifest"], roots),
+            resolve(receiver["sources"]["repair_manifest"], roots),
+            resolve(module["wheel"], roots), module["wheel_member_name"], module["post_link"]["sha256"])
     bridge = load(resolve(receiver["sources"]["raw_lf_bridge"], roots))
     require(set(bridge) == {"original_manifest", "required", "generated_version_paths"}, "invalid source bridge")
     verify_refs(bridge, roots)
