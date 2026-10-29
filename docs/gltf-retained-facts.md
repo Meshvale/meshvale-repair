@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-FACTS-001 |
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | Development implementation; public qualification pending |
 | Owner | Repair workflow result ownership and live requested-byte attribution |
 
@@ -106,3 +106,13 @@ copies/results, exact ledger delta, later refusal and last-copy release. Observe
 the real handoff under request refusal and assert nothrow transfer/destruction.
 Requalify enlarged storage boundaries, unexpected exception joins, installed
 consumers and the compiled Python return observer before acceptance.
+
+## RGDEF-RETENTION-PROJECTION-001: Retained deformation selection
+
+The [retained deformation contract](gltf-deformation.md) selects the opt-in
+deformation-retained-v1 extension for called-failure and completed-Repair retention.
+Development implementation is present; full workflow and dependency-cohort
+qualification and release availability remain pending. Existing static/direct-translation clauses, defaults and
+unchanged-request wire keep their current meaning. The new contract owns the
+additional source/read/processing authority, policies, roles and called facts.
+There is no implicit source upgrade or widening of a legacy schema/preset.

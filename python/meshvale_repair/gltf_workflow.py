@@ -15,8 +15,10 @@ except AttributeError as error:
 _DEFAULT_EXECUTION = GltfExecution()
 _STATIC_PROFILE = "static-local-triangles-v1"
 _TRANSLATION_PROFILE = "direct-translation-v1"
+_DEFORMATION_PROFILE = "deformation-retained-v1"
 # An immutable policy handle copies the same native context; no second pool.
 _DEFAULT_TRANSLATION_EXECUTION = _DEFAULT_EXECUTION._direct_translation_policy()
+_DEFAULT_DEFORMATION_EXECUTION = _DEFAULT_EXECUTION._deformation_policy()
 
 
 def _prepare_gltf_request(
@@ -29,8 +31,12 @@ def _prepare_gltf_request(
 ):
     """Own all conversions and the final result without reading an asset."""
     if execution is None:
-        execution = (_DEFAULT_TRANSLATION_EXECUTION
-                     if processing_profile == _TRANSLATION_PROFILE else _DEFAULT_EXECUTION)
+        if processing_profile == _DEFORMATION_PROFILE:
+            execution = _DEFAULT_DEFORMATION_EXECUTION
+        elif processing_profile == _TRANSLATION_PROFILE:
+            execution = _DEFAULT_TRANSLATION_EXECUTION
+        else:
+            execution = _DEFAULT_EXECUTION
     return _repair._prepare_gltf_file(
         source, destination, targets,
         primitive_ordinal=primitive_ordinal, triangles=triangles, values=values,

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-WORKFLOW-001 |
-| Version | 0.1.4 |
+| Version | 0.2.0 |
 | Status | Development native implementation; qualification pending |
 | Owner | Repair orchestration, resolved policy, observations and report translation |
 | Interface | [gltf_workflow.h](../include/meshvale/repair/gltf_workflow.h) |
@@ -461,3 +461,13 @@ compose that orchestration with the same policy/report owners. The implemented o
 required implementation-evidence inventory and bounded capability contract. Broader skin/morph/animation edits, arbitrary channel
 mutations, final package/release support and complete MVP obligations remain
 future work. The [OBJ workflow](obj-workflow.md) owns its own publication behavior.
+
+## RGDEF-MEMORY-PROJECTION-001: Retained deformation selection
+
+The [retained deformation contract](gltf-deformation.md) selects the opt-in
+deformation-retained-v1 extension for native selected-primitive composition.
+Development implementation is present; full workflow and dependency-cohort
+qualification and release availability remain pending. Existing static/direct-translation clauses, defaults and
+unchanged-request wire keep their current meaning. The new contract owns the
+additional source/read/processing authority, policies, roles and called facts.
+There is no implicit source upgrade or widening of a legacy schema/preset.

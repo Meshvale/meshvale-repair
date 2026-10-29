@@ -1,0 +1,101 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "meshvale.gltf-deformation-test-process/1"
+    },
+    "argv": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "started_utc": {
+      "type": "string"
+    },
+    "ended_utc": {
+      "type": "string"
+    },
+    "returncode": {
+      "type": "integer"
+    },
+    "stdout": {
+      "$ref": "#/$defs/artifact"
+    },
+    "stderr": {
+      "$ref": "#/$defs/artifact"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifact"
+      },
+      "minItems": 0
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifact"
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schema",
+    "argv",
+    "cwd",
+    "started_utc",
+    "ended_utc",
+    "returncode",
+    "stdout",
+    "stderr",
+    "inputs",
+    "outputs"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "producer_source",
+            "receiver_source",
+            "sdk",
+            "geometry_sdk",
+            "toolchain",
+            "installed"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)[A-Za-z0-9._+/-]+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

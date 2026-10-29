@@ -1,0 +1,369 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "meshvale.gltf-deformation-python-receiver/1"
+    },
+    "origin": {
+      "type": "string",
+      "enum": [
+        "source",
+        "sdist"
+      ]
+    },
+    "roots": {
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "type": "string"
+        },
+        "producer_source": {
+          "type": "string"
+        },
+        "receiver_source": {
+          "type": "string"
+        },
+        "sdk": {
+          "type": "string"
+        },
+        "geometry_sdk": {
+          "type": "string"
+        },
+        "toolchain": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "producer_source",
+        "receiver_source",
+        "sdk",
+        "geometry_sdk",
+        "toolchain"
+      ],
+      "additionalProperties": false
+    },
+    "producer_record": {
+      "$ref": "#/$defs/artifact"
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "repair_manifest": {
+          "$ref": "#/$defs/artifact"
+        },
+        "interchange_manifest": {
+          "$ref": "#/$defs/artifact"
+        },
+        "geometry_manifest": {
+          "$ref": "#/$defs/artifact"
+        },
+        "sdist": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sdist_member_manifest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_lf_bridge": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "required": [
+        "repair_manifest",
+        "interchange_manifest",
+        "geometry_manifest",
+        "sdist",
+        "sdist_member_manifest",
+        "raw_lf_bridge"
+      ],
+      "additionalProperties": false
+    },
+    "receiver": {
+      "type": "object",
+      "properties": {
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "single",
+                "multi"
+              ]
+            },
+            "kind_observation": {
+              "$ref": "#/$defs/artifact"
+            },
+            "cache": {
+              "$ref": "#/$defs/artifact"
+            },
+            "configurations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 0
+            },
+            "selected_configuration": {
+              "type": "string"
+            },
+            "compiler_record": {
+              "$ref": "#/$defs/artifact"
+            }
+          },
+          "required": [
+            "name",
+            "kind",
+            "kind_observation",
+            "cache",
+            "configurations",
+            "selected_configuration",
+            "compiler_record"
+          ],
+          "additionalProperties": false
+        },
+        "guard": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false",
+            "unprobed"
+          ]
+        },
+        "guard_definition_source": {
+          "$ref": "#/$defs/artifact"
+        },
+        "predicate_source": {
+          "$ref": "#/$defs/artifact"
+        },
+        "production_compile_command": {
+          "$ref": "#/$defs/artifact"
+        },
+        "production_object": {
+          "$ref": "#/$defs/artifact"
+        },
+        "dependency_headers": {
+          "$ref": "#/$defs/artifact"
+        },
+        "common_probe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_true_probe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_false_probe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "abi": {
+          "type": "object",
+          "properties": {
+            "architecture": {
+              "type": "string"
+            },
+            "effective_standard": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 18446744073709551615
+            },
+            "runtime": {
+              "type": "string"
+            },
+            "iterator_debug": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 18446744073709551615
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stdlib_abi": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "architecture",
+            "effective_standard",
+            "runtime",
+            "iterator_debug",
+            "stdlib_abi"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "generator",
+        "guard",
+        "guard_definition_source",
+        "predicate_source",
+        "production_compile_command",
+        "production_object",
+        "dependency_headers",
+        "common_probe",
+        "expected_true_probe",
+        "expected_false_probe",
+        "abi"
+      ],
+      "additionalProperties": false
+    },
+    "module_build": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "meshvale_repair._repair"
+        },
+        "build_record": {
+          "$ref": "#/$defs/artifact"
+        },
+        "normal_defines": {
+          "$ref": "#/$defs/artifact"
+        },
+        "post_link": {
+          "$ref": "#/$defs/artifact"
+        },
+        "actual_link_process": {
+          "$ref": "#/$defs/artifact"
+        },
+        "resolved_link_inputs": {
+          "$ref": "#/$defs/artifact"
+        },
+        "actual_header_dependencies": {
+          "$ref": "#/$defs/artifact"
+        },
+        "wheel": {
+          "$ref": "#/$defs/artifact"
+        },
+        "wheel_member_name": {
+          "type": "string"
+        },
+        "pre_repair_member": {
+          "$ref": "#/$defs/artifact"
+        },
+        "post_repair_member": {
+          "$ref": "#/$defs/artifact"
+        },
+        "repair_transform": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "build_record",
+        "normal_defines",
+        "post_link",
+        "actual_link_process",
+        "resolved_link_inputs",
+        "actual_header_dependencies",
+        "wheel",
+        "wheel_member_name",
+        "pre_repair_member",
+        "post_repair_member",
+        "repair_transform"
+      ],
+      "additionalProperties": false
+    },
+    "positive_inventory": {
+      "$ref": "#/$defs/artifact"
+    }
+  },
+  "required": [
+    "schema",
+    "origin",
+    "roots",
+    "producer_record",
+    "sources",
+    "receiver",
+    "module_build",
+    "positive_inventory"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "producer_source",
+            "receiver_source",
+            "sdk",
+            "geometry_sdk",
+            "toolchain",
+            "installed"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)[A-Za-z0-9._+/-]+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

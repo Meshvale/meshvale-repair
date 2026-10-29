@@ -1,0 +1,105 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "meshvale.gltf-deformation-compile-probe/1"
+    },
+    "assertion": {
+      "type": "string",
+      "enum": [
+        "common",
+        "expected-true",
+        "expected-false"
+      ]
+    },
+    "source": {
+      "$ref": "#/$defs/artifact"
+    },
+    "command": {
+      "$ref": "#/$defs/artifact"
+    },
+    "stdout": {
+      "$ref": "#/$defs/artifact"
+    },
+    "stderr": {
+      "$ref": "#/$defs/artifact"
+    },
+    "output": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/artifact"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "returncode": {
+      "type": "integer"
+    },
+    "selected_configuration": {
+      "type": "string"
+    },
+    "compiler_record": {
+      "$ref": "#/$defs/artifact"
+    },
+    "dependency_headers": {
+      "$ref": "#/$defs/artifact"
+    }
+  },
+  "required": [
+    "schema",
+    "assertion",
+    "source",
+    "command",
+    "stdout",
+    "stderr",
+    "output",
+    "returncode",
+    "selected_configuration",
+    "compiler_record",
+    "dependency_headers"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "producer_source",
+            "receiver_source",
+            "sdk",
+            "geometry_sdk",
+            "toolchain",
+            "installed"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)[A-Za-z0-9._+/-]+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

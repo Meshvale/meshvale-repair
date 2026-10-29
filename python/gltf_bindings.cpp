@@ -36,7 +36,9 @@
 #include <variant>
 #include <vector>
 
+#include "gltf_deformation_observations.h"
 #include "gltf_presets.h"
+#include "gltf_workflow_internal.h"
 
 #if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
 #include "gltf_binding_observer.h"
@@ -108,6 +110,11 @@ struct GltfTranslationFields {
   static constexpr char kDirectTranslationPolicy[] =
       "_direct_translation_policy";
 };
+struct GltfDeformationFields {
+  static constexpr char kPolicy[] = "_deformation_policy";
+  static constexpr char kFacts[] = "deformation_facts";
+  static constexpr char kOptions[] = "deformation_options";
+};
 constexpr std::uint64_t kMaxGltfProcessingProfileBytes = 32;
 
 template <class T>
@@ -158,9 +165,22 @@ class GltfExecution {
     policy.preset_ = MakeGltfPreset(policy.name_);
     return policy;
   }
+  GltfExecution DeformationPolicy() const {
+    if (name_ != kBalancedGltfPreset)
+      throw nb::value_error(
+          "default policy requires the balanced static session");
+    GltfExecution policy(*this);
+    policy.name_ = kBalancedDeformationGltfPreset;
+    policy.preset_ = MakeGltfPreset(policy.name_);
+    return policy;
+  }
+  bool SupportsDeformation() const noexcept {
+    return name_ == kBalancedDeformationGltfPreset ||
+           name_ == kSerialDeformationGltfPreset;
+  }
   bool SupportsDirectTranslation() const noexcept {
     return name_ == kBalancedTranslationGltfPreset ||
-           name_ == kSerialTranslationGltfPreset;
+           name_ == kSerialTranslationGltfPreset || SupportsDeformation();
   }
   const std::string& Name() const noexcept { return name_; }
   const GltfPreset& Preset() const noexcept { return preset_; }
@@ -204,8 +224,11 @@ struct GltfFileWorkflowResult {
   std::vector<DuplicateTarget> targets;
   std::vector<OwnedDeclaration> declarations;
   std::vector<RowLocalAttributeDeclaration> declaration_views;
+  std::vector<ic::GltfDeformationRowLocalDeclaration>
+      deformation_declaration_views;
   ic::GltfFileReadResult capture;
   GltfDuplicateFileWorkflowResult workflow;
+  std::optional<GltfWorkflowDeformationFacts> deformation;
   InvocationState state = InvocationState::kPrepared;
   bool workflow_started = false;
   GltfReportFailureRetention report_failure_retention =
@@ -336,6 +359,9 @@ nb::object Prepare(nb::handle source, nb::handle destination,
     selected_profile = ic::GltfProcessingProfile::kStaticLocalTrianglesV1;
   else if (profile == kDirectTranslationGltfProcessingProfile)
     selected_profile = ic::GltfProcessingProfile::kDirectTranslationTrianglesV1;
+  else if (profile == kDeformationGltfProcessingProfile)
+    selected_profile =
+        ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1;
   else
     throw nb::value_error("unknown glTF processing profile");
   if (selected_profile ==
@@ -343,6 +369,11 @@ nb::object Prepare(nb::handle source, nb::handle destination,
       !session.SupportsDirectTranslation())
     throw nb::value_error(
         "execution preset does not support direct translation");
+  if (selected_profile ==
+          ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1 &&
+      !session.SupportsDeformation())
+    throw nb::value_error(
+        "execution preset does not support retained deformation");
   std::stop_source stop;
   if (!cancellation.is_none()) {
     if (!nb::isinstance<GltfCancellation>(cancellation))
@@ -358,6 +389,14 @@ nb::object Prepare(nb::handle source, nb::handle destination,
       GltfFileWorkflowResult(session, std::move(stop));
   nb::inst_mark_ready(object);
   result->extraction.processing_profile = selected_profile;
+  if (selected_profile ==
+      ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1) {
+    result->deformation = gltf_workflow_detail::SelectedDeformationFacts();
+    result->read_options = result->preset.capture_options;
+    result->read_options.read_request.admission_profile =
+        ic::GltfAdmissionProfile::kRetainedCoreDeformationV1;
+    result->extraction.deformation = result->preset.source_deformation;
+  }
   if (retain_failure_facts.ptr() == Py_True)
     result->report_failure_retention =
         GltfReportFailureRetention::kRetainCompletedRepair;
@@ -427,6 +466,16 @@ nb::object Prepare(nb::handle source, nb::handle destination,
   result->declaration_views.reserve(result->declarations.size());
   for (const auto& declaration : result->declarations)
     result->declaration_views.push_back({declaration.domain, declaration.name});
+  if (selected_profile ==
+      ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1) {
+    result->deformation_declaration_views.reserve(result->declarations.size());
+    for (const auto& declaration : result->declarations) {
+      if (declaration.domain == geo::AttributeDomain::vertex)
+        result->deformation_declaration_views.push_back({declaration.name});
+    }
+    result->extraction.deformation_row_local =
+        result->deformation_declaration_views;
+  }
   return object;
 }
 nb::object Run(nb::handle prepared) {
@@ -447,11 +496,17 @@ nb::object Run(nb::handle prepared) {
           result->source, result->read_options, result->preset.capture_limits,
           result->preset.capture_work, result->context,
           result->stop.get_token());
+      if (result->deformation)
+        result->deformation->capture_read = result->capture.deformation;
       if (result->capture.asset) {
         std::optional<GltfDuplicateFilePublication> publication;
-        if (result->destination)
+        if (result->destination) {
           publication.emplace(*result->destination, result->report_path,
                               std::span<const ic::GltfFileView>{});
+          if (result->deformation)
+            publication->deformation_publication =
+                result->preset.deformation_publication;
+        }
         const GltfDuplicateFileWorkflowRequest request{
             *result->capture.asset,
             result->input_id,
@@ -460,7 +515,9 @@ nb::object Run(nb::handle prepared) {
             result->targets,
             {result->declaration_views},
             publication ? &*publication : nullptr,
-            result->report_failure_retention};
+            result->report_failure_retention,
+            result->deformation ? result->preset.deformation
+                                : GltfWorkflowDeformationPolicies{}};
         result->workflow_started = true;
 #if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
         auto native_result =
@@ -476,6 +533,11 @@ nb::object Run(nb::handle prepared) {
             result->stop.get_token());
 #endif
         result->workflow = std::move(native_result);
+        if (result->deformation && result->workflow.deformation) {
+          result->deformation = result->workflow.deformation;
+          // Capture returned before the engine; never infer a source_read call.
+          result->deformation->capture_read = result->capture.deformation;
+        }
       }
     }
 #if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
@@ -951,6 +1013,19 @@ nb::dict TranslationDiagnostic(const ic::GltfDiagnostic& value) {
   result[GltfTranslationFields::kRuleId] = value.rule_id;
   return result;
 }
+nb::object DeformationFacts(const GltfFileWorkflowResult& value) {
+  value.RequireComplete();
+  return value.deformation ? ObserveGltfDeformation(*value.deformation)
+                           : nb::object(nb::none());
+}
+
+nb::object DeformationOptions(const GltfFileWorkflowResult& value) {
+  value.RequireComplete();
+  return value.deformation ? ObserveGltfFileDeformationOptions(
+                                 *value.deformation, value.preset,
+                                 value.destination.has_value())
+                           : nb::object(nb::none());
+}
 nb::object TranslationObservation(
     const std::optional<ic::GltfDirectTranslationObservation>& value) {
   if (!value) return nb::none();
@@ -987,8 +1062,8 @@ nb::object TranslationObservation(
 }
 nb::object TranslationFacts(const GltfFileWorkflowResult& value) {
   value.RequireComplete();
-  if (value.extraction.processing_profile ==
-      ic::GltfProcessingProfile::kStaticLocalTrianglesV1)
+  if (value.extraction.processing_profile !=
+      ic::GltfProcessingProfile::kDirectTranslationTrianglesV1)
     return nb::none();
   const auto& facts = value.workflow.translation;
   nb::dict result;
@@ -1326,7 +1401,10 @@ void RegisterGltfBindings(nb::module_& module) {
       .value("kCanceled", ic::GltfDiagnosticCode::kCanceled)
       .value("kPayloadBudget", ic::GltfDiagnosticCode::kPayloadBudget)
       .value("kInvalidSelection", ic::GltfDiagnosticCode::kInvalidSelection)
-      .value("kForeignOwner", ic::GltfDiagnosticCode::kForeignOwner);
+      .value("kForeignOwner", ic::GltfDiagnosticCode::kForeignOwner)
+      .value("kAdmissionProfileMismatch",
+             ic::GltfDiagnosticCode::kAdmissionProfileMismatch)
+      .value("kNumericalProfile", ic::GltfDiagnosticCode::kNumericalProfile);
   nb::enum_<ic::GltfFileCleanupOutcome>(module, "GltfFileCleanupOutcome")
       .value("kNotRequired", ic::GltfFileCleanupOutcome::kNotRequired)
       .value("kRemoved", ic::GltfFileCleanupOutcome::kRemoved)
@@ -1446,7 +1524,11 @@ void RegisterGltfBindings(nb::module_& module) {
              ic::GltfMaterializationDiagnosticCode::kStopRequested)
       .value("kGeometry", ic::GltfMaterializationDiagnosticCode::kGeometry)
       .value("kStorageIssues",
-             ic::GltfMaterializationDiagnosticCode::kStorageIssues);
+             ic::GltfMaterializationDiagnosticCode::kStorageIssues)
+      .value("kDeformationPolicyRequired",
+             ic::GltfMaterializationDiagnosticCode::kDeformationPolicyRequired)
+      .value("kDeformation",
+             ic::GltfMaterializationDiagnosticCode::kDeformation);
   nb::enum_<ic::GltfMaterializationStage>(module, "GltfMaterializationStage")
       .value("kBridge", ic::GltfMaterializationStage::kBridge)
       .value("kCapture", ic::GltfMaterializationStage::kCapture)
@@ -1551,7 +1633,12 @@ void RegisterGltfBindings(nb::module_& module) {
       .value("kRequestBudget",
              ic::GltfTopologyOutputInspectionDiagnosticCode::kRequestBudget)
       .value("kStopRequested",
-             ic::GltfTopologyOutputInspectionDiagnosticCode::kStopRequested);
+             ic::GltfTopologyOutputInspectionDiagnosticCode::kStopRequested)
+      .value("kDeformationPolicyRequired",
+             ic::GltfTopologyOutputInspectionDiagnosticCode::
+                 kDeformationPolicyRequired)
+      .value("kDeformation",
+             ic::GltfTopologyOutputInspectionDiagnosticCode::kDeformation);
   nb::enum_<ic::GltfTopologyOutputInspectionStage>(
       module, "GltfTopologyOutputInspectionStage")
       .value("kAdmission", ic::GltfTopologyOutputInspectionStage::kAdmission)
@@ -1641,7 +1728,10 @@ void RegisterGltfBindings(nb::module_& module) {
       .value("kRequestBudget",
              ic::GltfTopologyWriteDiagnosticCode::kRequestBudget)
       .value("kStopRequested",
-             ic::GltfTopologyWriteDiagnosticCode::kStopRequested);
+             ic::GltfTopologyWriteDiagnosticCode::kStopRequested)
+      .value("kDeformationPolicyRequired",
+             ic::GltfTopologyWriteDiagnosticCode::kDeformationPolicyRequired)
+      .value("kDeformation", ic::GltfTopologyWriteDiagnosticCode::kDeformation);
   nb::enum_<ic::GltfTopologyWriteStage>(module, "GltfTopologyWriteStage")
       .value("kAdmission", ic::GltfTopologyWriteStage::kAdmission)
       .value("kVerification", ic::GltfTopologyWriteStage::kVerification)
@@ -2263,13 +2353,17 @@ void RegisterGltfBindings(nb::module_& module) {
            nb::arg("preset") = kBalancedGltfPreset)
       .def(GltfTranslationFields::kDirectTranslationPolicy,
            &GltfExecution::DirectTranslationPolicy)
+      .def(GltfDeformationFields::kPolicy, &GltfExecution::DeformationPolicy)
       .def_prop_ro("preset",
                    [](const GltfExecution& self) {
                      return nb::str(self.Name().c_str());
                    })
       .def_prop_ro("resolved_preset",
                    [](const GltfExecution& self) {
-                     return PresetObservation(self.Preset());
+                     auto result = PresetObservation(self.Preset());
+                     if (self.SupportsDeformation())
+                       AppendGltfDeformationPreset(result, self.Preset());
+                     return result;
                    })
       .def_prop_ro("worker_budget",
                    [](const GltfExecution& self) {
@@ -2289,15 +2383,21 @@ void RegisterGltfBindings(nb::module_& module) {
   nb::class_<GltfFileWorkflowResult>(module, "GltfFileWorkflowResult")
       .def_prop_ro(
           GltfTranslationFields::kProcessingProfile,
-          [](const GltfFileWorkflowResult& self) {
+          [](const GltfFileWorkflowResult& self) -> nb::object {
             self.RequireComplete();
-            return self.extraction.processing_profile ==
-                           ic::GltfProcessingProfile::
-                               kDirectTranslationTrianglesV1
-                       ? nb::str(kDirectTranslationGltfProcessingProfile.data())
-                       : nb::str(kStaticGltfProcessingProfile.data());
+            switch (self.extraction.processing_profile) {
+              case ic::GltfProcessingProfile::kStaticLocalTrianglesV1:
+                return nb::str(kStaticGltfProcessingProfile.data());
+              case ic::GltfProcessingProfile::kDirectTranslationTrianglesV1:
+                return nb::str(kDirectTranslationGltfProcessingProfile.data());
+              case ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1:
+                return nb::cast(kDeformationGltfProcessingProfile);
+            }
+            throw nb::value_error("unknown retained processing profile");
           })
       .def_prop_ro(GltfTranslationFields::kTranslationFacts, &TranslationFacts)
+      .def_prop_ro(GltfDeformationFields::kFacts, &DeformationFacts)
+      .def_prop_ro(GltfDeformationFields::kOptions, &DeformationOptions)
       .def_prop_ro("workflow_started",
                    [](const GltfFileWorkflowResult& self) {
                      self.RequireComplete();

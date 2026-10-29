@@ -9,6 +9,10 @@ name: Portable Repair development cohort
       - scripts/portable-preview.py
       - scripts/check-package.py
       - scripts/check-gltf-python-return.py
+      - scripts/gltf-deformation-test-evidence.py
+      - scripts/check-gltf-deformation-python.py
+      - scripts/gltf_deformation_test_support.py
+      - scripts/gltf-deformation-domain/**
       - pyproject.toml
       - CMakeLists.txt
       - cmake/**
@@ -103,13 +107,22 @@ jobs:
         run: |
           python -m build --sdist --outdir .local/preview/sdist
           python scripts/check-package.py .local/preview/sdist/*.tar.gz
-      - name: Build, inspect and test repaired source candidate
+      - name: Qualify one separate normal source and genuine-SDIST deformation pair
+        shell: bash
+        env:
+          MESHVALE_DEPS: ${{ github.workspace }}/.local/deformation-dependencies
+          MESHVALE_PREVIEW_DIR: ${{ github.workspace }}/.local/preview/deformation-owned
+          CMAKE_GENERATOR: Ninja
+        run: |
+          python -m pip install cmake==4.3.1 scikit-build-core==1.1.1 nanobind==3.1.0 setuptools-scm==10.3.4
+          python scripts/portable-preview.py qualify-deformation
+      - name: Build, inspect and test repaired source candidate baseline
         run: python -m cibuildwheel --output-dir .local/preview/source-wheels
         env:
           CIBW_ENVIRONMENT_WINDOWS: >-
             MESHVALE_DEPS="$MESHVALE_DEPS" MESHVALE_PREVIEW_DIR="$MESHVALE_PREVIEW_ROOT/source-wheels"
             CMAKE_PREFIX_PATH="$MESHVALE_PREFIXES" VCPKG_DISABLE_METRICS=1
-      - name: Rebuild, inspect and test repaired candidate from source archive without Git
+      - name: Rebuild, inspect and test repaired archive candidate baseline
         shell: bash
         run: python -m cibuildwheel .local/preview/sdist/*.tar.gz --output-dir .local/preview/wheels
         env:
@@ -137,7 +150,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: 33f483d2f5bed45dd2c3273957c08c404fc03bee
+          ref: 88acdba9046352b84d3dea90648e3d271629f511
           path: .local/portable-dependencies/interchange-native-source
           persist-credentials: false
       - name: Inspect final publication contents and record exact identities
@@ -146,10 +159,15 @@ jobs:
           python scripts/check-package.py .local/preview/source-wheels/*.whl .local/preview/wheels/*.whl
           python scripts/portable-preview.py manifest --output .local/preview
       - name: Retain development candidates and their notices
+        if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: repair-development-${{ matrix.identifier }}
-          path: .local/preview
+          path: |
+            .local/preview
+            .local/d
+            .local/deformation-dependencies
+            !.local/deformation-dependencies/**/.git/**
           if-no-files-found: error
           retention-days: 14
           include-hidden-files: true

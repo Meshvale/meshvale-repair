@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-COMMANDS-001 |
-| Version | 0.1.1 |
-| Status | Static and bounded direct-translation development commands; no supported release |
+| Version | 0.3.0 |
+| Status | Development commands; retained-deformation integration and qualification pending; no supported release |
 | Owner | Command admission, ordered scheduling, receipt framing and delivery |
 
 These commands use the same [prepared file operation](gltf-python.md), native
@@ -52,10 +52,17 @@ Single options `--input-id` (default `source`), `--resource-root`, repeated
 `--row-local DOMAIN:NAME` and `--report-path` (default `receipts/report.json`)
 mirror the file interface. A single command also accepts `--processing-profile`
 with default `static-local-triangles-v1` or opt-in `direct-translation-v1`.
+The selected `deformation-retained-v1` path additionally requires the matching
+deformation-capable native producer. Its Python admission/delivery code is under
+qualification; complete native/Python/installed execution remains pending.
 Both commands accept the original presets `balanced-v1` and
 `serial-reference-v1`, plus `balanced-direct-translation-v1` and
-`serial-direct-translation-v1`. Preset omission selects the matching balanced
-policy; a version-2 batch selects the new balanced policy even for mixed rows.
+`serial-direct-translation-v1`. The new `balanced-deformation-v1` and
+`serial-deformation-v1` accept all three processing profiles. Original presets
+remain static-only; translation presets accept static/translation. Preset
+omission selects the matching balanced policy: batches select by schema even
+when every row is static or the list is empty (version1 original, version2
+translation, version3 deformation). Single commands select by explicit profile.
 Each invocation creates one shared context/token for its rows. Incompatible
 explicit old presets fail before filesystem work. Batch also accepts `--fail-fast`. No automatic primitive
 discovery, target selection, custom native limits, phase callbacks or parallel
@@ -78,6 +85,17 @@ requires `processing_profile` on every row, and permits mixed static/translation
 jobs. Version 1 remains closed and rejects that added field. The
 [translation command contract](gltf-translation.md#gtran-command-001-single-command-and-closed-batch-version-2)
 owns the complete version-2 example and profile/preset rules.
+
+Closed schema `meshvale.repair.gltf-jobs/3` requires the same explicit fields as
+version2 and permits all three profiles. It adds no per-row preset, session,
+admission profile or numeric limits. Version1 still rejects a profile field and
+version2 still rejects deformation. The [mixed request fixture](../tests/fixtures/gltf-deformation-jobs3.json)
+shows version3 shape; it is input data, not a native execution result. The full
+[retained-deformation contract](gltf-deformation.md#rgdef-jobs-001-closed-jobs3-and-session-admission)
+owns compatibility, required source authority and the remaining qualification.
+An explicit session must admit every actual row; an empty request is compatible
+with any declared session. Without a session, version3 still creates one fresh
+deformation-balanced command context, including for empty/all-legacy requests.
 
 ```json
 {"schema":"meshvale.repair.gltf-jobs/1","jobs":[
@@ -194,3 +212,32 @@ Exit meanings/precedence are 130 cancellation, 2 execution/delivery failure,
 1 rejection or failed/incomplete required profile, 0 successful processing, as
 owned by Geometry's [report contract](https://github.com/Meshvale/meshvale-geometry/blob/48298b24be7c132816fb5580d22d58bde61558d0/docs/reports.md).
 Native ledger limits, Python allocation and report-wire ceilings remain distinct.
+
+## RGDEF-COMMAND-PROJECTION-001: Retained deformation selection
+
+The [retained deformation contract](gltf-deformation.md) owns the opt-in profile's
+single/batch preparation, source/read authority, policies and called facts. Its
+complete native/runtime implementation and qualification remain pending; current
+command source/component checks do not establish availability. Existing static/
+direct-translation clauses, defaults and unchanged-request wire keep their meaning.
+There is no implicit source upgrade or widening of a legacy schema/preset.
+
+For deformation and absent native receipt bytes, the existing incomplete command
+receipt profile remains `gltf-command-native-receipt/1`. The command extension
+`meshvale.repair.gltf.commands` has string version`3`, retains the existing exact
+keys and adds `processing_profile` and `processing`. Processing is the fresh
+readonly binding's 15-key `deformation_facts` value, including all11 actual nullable
+producer returns. The operation options receive the binding's seven-field
+`deformation_options` configuration view; configured limits are never derived from
+clipped telemetry. Missing/incoherent views cause delivery failure, not inferred
+facts. The fixed top-level metadata must agree between those readonly views.
+
+An unreached phase stays null. Numeric masks/refusals, quaternion words and partial
+weight summaries remain as returned, without recomputation or normalization.
+Actual nonempty native bytes always win and are forwarded exactly. Publication
+without its genuine receipt remains a delivery error; fallback never establishes
+verified publication or borrowed native preservation checks. Batch framing stays
+`meshvale.batch/1`, and all previous wire ceilings, order, cancellation/fail-fast
+precedence and final-owner release boundaries remain unchanged. Commands create
+fresh invocation contexts; they do not borrow the direct API's module default
+context or allocate another context per row.

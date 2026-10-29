@@ -46,6 +46,10 @@ struct State {
   // Inline reached facts survive memory report refusal even without its owner.
   std::optional<GltfWorkflowOutcomes> memory_outcomes;
   GltfWorkflowTranslationFacts translation;
+  std::optional<GltfWorkflowDeformationFacts> deformation;
+  std::array<std::optional<interchange::GltfDeformationPolicy>,
+             gltf_workflow_detail::kDeformationPhaseCount>
+      deformation_policies;
   std::optional<interchange::GltfPublishedBundle> published;
   GltfFileWorkflowOutcomes outcomes;
   GltfFileWorkflowDiagnostic diagnostic;

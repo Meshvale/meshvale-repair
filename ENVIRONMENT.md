@@ -41,6 +41,32 @@ acceptance.
 
 Documentation and portability checks need Git and Python 3.10 or newer, with no third-party Python packages:
 
+The new deformation Python positive tests live separately in
+`tests/gltf-deformation-python`. All ten methods require an attested producer
+and normal installed module; the existing `--gltf qualified` label describes
+only the legacy materialization tests. It cannot select this numerical cohort.
+The test-only [evidence emitter](scripts/gltf-deformation-test-evidence.py)
+records producer, source or genuine-sdist wheel, and installed-module stages.
+Its [receiver](scripts/check-gltf-deformation-python.py) validates the complete
+source/header/object/archive/link/wheel/load chain before selecting a lane.
+Guard-true matched named Release producers run all ten strict methods. Matched
+guard-false producers run the original linked Interchange read refusal control
+and credit zero Python positives. Unknown, unprobed, mismatched or supported
+non-Release cohorts fail selection; a runtime refusal never changes lanes.
+These checks do not establish a release, runtime floor or expanded support.
+
+For an existing matched SDK, configure its fresh producing build with the
+test-only `cmake/GltfDeformationTestProfile.cmake` hook supplied through
+`CMAKE_PROJECT_INCLUDE`, and retain its actual compile database and Ninja
+dependency records. Do not rebuild or modify a previously qualified SDK merely
+to label it. Missing historical configure evidence remains unavailable.
+The normal wheel emitter also uses that hook with `BUILD_TESTING=OFF`; it never
+forces numerical or runtime flags. Keep each origin's build and evidence fresh.
+`scripts/test-installed.py --gltf` requires `--gltf-deformation-receiver` and
+`--gltf-deformation-output`; it retains its installed environment for rehashing.
+Direct discovery in the strict test directory intentionally has no unsupported
+skip mode. The five binding/admission methods remain in `tests/gltf-python`.
+
 Optional Python builds use the pinned build/runtime dependencies in [pyproject.toml](pyproject.toml) and ordinary GIL-enabled CPython. The default wheel also enables the charged, memory and retained-file modules: supply compatible installed Geometry, Interchange and tinyobjloader prefixes. The native Interchange producer must enable its glTF writer, workflow support and file interfaces. See [Python packaging and ownership requirements](docs/python.md) and the [glTF Python contract](docs/gltf-python.md). Native-only legacy builds remain selectable separately. Keep candidate wheel directories, virtual environments and raw logs under ignored `.local/`; native-only builds and the checks below do not need these Python dependencies.
 
 The optional [reported OFF workflow](docs/off-workflow.md) requires

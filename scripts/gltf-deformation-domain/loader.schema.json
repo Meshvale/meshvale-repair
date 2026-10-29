@@ -1,0 +1,93 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "meshvale.gltf-deformation-test-loader/1"
+    },
+    "module_name": {
+      "const": "meshvale_repair._repair"
+    },
+    "spec_name": {
+      "const": "meshvale_repair._repair"
+    },
+    "module_file": {
+      "type": "string"
+    },
+    "spec_origin": {
+      "type": "string"
+    },
+    "sys_prefix": {
+      "type": "string"
+    },
+    "before_import": {
+      "$ref": "#/$defs/artifact"
+    },
+    "after_import": {
+      "$ref": "#/$defs/artifact"
+    },
+    "wheel_member": {
+      "$ref": "#/$defs/artifact"
+    },
+    "python_executable": {
+      "$ref": "#/$defs/artifact"
+    },
+    "python_version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "module_name",
+    "spec_name",
+    "module_file",
+    "spec_origin",
+    "sys_prefix",
+    "before_import",
+    "after_import",
+    "wheel_member",
+    "python_executable",
+    "python_version"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "producer_source",
+            "receiver_source",
+            "sdk",
+            "geometry_sdk",
+            "toolchain",
+            "installed"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)[A-Za-z0-9._+/-]+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

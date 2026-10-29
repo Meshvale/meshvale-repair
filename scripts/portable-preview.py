@@ -20,7 +20,7 @@ GEOMETRY_VERSION = "0.0.1.dev134+g48298b24b"
 INTERCHANGE_REVISION = "5b9b695ba1fef166baa8c7cf9ad21a5630691f70"
 INTERCHANGE_VERSION = "0.0.1.dev179+g5b9b695ba"
 # Native SDK and optional Python distribution have separate compatible owners.
-INTERCHANGE_NATIVE_REVISION = "33f483d2f5bed45dd2c3273957c08c404fc03bee"
+INTERCHANGE_NATIVE_REVISION = "88acdba9046352b84d3dea90648e3d271629f511"
 PACKAGE = Path(__file__).resolve().parents[1]
 
 
@@ -123,6 +123,80 @@ def prepare():
         "interchange_version": INTERCHANGE_VERSION,
         "interchange_native_features": ["gltf_topology_write", "gltf_workflow_support", "gltf_files"]},
         indent=2) + "\n", encoding="utf-8")
+
+
+def deformation_cohorts():
+    """One required ordinary source/sdist pair, before portable baselines.
+
+    This uses its own host SDK/wheels and never runs inside candidate prepare().
+    No repaired candidate artifact receives credit from these normal wheels.
+    """
+    root = dependency_root()
+    output = Path(os.environ["MESHVALE_PREVIEW_DIR"])
+    output.mkdir(parents=True, exist_ok=False)
+    root.mkdir(parents=True, exist_ok=False)
+    # Reuse only the existing pinned dependency helper's checkout/tooling code;
+    # its optional Python library remains a distinct dependency-wheel source.
+    run("git", "clone", "--filter=blob:none", "--no-checkout",
+        "https://github.com/Meshvale/meshvale-interchange.git", root / "interchange")
+    run("git", "checkout", "--detach", INTERCHANGE_REVISION, cwd=root / "interchange")
+    tools = interchange()
+    tools.checkout("https://github.com/Meshvale/meshvale-geometry.git", GEOMETRY_REVISION, root / "geometry")
+    tools.checkout("https://github.com/Meshvale/meshvale-interchange.git", INTERCHANGE_NATIVE_REVISION, root / "interchange-native-source")
+    tools.checkout("https://github.com/microsoft/vcpkg.git", tools.VCPKG_REVISION, root / "vcpkg")
+    windows = sys.platform == "win32"
+    if windows:
+        run("cmd", "/c", root / "vcpkg/bootstrap-vcpkg.bat", "-disableMetrics")
+    else:
+        run("bash", root / "vcpkg/bootstrap-vcpkg.sh", "-disableMetrics")
+    triplet = "x64-windows-static-md" if windows else "x64-linux"
+    vcpkg = root / "vcpkg" / ("vcpkg.exe" if windows else "vcpkg")
+    run(vcpkg, "install", "--vcpkg-root=" + str(root / "vcpkg"), "--triplet", triplet,
+        "--x-manifest-root=" + str(root / "interchange-native-source"),
+        "--x-install-root=" + str(root / "dependencies"), "--disable-metrics")
+    run("cmake", "-S", root / "geometry", "-B", root / "geometry-build", "-G", "Ninja",
+        "-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release")
+    run("cmake", "--build", root / "geometry-build", "--config", "Release", "--parallel", "2")
+    run("cmake", "--install", root / "geometry-build", "--config", "Release", "--prefix", root / "prefix")
+    run(sys.executable, "-I", "-m", "build", "--wheel", "--outdir", root / "wheels", root / "geometry",
+        "--config-setting=cmake.define.CMAKE_PREFIX_PATH=" + str(root / "prefix"))
+    prefixes = str(root / "prefix") + ";" + str(root / "dependencies" / triplet)
+    run("cmake", "-S", root / "interchange-native-source", "-B", root / "interchange-native", "-G", "Ninja",
+        "-DBUILD_TESTING=OFF", "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_PROJECT_INCLUDE=" + str(PACKAGE / "cmake/GltfDeformationTestProfile.cmake"),
+        "-DCMAKE_PREFIX_PATH=" + prefixes, "-DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON",
+        "-DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON", "-DMESHVALE_INTERCHANGE_GLTF_FILES=ON")
+    run("cmake", "--build", root / "interchange-native", "--config", "Release", "--parallel", "2")
+    run("cmake", "--install", root / "interchange-native", "--config", "Release", "--prefix", root / "interchange-prefix")
+    # Keep actual CMake scratch paths short on Windows. Preserve the original
+    # absolute roots and add an explicit byte-preserving transport map below.
+    evidence = root.parent / "d" / output.name
+    emitter = PACKAGE / "scripts/gltf-deformation-test-evidence.py"
+    run(sys.executable, "-I", emitter, "producer", "--source", root / "interchange-native-source",
+        "--build", root / "interchange-native", "--sdk", root / "interchange-prefix",
+        "--configuration", "Release", "--output", evidence / "p")
+    geometry_wheel, = (root / "wheels").glob("meshvale_geometry-*.whl")
+    run(sys.executable, "-I", emitter, "qualify", "--source", PACKAGE,
+        "--producer", evidence / "p/producer.json", "--geometry-wheel", geometry_wheel,
+        "--output", evidence / "q", "--config-setting=cmake.define.CMAKE_PREFIX_PATH=" +
+        str(root / "interchange-prefix") + ";" + str(root / "prefix") + ";" +
+        str(root / "dependencies" / ("x64-windows-static-md" if sys.platform == "win32" else "x64-linux")))
+    target = output / "deformation-emitter"
+    shutil.copytree(evidence, target)
+    transport = [{"original_root": str(evidence), "artifact_root": "deformation-emitter"}]
+    for name in ("interchange-prefix", "interchange-native", "interchange-native-source", "prefix"):
+        source = root / name
+        destination = target / "inputs" / name
+        shutil.copytree(source, destination, ignore=shutil.ignore_patterns(".git"))
+        transport.append({"original_root": str(source), "artifact_root": "deformation-emitter/inputs/" + name})
+    manifest = []
+    for path in sorted(target.rglob("*")):
+        if path.is_file():
+            manifest.append({"path": path.relative_to(output).as_posix(),
+                             "bytes": path.stat().st_size, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()})
+    (output / "deformation-transport.json").write_text(json.dumps({
+        "artifact_scope": "Emitter source and genuine-SDIST only; cibuildwheel candidate retains baseline scope",
+        "roots": transport, "files": manifest}, indent=2) + "\n", encoding="utf-8")
 
 
 def before_test():
@@ -228,6 +302,10 @@ def manifest(output):
     artifacts, versions = [], set()
     owners = {"meshvale-geometry": root / "geometry", "meshvale-interchange": root / "interchange", "meshvale-repair": PACKAGE}
     for path in sorted(output.rglob("*")):
+        if "deformation-emitter" in path.relative_to(output).parts:
+            # Those are independently identified emitter artifacts, not one
+            # of the seven ordinary repaired portable candidate artifacts.
+            continue
         if path.suffix != ".whl" and not path.name.endswith(".tar.gz"):
             continue
         item = {"path": path.relative_to(output).as_posix(), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
@@ -270,19 +348,40 @@ def manifest(output):
                 versions.add(Parser().parsestr(archive.extractfile(info).read().decode())["Version"])
         artifacts.append(item)
     assert len(artifacts) == 7 and len(versions) == 1, (artifacts, versions)
+    deformation = []
+    for origin in ("deformation-owned",):
+        transport_path = output / origin / "deformation-transport.json"
+        transport = json.loads(transport_path.read_text(encoding="utf-8"))
+        for row in transport["files"]:
+            path = (output / origin / row["path"]).resolve()
+            assert path.is_relative_to((output / origin).resolve())
+            assert path.stat().st_size == row["bytes"] and hashlib.sha256(path.read_bytes()).hexdigest() == row["sha256"]
+        qualification = output / origin / "deformation-emitter/q/qualification.json"
+        record = json.loads(qualification.read_text(encoding="utf-8"))
+        assert len(record["cohorts"]) == 2 and {row["origin"] for row in record["cohorts"]} == {"source", "sdist"}
+        for row in record["cohorts"]:
+            assert row["domain"] in {"positive", "compiled-unsupported"}
+            assert row["counts"]["positive_run"] == (10 if row["domain"] == "positive" else 0)
+            assert row["counts"]["positive_skipped"] == row["counts"]["failures"] == 0
+            assert row["counts"]["sdk_numeric_controls_credited"] == (0 if row["domain"] == "positive" else 1)
+        deformation.append({"qualification_input": origin, "transport_sha256": hashlib.sha256(transport_path.read_bytes()).hexdigest(),
+                            "qualification_sha256": hashlib.sha256(qualification.read_bytes()).hexdigest(),
+                            "scope": record["artifact_scope"], "cohorts": record["cohorts"]})
     data = {"candidate_only": True, "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
         "package_version": next(iter(versions)), "geometry_revision": GEOMETRY_REVISION, "geometry_version": GEOMETRY_VERSION,
         "interchange_revision": INTERCHANGE_REVISION, "interchange_version": INTERCHANGE_VERSION,
         "interchange_native_revision": INTERCHANGE_NATIVE_REVISION, "interchange_native_version": "0.0.0",
         "cohort_inputs": cohort_inputs,
         "gltf_python_expected_profile": "qualified" if sys.platform == "win32" else "unsupported",
+        "deformation_artifact_scope": "Separate required emitter cohorts in deformation-emitter; no new deformation credit for cibuildwheel artifacts",
+        "separate_deformation_cohorts": deformation,
         "cibuildwheel": "4.2.0", "selected_build": os.environ["CIBW_BUILD"], "artifacts": artifacts}
     (output / "manifest.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=["prepare", "before-test", "test", "repair", "manifest"])
+    parser.add_argument("mode", choices=["prepare", "before-test", "test", "repair", "manifest", "qualify-deformation"])
     parser.add_argument("--wheel", type=Path)
     parser.add_argument("--destination", type=Path)
     parser.add_argument("--output", type=Path)
@@ -291,5 +390,7 @@ if __name__ == "__main__":
         interchange().repair(options.wheel, options.destination, Path(os.environ["MESHVALE_PREVIEW_DIR"]) / "repair-dependencies.txt")
     elif options.mode == "manifest":
         manifest(options.output)
+    elif options.mode == "qualify-deformation":
+        deformation_cohorts()
     else:
         {"prepare": prepare, "before-test": before_test, "test": test}[options.mode]()

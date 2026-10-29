@@ -1,0 +1,156 @@
+{
+  "schema": "meshvale.test.gltf-animation-sparse-inputs/1",
+  "assets": {
+    "trs-step-linear.gltf": {
+      "sha256": "755d25113335faffe3b6edf17278f852cbef2313183a4f675cbc6606738dc364",
+      "bytes": 5007
+    },
+    "trs-step-linear.glb.hex": {
+      "sha256": "41ecc0a487dfde223fb5ad490d0424572d57bf2b03cb7ef5a582ac04bd512909",
+      "bytes": 9457
+    },
+    "translation-scale-cubic.gltf": {
+      "sha256": "8f5d915fc5206346cfe91efa57a23f596905646d970c4243e61aed66c567431f",
+      "bytes": 5406
+    },
+    "translation-scale-cubic.glb.hex": {
+      "sha256": "7e111b616c9b8e6a90410e78004e76b304ba264fd30bda8013483338eca3792a",
+      "bytes": 10249
+    },
+    "14-sparse-implicit-zero-derivatives.gltf": {
+      "sha256": "725b4abfd4a7d732870f17829b0c0e0cf2fe420a4976eacb7587fd40627b2330",
+      "bytes": 1268
+    },
+    "14-sparse-implicit-zero-derivatives.glb.hex": {
+      "sha256": "c1c5681a2f1fb27781eaf4ac1c3845e4efef6baa4e49ce6c6841034fe1951fc8",
+      "bytes": 2433
+    }
+  },
+  "row_local_attributes": [
+    [
+      "vertex",
+      "gltf/0/0/base/7:5f4d4154524958"
+    ],
+    [
+      "vertex",
+      "gltf/0/0/base/5:5f41e4b8ad"
+    ],
+    [
+      "vertex",
+      "gltf/0/0/morph/0/7:5f4d4154524958"
+    ]
+  ],
+  "literal_triangles": [
+    [
+      0,
+      1,
+      2
+    ],
+    [
+      0,
+      1,
+      2
+    ]
+  ],
+  "target": [
+    0,
+    1
+  ],
+  "identity_maps": {
+    "face_map": [
+      0,
+      1
+    ],
+    "corner_map": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "source_faces": [
+      0,
+      1
+    ],
+    "source_corners": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "edited_maps": {
+    "face_map": [
+      0,
+      0
+    ],
+    "corner_map": [
+      0,
+      1,
+      2,
+      0,
+      1,
+      2
+    ],
+    "source_faces": [
+      0
+    ],
+    "source_corners": [
+      0,
+      1,
+      2
+    ]
+  },
+  "sparse_expected": {
+    "accessor": 3,
+    "selectors": [
+      1,
+      4
+    ],
+    "row_words": [
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1065353216
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1065353216
+      ],
+      [
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "native_type": "FLOAT/VEC4",
+    "interpolation": "CUBICSPLINE",
+    "path": "rotation"
+  },
+  "declared_not_observed": "Raw words, interpolation roles and maps are independent input expectations, not native results. No interpolation evaluator or source normalization."
+}
