@@ -16,7 +16,7 @@ package-index release. Use ordinary GIL-enabled CPython 3.10 or newer, a C++20
 compiler and CMake 3.24 or newer. Wheels must match the interpreter, operating
 system and architecture used to run the example.
 
-Geometry and Interchange must match Repair's exact requirements in
+The Geometry and Interchange Python candidates must match Repair's exact requirements in
 [pyproject.toml](../pyproject.toml):
 
 | Product | Public source revision | Python candidate |
@@ -24,7 +24,12 @@ Geometry and Interchange must match Repair's exact requirements in
 | Geometry | `48298b24be7c132816fb5580d22d58bde61558d0` | `0.0.1.dev134+g48298b24b` |
 | Interchange | `5b9b695ba1fef166baa8c7cf9ad21a5630691f70` | `0.0.1.dev179+g5b9b695ba` |
 
-Choose absolute paths for `GEOMETRY_SOURCE`, `INTERCHANGE_SOURCE`, this
+The default Repair wheel additionally needs a separate native Interchange checkout
+at `82e955bdce6671ce4d1a930124c3b2a551dd81ff`. Keep that native SDK source separate
+from the Interchange Python candidate above, as specified by
+[Python installation](python.md#build-and-consumption).
+
+Choose absolute paths for `GEOMETRY_SOURCE`, `INTERCHANGE_SOURCE`, `INTERCHANGE_NATIVE_SOURCE`, this
 `REPAIR_SOURCE` checkout, `GEOMETRY_PREFIX`, `INTERCHANGE_PREFIX`, `TINYOBJLOADER_PREFIX`,
 `CANDIDATE_WHEELS` and `VENV`. Keep build directories outside tracked source.
 The following commands use POSIX shell variables; PowerShell callers use
@@ -39,6 +44,8 @@ git clone https://github.com/Meshvale/meshvale-geometry.git "$GEOMETRY_SOURCE"
 git -C "$GEOMETRY_SOURCE" checkout 48298b24be7c132816fb5580d22d58bde61558d0
 git clone https://github.com/Meshvale/meshvale-interchange.git "$INTERCHANGE_SOURCE"
 git -C "$INTERCHANGE_SOURCE" checkout 5b9b695ba1fef166baa8c7cf9ad21a5630691f70
+git clone https://github.com/Meshvale/meshvale-interchange.git "$INTERCHANGE_NATIVE_SOURCE"
+git -C "$INTERCHANGE_NATIVE_SOURCE" checkout 82e955bdce6671ce4d1a930124c3b2a551dd81ff
 python -m venv "$VENV"
 . "$VENV/bin/activate"
 python -m pip install jsonschema==4.26.0
@@ -53,10 +60,10 @@ cmake --install "$GEOMETRY_SOURCE/.local/native" --config Release --prefix "$GEO
 ```
 
 Interchange also needs **double-precision tinyobjloader `2.0.0rc13`**. Follow its
-[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/ENVIRONMENT.md)
+[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/82e955bdce6671ce4d1a930124c3b2a551dd81ff/ENVIRONMENT.md)
 using the pinned vcpkg manifest, and set `TINYOBJLOADER_PREFIX` to the resulting
 installed target-triplet prefix. Retain the same compiler/runtime and Release
-configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/THIRD_PARTY.md)
+configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/82e955bdce6671ce4d1a930124c3b2a551dd81ff/THIRD_PARTY.md)
 owns the parser revision and notices; the
 [binding build contract](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/docs/python.md#build-installation-and-example)
 owns its package requirements.
@@ -66,9 +73,9 @@ install the compatible Interchange native interfaces before building that wheel;
 the separate Interchange Python wheel alone does not supply CMake targets:
 
 ```sh
-cmake -S "$INTERCHANGE_SOURCE" -B "$INTERCHANGE_SOURCE/.local/workflow-native" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON -DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON -DMESHVALE_INTERCHANGE_GLTF_FILES=ON "-DCMAKE_PREFIX_PATH=$GEOMETRY_PREFIX;$TINYOBJLOADER_PREFIX"
-cmake --build "$INTERCHANGE_SOURCE/.local/workflow-native" --config Release
-cmake --install "$INTERCHANGE_SOURCE/.local/workflow-native" --config Release --prefix "$INTERCHANGE_PREFIX"
+cmake -S "$INTERCHANGE_NATIVE_SOURCE" -B "$INTERCHANGE_NATIVE_SOURCE/.local/workflow-native" -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DMESHVALE_INTERCHANGE_GLTF_TOPOLOGY_WRITE=ON -DMESHVALE_INTERCHANGE_GLTF_WORKFLOW_SUPPORT=ON -DMESHVALE_INTERCHANGE_GLTF_FILES=ON "-DCMAKE_PREFIX_PATH=$GEOMETRY_PREFIX;$TINYOBJLOADER_PREFIX"
+cmake --build "$INTERCHANGE_NATIVE_SOURCE/.local/workflow-native" --config Release
+cmake --install "$INTERCHANGE_NATIVE_SOURCE/.local/workflow-native" --config Release --prefix "$INTERCHANGE_PREFIX"
 ```
 
 Supply all three installed prefixes to Repair. They must use matching compiler,

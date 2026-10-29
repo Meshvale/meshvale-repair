@@ -223,7 +223,9 @@ if(MESHVALE_REPAIR_PYTHON)
   meshvale_geometry_add_python_record(meshvale_repair_record DOMAIN meshvale_repair)
   target_link_libraries(_repair PRIVATE meshvale_repair_record meshvale::repair)
   if(TARGET meshvale::gltf_file_workflow)
-    target_sources(_repair PRIVATE python/gltf_bindings.cpp python/gltf_presets.cpp)
+    target_sources(_repair PRIVATE python/gltf_bindings.cpp python/gltf_presets.cpp
+      python/gltf_deformation_observations.cpp)
+    target_include_directories(_repair PRIVATE src)
     target_link_libraries(_repair PRIVATE meshvale::gltf_file_workflow)
     target_compile_definitions(_repair PRIVATE MESHVALE_REPAIR_GLTF_PYTHON=1)
     meshvale_strict_floating_point(_repair)
@@ -257,6 +259,7 @@ if(MESHVALE_REPAIR_PYTHON)
     endif()
     nanobind_add_module(_repair_gltf_return_test NB_STATIC NB_DOMAIN meshvale_repair
       python/gltf_bindings.cpp python/gltf_presets.cpp
+      python/gltf_deformation_observations.cpp
       tests/python_native/gltf_binding_module.cpp
       tests/python_native/gltf_binding_observer.cpp
       tests/python_native/gltf_binding_allocation.cpp)

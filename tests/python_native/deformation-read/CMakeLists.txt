@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: Apache-2.0
+cmake_minimum_required(VERSION 3.24)
+project(MeshvaleDeformationDomainRead LANGUAGES CXX)
+find_package(MeshvaleGeometry CONFIG REQUIRED)
+find_package(MeshvaleInterchange CONFIG REQUIRED)
+if(NOT IS_ABSOLUTE "${MESHVALE_DEFORMATION_READ_SOURCE}" OR
+   NOT EXISTS "${MESHVALE_DEFORMATION_READ_SOURCE}")
+  message(FATAL_ERROR "Select the exact owning Interchange read-control source")
+endif()
+add_executable(meshvale_deformation_domain_read "${MESHVALE_DEFORMATION_READ_SOURCE}")
+target_compile_features(meshvale_deformation_domain_read PRIVATE cxx_std_20)
+set_target_properties(meshvale_deformation_domain_read PROPERTIES CXX_EXTENSIONS OFF)
+target_link_libraries(meshvale_deformation_domain_read PRIVATE meshvale::interchange meshvale::editing)
+if(MSVC)
+  target_compile_options(meshvale_deformation_domain_read PRIVATE /W4 /WX /fp:strict)
+else()
+  target_compile_options(meshvale_deformation_domain_read PRIVATE -Wall -Wextra -Wpedantic -Werror)
+endif()

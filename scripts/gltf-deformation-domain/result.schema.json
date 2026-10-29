@@ -1,0 +1,214 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "meshvale.gltf-deformation-python-domain-result/1"
+    },
+    "manifest_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "origin": {
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "source",
+            "sdist"
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "domain": {
+      "type": "string",
+      "enum": [
+        "positive",
+        "compiled-unsupported",
+        "selection-error"
+      ]
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "passed",
+        "selection-error",
+        "execution-failure"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "strict-positive-complete",
+        "compiled-unsupported-observed",
+        "missing-manifest",
+        "invalid-schema",
+        "invalid-generator",
+        "unprobed-guard",
+        "unknown-or-mismatched-cohort",
+        "supported-but-not-qualified",
+        "module-identity-mismatch",
+        "unexpected-test-inventory",
+        "unexpected-runtime-refusal",
+        "unsupported-control-mismatch",
+        "execution-error"
+      ]
+    },
+    "exit_code": {
+      "enum": [
+        0,
+        1,
+        2
+      ]
+    },
+    "counts": {
+      "type": "object",
+      "properties": {
+        "positive_selected": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "positive_run": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "positive_passed": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "positive_skipped": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sdk_numeric_control_attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sdk_numeric_controls_credited": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "range_controls_credited": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "failures": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        }
+      },
+      "required": [
+        "positive_selected",
+        "positive_run",
+        "positive_passed",
+        "positive_skipped",
+        "sdk_numeric_control_attempts",
+        "sdk_numeric_controls_credited",
+        "range_controls_credited",
+        "failures"
+      ],
+      "additionalProperties": false
+    },
+    "loaded_module_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sdk_library_manifest_sha256": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/artifact"
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schema",
+    "manifest_sha256",
+    "origin",
+    "domain",
+    "outcome",
+    "reason",
+    "exit_code",
+    "counts",
+    "loaded_module_sha256",
+    "sdk_library_manifest_sha256",
+    "artifacts"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "producer_source",
+            "receiver_source",
+            "sdk",
+            "geometry_sdk",
+            "toolchain",
+            "installed"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)[A-Za-z0-9._+/-]+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

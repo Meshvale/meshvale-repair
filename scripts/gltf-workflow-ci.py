@@ -11,6 +11,7 @@ import argparse
 from dataclasses import dataclass
 from email.parser import BytesParser
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -28,10 +29,10 @@ import zipfile
 
 GEOMETRY_REVISION = "48298b24be7c132816fb5580d22d58bde61558d0"
 GEOMETRY_PYTHON_VERSION = "0.0.1.dev134+g48298b24b"
-INTERCHANGE_REVISION = "33f483d2f5bed45dd2c3273957c08c404fc03bee"
-INTERCHANGE_FILE_REVISION = "33f483d2f5bed45dd2c3273957c08c404fc03bee"
+INTERCHANGE_REVISION = "82e955bdce6671ce4d1a930124c3b2a551dd81ff"
+INTERCHANGE_FILE_REVISION = "82e955bdce6671ce4d1a930124c3b2a551dd81ff"
 INTERCHANGE_OFF_FILE_REVISION = "b577263107403e65643fdcfc1b8af3faa5c9fff4"
-INTERCHANGE_PLY_FILE_REVISION = "33f483d2f5bed45dd2c3273957c08c404fc03bee"
+INTERCHANGE_PLY_FILE_REVISION = "82e955bdce6671ce4d1a930124c3b2a551dd81ff"
 VCPKG_REVISION = "cb5a41b03cde4086d554b3f3e2eac39206b16eda"
 BUILD_WORKERS = 2
 TEST_TIMEOUT_SECONDS = 120
@@ -1313,9 +1314,25 @@ def qualify(root, profile_name, file_workflow=False, off_file_workflow=False, of
     runner.configure(root, rb, "-DBUILD_TESTING=ON", *repair_options)
     runner.build(rb)
     qualified = profile.materialization == "qualified"
-    native_count = ((7 if qualified else 6) if off_file_workflow else
-                    (10 if qualified else 6) if file_workflow else (6 if qualified else 4))
+    expected = None
+    if qualified and file_workflow and not off_file_workflow:
+        spec = importlib.util.spec_from_file_location(
+            "meshvale_gltf_file_inventory", root / "scripts/check-native-tests.py")
+        checker = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(checker)
+        cache = checker.cache_entries(rb / "CMakeCache.txt")
+        numerical_positives = checker.deformation_format_selected(
+            cache, rb, profile.configuration, profile.materialization, True)
+        expected = checker.expected_inventory(
+            profile.materialization, workflow=True, file_workflow=True,
+            deformation_format=numerical_positives)
+        native_count = len(expected)
+    else:
+        native_count = ((7 if qualified else 6) if off_file_workflow else
+                        6 if file_workflow else (6 if qualified else 4))
     tests = runner.inventory(rb, "repair", native_count)
+    if expected is not None and {test["name"] for test in tests} != expected:
+        raise RuntimeError("Actual native file inventory differs from the selected legacy and numerical tests")
     runner.check_inventory(root, rb, "--gltf-workflow", "OFF" if off_file_workflow else "ON", "--gltf-file-workflow",
                            "ON" if file_workflow else "OFF",
                            *(["--off-file-workflow", "ON"] if off_file_workflow else []))

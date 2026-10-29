@@ -16,10 +16,10 @@ separate development interfaces.
 The dependency baseline is Geometry
 [`48298b24be7c132816fb5580d22d58bde61558d0`](https://github.com/Meshvale/meshvale-geometry/tree/48298b24be7c132816fb5580d22d58bde61558d0)
 and Interchange
-[`33f483d2f5bed45dd2c3273957c08c404fc03bee`](https://github.com/Meshvale/meshvale-interchange/tree/33f483d2f5bed45dd2c3273957c08c404fc03bee).
+[`82e955bdce6671ce4d1a930124c3b2a551dd81ff`](https://github.com/Meshvale/meshvale-interchange/tree/82e955bdce6671ce4d1a930124c3b2a551dd81ff).
 Follow their public
 [Geometry build instructions](https://github.com/Meshvale/meshvale-geometry/blob/48298b24be7c132816fb5580d22d58bde61558d0/ENVIRONMENT.md)
-and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/33f483d2f5bed45dd2c3273957c08c404fc03bee/docs/gltf-files.md)
+and [Interchange file-module instructions](https://github.com/Meshvale/meshvale-interchange/blob/82e955bdce6671ce4d1a930124c3b2a551dd81ff/docs/gltf-files.md)
 to install matching compiler/configuration/runtime packages. Enable Interchange
 files, topology writing and workflow support. These native snapshots advertise
 version `0.0.0`; source/features and matching compiler/configuration/runtime
@@ -157,3 +157,18 @@ The implemented opt-in [direct-translation development profile](gltf-translation
 preserves its bounded direct node-translation subset during the same operation.
 Static processing remains the default. The profile establishes no supported
 release or runtime floor.
+
+## RGDEF-FILE-PROJECTION-001: Retained deformation selection
+
+The [retained deformation contract](gltf-deformation.md) selects the opt-in
+deformation-retained-v1 extension for actual staged and physical preservation.
+Development implementation is present; full workflow and dependency-cohort
+qualification and release availability remain pending. Existing static/direct-translation clauses, defaults and
+unchanged-request wire keep their current meaning. The new contract owns the
+additional source/read/processing authority, policies, roles and called facts.
+There is no implicit source upgrade or widening of a legacy schema/preset.
+
+Requested file profiles still require BOTH staged-selected-primitive and
+staged-physical-members; actual required false findings fail preservation,
+otherwise missing/unperformed required checks make it incomplete. New deformation
+checks do not replace these inherited file-only IDs or final publisher outcomes.

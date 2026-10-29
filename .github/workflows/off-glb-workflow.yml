@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Meshvale/meshvale-interchange
-          ref: 3bd6f0d6c1189410689e6b1dcddb5d31eac4f1fe
+          ref: 82e955bdce6671ce4d1a930124c3b2a551dd81ff
           path: .local/og/i
           fetch-depth: 0
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

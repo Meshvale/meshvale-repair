@@ -69,6 +69,69 @@ def cache_bool(cache, name):
     raise ValueError("unrecognized CMake boolean: " + name)
 
 
+DEFORMATION_PROBED_CONFIGURATION = "MESHVALE_REPAIR_DEFORMATION_FORMAT_PROBED_CONFIGURATION"
+DEFORMATION_ELIGIBLE_CONFIGURATIONS = "MESHVALE_REPAIR_DEFORMATION_FORMAT_ELIGIBLE_CONFIGURATIONS"
+DEFORMATION_SINGLE_GENERATORS = frozenset({
+    "Ninja", "Unix Makefiles", "NMake Makefiles", "NMake Makefiles JOM",
+    "MinGW Makefiles", "MSYS Makefiles",
+})
+DEFORMATION_MULTI_GENERATORS = frozenset({"Ninja Multi-Config", "Xcode"})
+# Preserve the existing private selector/cache names; both positives now share it.
+DEFORMATION_POSITIVE_TESTS = frozenset({
+    "gltf_deformation_policy_applicability", "gltf_deformation_format_preservation",
+})
+
+
+def deformation_format_configuration(cache, configuration):
+    generator = cache_value(cache, "CMAKE_GENERATOR", "INTERNAL")
+    multi = (generator in DEFORMATION_MULTI_GENERATORS or
+             re.fullmatch(r"Visual Studio \d+ \d{4}", generator) is not None)
+    if not multi and generator not in DEFORMATION_SINGLE_GENERATORS:
+        raise ValueError("unknown actual generator in deformation format selection")
+    if multi:
+        entry = cache.get("CMAKE_CONFIGURATION_TYPES")
+        if entry is None or entry[0] not in {"STRING", "UNINITIALIZED"}:
+            raise ValueError("missing or incorrectly typed actual multi-config list")
+        text = entry[1]
+        configurations = text.split(";")
+        if (not text or any(not value for value in configurations) or
+                len(configurations) != len(set(configurations))):
+            raise ValueError("invalid actual multi-config list for deformation format selection")
+        if configuration not in configurations:
+            raise ValueError("deformation format configuration absent from actual multi-config generator")
+        return "Release" if "Release" in configurations else ""
+    actual = cache_value(cache, "CMAKE_BUILD_TYPE", "STRING")
+    if actual != configuration:
+        raise ValueError("deformation format configuration differs from actual single-config build type")
+    # CMAKE_CONFIGURATION_TYPES is irrelevant to this actual single generator.
+    return "Release" if actual == "Release" else ""
+
+
+def deformation_format_selected(cache, build_dir, configuration, profile,
+                                file_workflow, installed=False):
+    if installed or profile != QUALIFIED_PROFILE or not file_workflow:
+        return False
+    expected_probe = deformation_format_configuration(cache, configuration)
+    probed = cache_value(cache, DEFORMATION_PROBED_CONFIGURATION, "INTERNAL")
+    eligible = cache_value(cache, DEFORMATION_ELIGIBLE_CONFIGURATIONS, "INTERNAL")
+    if probed not in {"", "Release"} or eligible not in {"", "Release"}:
+        raise ValueError("invalid derived deformation format configuration records")
+    if probed != expected_probe or (eligible and probed != "Release"):
+        raise ValueError("deformation format selection differs from actual generator/configuration")
+    if eligible:
+        records = list((build_dir / "CMakeFiles").glob("*/CMakeCXXCompiler.cmake"))
+        if len(records) != 1:
+            raise ValueError("need one actual compiler record for deformation format selection")
+        text = records[0].read_text(encoding="utf-8")
+        for key, expected in (("CMAKE_CXX_COMPILER_ID", "MSVC"),
+                              ("CMAKE_CXX_COMPILER_VERSION", "19.51.36248.0"),
+                              ("CMAKE_CXX_SIZEOF_DATA_PTR", "8")):
+            match = re.search(r'set\(' + key + r' "([^"\n]+)"\)', text)
+            if match is None or match.group(1) != expected:
+                raise ValueError("eligible deformation format selection has inconsistent actual compiler metadata")
+    return configuration == eligible == "Release"
+
+
 def validate_configuration(cache, configuration):
     if "CMAKE_CONFIGURATION_TYPES" in cache:
         configurations = cache_value(cache, "CMAKE_CONFIGURATION_TYPES", "STRING").split(";")
@@ -81,7 +144,10 @@ def validate_configuration(cache, configuration):
 def validate_cache(cache, profile, configuration, installed=False, workflow=False,
                    file_workflow=False, off_file_workflow=False, ply_file_workflow=False,
                    off_surface_export=False, publication_faults=False):
-    validate_configuration(cache, configuration)
+    if not installed and profile == QUALIFIED_PROFILE and file_workflow:
+        deformation_format_configuration(cache, configuration)
+    else:
+        validate_configuration(cache, configuration)
     if not installed:
         if not cache_bool(cache, "BUILD_TESTING"):
             raise ValueError("native inventory requires BUILD_TESTING=ON")
@@ -135,7 +201,8 @@ def validate_compiler(build_dir, expected_id, expected_version):
 
 def expected_inventory(profile, installed=False, workflow=False, file_workflow=False,
                        off_file_workflow=False, ply_file_workflow=False,
-                       off_surface_export=False, publication_faults=False):
+                       off_surface_export=False, publication_faults=False,
+                       deformation_format=False):
     common = COMMON_INSTALLED_TESTS if installed else COMMON_TESTS
     specific = PROFILE_INSTALLED_TESTS if installed else PROFILE_TESTS
     expected = common | specific[profile]
@@ -158,6 +225,10 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
         expected |= (frozenset({"installed_gltf_file_workflow"})
                      if profile == QUALIFIED_PROFILE else
                      frozenset({"installed_gltf_file_workflow_unsupported"}))
+    if deformation_format:
+        if installed or profile != QUALIFIED_PROFILE or not file_workflow:
+            raise ValueError("deformation format positives require the qualified native file workflow")
+        expected |= DEFORMATION_POSITIVE_TESTS
     if off_file_workflow:
         expected |= (frozenset({"installed_off_workflow"}) if installed else
                      frozenset({"off_workflow_semantics", "off_workflow_requests"}))
@@ -235,7 +306,11 @@ def main():
         for build_dir, installed in ((args.build_dir, False), (args.installed_build_dir, True)):
             if build_dir is None:
                 continue
-            validate_cache(cache_entries(build_dir / "CMakeCache.txt"),
+            configured_cache = cache_entries(build_dir / "CMakeCache.txt")
+            deformation_format = deformation_format_selected(
+                configured_cache, build_dir, args.configuration,
+                args.materialization_profile, file_workflow, installed)
+            validate_cache(configured_cache,
                            args.materialization_profile, args.configuration, installed, workflow,
                            file_workflow, off_file_workflow, ply_file_workflow,
                            off_surface_export, publication_faults and not installed)
@@ -244,7 +319,7 @@ def main():
                 build_dir, args.configuration,
                 expected_inventory(args.materialization_profile, installed, workflow, file_workflow,
                                    off_file_workflow, ply_file_workflow, off_surface_export,
-                                   publication_faults and not installed),
+                                   publication_faults and not installed, deformation_format),
                 args.ctest)))
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
         parser.error(str(error))

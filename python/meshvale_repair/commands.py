@@ -177,7 +177,7 @@ def _parser():
                       choices=("require-triangles", "convert-strip-or-fan"))
     gltf.add_argument("--values", required=True, choices=("raw", "raw-and-normalized"))
     gltf.add_argument("--processing-profile", default="static-local-triangles-v1",
-                      choices=("static-local-triangles-v1", "direct-translation-v1"))
+                      choices=("static-local-triangles-v1", "direct-translation-v1", "deformation-retained-v1"))
     selection = gltf.add_mutually_exclusive_group(required=True)
     selection.add_argument("--target", action="append", metavar="KEEP:REMOVE")
     selection.add_argument("--unchanged", action="store_true")
@@ -216,7 +216,8 @@ def _parser():
     for command in (gltf, gltf_batch):
         command.add_argument("--preset",
                              choices=("balanced-v1", "serial-reference-v1",
-                                      "balanced-direct-translation-v1", "serial-direct-translation-v1"))
+                                      "balanced-direct-translation-v1", "serial-direct-translation-v1",
+                                      "balanced-deformation-v1", "serial-deformation-v1"))
     for command in (off, off_batch, ply, ply_batch):
         command.add_argument("--preset", default="balanced-v1",
                              choices=("balanced-v1", "serial-reference-v1"))

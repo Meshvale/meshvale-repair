@@ -34,6 +34,7 @@ struct GltfDuplicateFilePublication {
   const std::filesystem::path& destination;
   std::string_view report_path;
   std::span<const interchange::GltfFileView> supplemental_files;
+  interchange::GltfDeformationPublicationPolicies deformation_publication{};
 };
 struct GltfDuplicateFileWorkflowRequest {
   const interchange::GltfFileAsset& source;
@@ -46,6 +47,7 @@ struct GltfDuplicateFileWorkflowRequest {
   const GltfDuplicateFilePublication* publication = nullptr;
   GltfReportFailureRetention report_failure_retention =
       GltfReportFailureRetention::kRelease;
+  GltfWorkflowDeformationPolicies deformation{};
 };
 
 // Required positive fields. No initial read: exact source owner is retained.
@@ -214,6 +216,11 @@ class GltfDuplicateFileWorkflowRecord {
   // record, independently of immutable receipt/final publisher timing.
   [[nodiscard]] const GltfWorkflowTranslationFacts& TranslationFacts()
       const noexcept;
+  // Actual inline called returns, independent of record/report/publication
+  // success. Null outside retained deformation processing. Borrows this alive,
+  // unreassigned record; no validation, allocation or numerical work.
+  [[nodiscard]] const GltfWorkflowDeformationFacts* DeformationFacts()
+      const noexcept;
 
  private:
   friend struct gltf_file_workflow_detail::Access;
@@ -233,6 +240,7 @@ struct GltfDuplicateFileWorkflowResult {
   std::optional<interchange::GltfFilePublicationResult> publication;
   GltfFileWorkflowByteExecution execution;
   GltfWorkflowTranslationFacts translation;
+  std::optional<GltfWorkflowDeformationFacts> deformation{};
 };
 
 // Development native retained-file interface; link

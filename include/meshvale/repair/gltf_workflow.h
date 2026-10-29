@@ -4,8 +4,10 @@
 
 #include <meshvale/geometry/attributes.h>
 #include <meshvale/geometry/editable_mesh.h>
+#include <meshvale/geometry/execution.h>
 #include <meshvale/geometry/materialization.h>
 #include <meshvale/interchange/gltf.h>
+#include <meshvale/interchange/gltf_deformation.h>
 #include <meshvale/interchange/gltf_materialization.h>
 #include <meshvale/interchange/gltf_topology_write.h>
 #include <meshvale/interchange/gltf_workflow_support.h>
@@ -31,6 +33,45 @@ struct WorkflowState;
 // Retention preserves only an actually completed Repair, never partial wire.
 enum class GltfReportFailureRetention { kRelease, kRetainCompletedRepair };
 
+// The source extraction policy belongs only to request.extraction.deformation.
+// These separate policies govern the other actual memory-stage calls. All
+// fields default to inactive zero policy for legacy processing; the selected
+// deformation profile requires positive policy at each applicable phase.
+struct GltfWorkflowDeformationPolicies {
+  interchange::GltfDeformationPolicy source_read;
+  interchange::GltfDeformationPolicy materialization;
+  interchange::GltfDeformationPolicy writing;
+  interchange::GltfDeformationPolicy reload_read;
+  interchange::GltfDeformationPolicy reload;
+  interchange::GltfDeformationPolicy verification;
+};
+
+// Fixed inline copies of actual returned observations, not successful owners
+// or recomputed measurements. Uncalled helpers leave their slots empty;
+// expected later failures preserve earlier returned facts without a record.
+// Revision/policy views refer to immutable compiled metadata, never caller or
+// asset buffers. Copies allocate nothing and do not retain released proofs.
+struct GltfWorkflowDeformationFacts {
+  interchange::GltfProcessingProfile profile =
+      interchange::GltfProcessingProfile::kDeformationRetainedTrianglesV1;
+  interchange::GltfAdmissionProfile read_admission_profile =
+      interchange::GltfAdmissionProfile::kRetainedCoreDeformationV1;
+  interchange::GltfNormativeRevision normative_revision;
+  std::string_view quaternion_policy;
+  std::optional<interchange::GltfDeformationObservation> capture_read;
+  std::optional<interchange::GltfDeformationObservation> source_read;
+  std::optional<interchange::GltfDeformationObservation> source;
+  std::optional<interchange::GltfDeformationObservation> materialization;
+  std::optional<interchange::GltfDeformationObservation> writing;
+  std::optional<interchange::GltfDeformationObservation> reload_read;
+  std::optional<interchange::GltfDeformationObservation> reload;
+  std::optional<interchange::GltfDeformationObservation> verification;
+  std::optional<interchange::GltfDeformationObservation> publication_read;
+  std::optional<interchange::GltfDeformationObservation> publication_reload;
+  std::optional<interchange::GltfDeformationObservation>
+      publication_verification;
+};
+
 // Development native interface; link optional meshvale::gltf_workflow.
 // All views are borrowed, readable and unchanged until synchronous return.
 struct GltfDuplicateWorkflowRequest {
@@ -45,6 +86,7 @@ struct GltfDuplicateWorkflowRequest {
   MaterializedDuplicateOptions repair;
   GltfReportFailureRetention report_failure_retention =
       GltfReportFailureRetention::kRelease;
+  GltfWorkflowDeformationPolicies deformation{};
 };
 
 // Required positive fields, including all nested limits. The aggregate cap
@@ -185,7 +227,15 @@ enum class GltfWorkflowCheck {
   kRetainedAssetPreservation,
   kSourceUnchanged,
   kSolidValidity,
-  kTranslationPreservation
+  kTranslationPreservation,
+  kDeformationSourceAdmission = 10,
+  kDeformationInfluences = 11,
+  kDeformationBindings = 12,
+  kDeformationMorphs = 13,
+  kDeformationAnimation = 14,
+  kDeformationAssociation = 15,
+  kDeformationOutputReload = 16,
+  kDeformationStagedReload = 17
 };
 // Inline actual-return observations, not successful-owner or report
 // projections. Static processing keeps every slot empty. A selected helper
@@ -295,6 +345,10 @@ class GltfDuplicateWorkflowRecord {
   // Borrows this alive, unreassigned record; no validation or allocation.
   [[nodiscard]] const GltfWorkflowTranslationFacts& TranslationFacts()
       const noexcept;
+  // Null outside retained deformation processing. Borrows this alive,
+  // unreassigned record; no validation, allocation or numerical work.
+  [[nodiscard]] const GltfWorkflowDeformationFacts* DeformationFacts()
+      const noexcept;
 
  private:
   friend struct gltf_workflow_detail::Access;
@@ -318,6 +372,7 @@ struct GltfDuplicateWorkflowResult {
   // completion.
   std::optional<MaterializedDuplicateRepair> retained_repair;
   GltfWorkflowTranslationFacts translation;
+  std::optional<GltfWorkflowDeformationFacts> deformation{};
 };
 
 // Supplied-memory pipeline: read -> extract -> materialize -> repair ->
