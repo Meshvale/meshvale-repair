@@ -36,7 +36,6 @@ struct GltfDeformationKeys {
   static constexpr char kVerification[] = "verification";
   static constexpr char kRequest[] = "request";
   static constexpr char kExtraction[] = "extraction";
-  static constexpr char kSource[] = "source";
   static constexpr char kPublication[] = "publication";
   static constexpr char kDeformationPublication[] = "deformation_publication";
   static constexpr char kRead[] = "read";

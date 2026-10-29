@@ -9,7 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import re
 import shutil
 import sys
@@ -22,7 +22,7 @@ from types import SimpleNamespace
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gltf_deformation_test_support import (
     ABI_SOURCE, DATA, SelectionError, artifact, cache_records, capture, checked_schema,
-    clone_compile, compile_entry, generator, load, manifest_files, predicate_text,
+    clone_compile, compile_entry, compile_object, generator, load, manifest_files, predicate_text,
     require, resolve, save, sha, verify_dependencies, verify_file_manifest, verify_refs,
     capture_dependencies,
     remap_refs, validated_producer,
@@ -58,7 +58,7 @@ def probe_compile(build, entry, argv, native_source, output, roots, configuratio
     predicate_file.write_text(predicate, encoding="utf-8")
     dependencies = capture_dependencies(build, entry, output, roots)
     command_record = save(output / "production-command.json", entry)
-    production_object = copied(entry["output"], output / "production-object.bin", roots)
+    production_object = copied(compile_object(entry), output / "production-object.bin", roots)
     probe_records = {}
     for label, assertion in (("common", ""), ("expected-true", "kMeshvaleDomainGuard"),
                               ("expected-false", "!kMeshvaleDomainGuard")):
@@ -158,6 +158,7 @@ def probe_compile(build, entry, argv, native_source, output, roots, configuratio
 
 
 def extract_member(build, sdk, entry, output, roots):
+    obj = compile_object(entry)
     cache = cache_records(build / "CMakeCache.txt")
     librarian = cache["CMAKE_AR"][1]
     candidates = [path for path in (sdk / "lib").iterdir() if path.name in
@@ -181,9 +182,9 @@ def extract_member(build, sdk, entry, output, roots):
         if process.returncode == 0:
             extracted.write_bytes(process.stdout)
     success(process, "numerical archive member extraction")
-    require(sha(extracted) == sha(entry["output"]), "installed archive differs from compiled numerical object")
+    require(sha(extracted) == sha(obj), "installed archive differs from compiled numerical object")
     record = {"archive": artifact(library, roots), "member": members[0],
-              "extracted": artifact(extracted, roots), "production_object_sha256": sha(entry["output"]),
+              "extracted": artifact(extracted, roots), "production_object_sha256": sha(obj),
               "list_process": artifact(output / "archive-list/process.json", roots),
               "extract_process": artifact(output / "archive-extract/process.json", roots)}
     return save(output / "archive-membership.json", record)
@@ -313,6 +314,30 @@ def resolved_module_links(build, output, libraries, roots):
     return module, used
 
 
+def extract_regular_sdist(package, destination):
+    """Extract only validated source files/directories, including on CPython 3.10."""
+    destination = Path(destination).resolve(strict=True)
+    members = package.getmembers()
+    require(members and all(member.isfile() or member.isdir() for member in members),
+            "non-regular sdist member")
+    targets = []
+    for member in members:
+        relative = PurePosixPath(member.name)
+        require(not relative.is_absolute() and ".." not in relative.parts, "invalid sdist member")
+        target = (destination / member.name).resolve()
+        require(target.is_relative_to(destination), "sdist member escapes extraction root")
+        targets.append((member, target))
+    for member, target in targets:
+        if member.isdir():
+            target.mkdir(parents=True, exist_ok=True)
+        else:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source = package.extractfile(member)
+            require(source is not None, "missing regular sdist payload")
+            with source, target.open("xb") as output:
+                shutil.copyfileobj(source, output)
+
+
 def wheel(options):
     producer_path = Path(options.producer).resolve(strict=True)
     source = Path(options.source).resolve(strict=True)
@@ -337,13 +362,7 @@ def wheel(options):
         extracted = output / "sdist-source"
         extracted.mkdir()
         with tarfile.open(archives[0]) as package:
-            members = package.getmembers()
-            require(members and all(member.isfile() or member.isdir() for member in members), "non-regular sdist member")
-            for member in members:
-                from pathlib import PurePosixPath
-                relative = PurePosixPath(member.name)
-                require(not relative.is_absolute() and ".." not in relative.parts, "invalid sdist member")
-            package.extractall(extracted, filter="data")
+            extract_regular_sdist(package, extracted)
         top = list(extracted.iterdir())
         require(len(top) == 1 and top[0].is_dir() and not (top[0] / ".git").exists(), "sdist is not Git-free")
         source = top[0]
@@ -544,7 +563,7 @@ def qualify(options):
         received = load(receiver_path)
         built_wheel = resolve(received["module_build"]["wheel"], received["roots"])
         environment = phase / "runtime"
-        _, made = capture([sys.executable, "-I", "-m", "venv", environment], phase, phase / "make-runtime", roots)
+        _, made = capture([sys.executable, "-I", "-m", "venv", "--copies", environment], phase, phase / "make-runtime", roots)
         success(made, "new qualification runtime")
         python = environment / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
         _, added = capture([python, "-I", "-m", "pip", "install",

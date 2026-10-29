@@ -26,7 +26,7 @@ import zipfile
 
 
 GEOMETRY_NATIVE_REVISION = "5dd210b19d05bf651b853b8fdac398c7feceeba9"
-INTERCHANGE_NATIVE_REVISION = "3bd6f0d6c1189410689e6b1dcddb5d31eac4f1fe"
+INTERCHANGE_NATIVE_REVISION = "88acdba9046352b84d3dea90648e3d271629f511"
 GEOMETRY_PYTHON_REVISION = "48298b24be7c132816fb5580d22d58bde61558d0"
 GEOMETRY_PYTHON_VERSION = "0.0.1.dev134+g48298b24b"
 VCPKG_REVISION = "cb5a41b03cde4086d554b3f3e2eac39206b16eda"
@@ -145,13 +145,27 @@ def qualify(root):
             "-DMESHVALE_REPAIR_GLTF_WORKFLOW=ON", "-DMESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON",
             "-DMESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON", "-DMESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON",
             "-DMESHVALE_REPAIR_MATERIALIZED_TEST_PROFILE=qualified"]
-        for surface, directory, count in ((True, "rb", 18), (False, "ob", 14)):
+        native_counts = {}
+        for surface, directory in ((True, "rb"), (False, "ob")):
             build = work / directory
             runner.configure(root, build, f"-DCMAKE_PREFIX_PATH={prefix};{tiny}", "-DBUILD_TESTING=ON",
                 *native_options, f"-DMESHVALE_REPAIR_OFF_SURFACE_EXPORT={'ON' if surface else 'OFF'}",
                 f"-DMESHVALE_REPAIR_INTERCHANGE_TEST_SOURCE={interchange if surface else ''}")
             runner.build(build)
-            runner.inventory(build, directory, count)
+            cache = checker.cache_entries(build / "CMakeCache.txt")
+            numerical_positives = checker.deformation_format_selected(
+                cache, build, runner.profile.configuration,
+                runner.profile.materialization, True)
+            expected = checker.expected_inventory(
+                runner.profile.materialization, workflow=True, file_workflow=True,
+                off_file_workflow=True, ply_file_workflow=True,
+                off_surface_export=surface, publication_faults=surface,
+                deformation_format=numerical_positives)
+            count = len(expected)
+            actual = runner.inventory(build, directory, count)
+            if {test["name"] for test in actual} != expected:
+                raise RuntimeError("Actual native inventory differs from the selected legacy and numerical tests")
+            native_counts[surface] = count
             runner.check_inventory(root, build, "--gltf-workflow", "ON", "--gltf-file-workflow", "ON",
                 "--off-file-workflow", "ON", "--ply-file-workflow", "ON",
                 "--off-surface-export", "ON" if surface else "OFF")
@@ -237,7 +251,8 @@ def qualify(root):
             "interchange_python_selected": False, "source_archive_build": True,
             "off_glb_api_tests": 15, "off_glb_command_tests": 10, "skips_allowed": False})
         result["completed"].append("installed-g134-repair-off-glb-api15-command10-and-legacy-off")
-        result.update(gate_passed=True, native_surface_on_tests=18, native_surface_off_tests=14,
+        result.update(gate_passed=True, native_surface_on_tests=native_counts[True],
+                      native_surface_off_tests=native_counts[False],
                       standard_installed_surface_on_tests=6, standard_installed_surface_off_tests=5,
                       production_tests=0)
     except BaseException as error:

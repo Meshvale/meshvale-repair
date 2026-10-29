@@ -76,6 +76,10 @@ DEFORMATION_SINGLE_GENERATORS = frozenset({
     "MinGW Makefiles", "MSYS Makefiles",
 })
 DEFORMATION_MULTI_GENERATORS = frozenset({"Ninja Multi-Config", "Xcode"})
+# Preserve the existing private selector/cache names; both positives now share it.
+DEFORMATION_POSITIVE_TESTS = frozenset({
+    "gltf_deformation_policy_applicability", "gltf_deformation_format_preservation",
+})
 
 
 def deformation_format_configuration(cache, configuration):
@@ -214,7 +218,7 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
     if file_workflow and not installed:
         expected |= frozenset({"gltf_file_sha256"})
         expected |= (frozenset({"gltf_file_workflow_semantics", "gltf_file_workflow_requests",
-                               "gltf_retained_facts", "gltf_deformation_policy_applicability"})
+                               "gltf_retained_facts"})
                      if profile == QUALIFIED_PROFILE else
                      frozenset({"gltf_file_workflow_unsupported"}))
     elif file_workflow:
@@ -224,7 +228,7 @@ def expected_inventory(profile, installed=False, workflow=False, file_workflow=F
     if deformation_format:
         if installed or profile != QUALIFIED_PROFILE or not file_workflow:
             raise ValueError("deformation format positives require the qualified native file workflow")
-        expected |= frozenset({"gltf_deformation_format_preservation"})
+        expected |= DEFORMATION_POSITIVE_TESTS
     if off_file_workflow:
         expected |= (frozenset({"installed_off_workflow"}) if installed else
                      frozenset({"off_workflow_semantics", "off_workflow_requests"}))

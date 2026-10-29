@@ -44,9 +44,10 @@ cleanup. This fixture set does not establish a release, ABI or platform matrix.
 
 ## Numerical test selection
 
-The portable native test target is built in materialization-qualified builds.
-Its nine positive runtime cases are registered only for the named Release
-configuration after a fresh compile-only check of the retained deformation
+Both portable native deformation test targets are built in materialization-qualified
+builds. The applicability test and nine format-preservation positive runtime cases
+share registration only for the named Release configuration after a fresh
+compile-only check of the retained deformation
 numerical profile. This check uses the actual generator/configuration and
 standard/CRT headers: MSVC full version 195136248, STL 145/update 202604,
 CRT-header 14.51.36244.0, dynamic CRT, iterator-debug 0, x64, strict C++20 and the
@@ -59,7 +60,7 @@ runtime and configuration. The compile check does not attest an installed SDK
 binary or actual thread state. An unexpected refusal on an eligible run fails
 the unchanged assertions; no runtime fallback enables or suppresses the test.
 
-An eligible single-config Release build includes this positive in ordinary
+An eligible single-config Release build includes both positives in ordinary
 `ctest` as well as `ctest -C Release`. Multi-config builds register it only for
 Release; select `ctest -C Release` there. Debug never gains the positive from a
 stale configuration-list cache entry. These selections do not replace existing

@@ -352,15 +352,24 @@ def predicate_text(native_source):
             ");\n#else\nconstexpr bool kMeshvaleDomainGuard = false;\n#endif\n")
 
 
+def compile_object(entry):
+    """Resolve the CDB object against its recorded compile working directory."""
+    directory = Path(entry["directory"])
+    require(directory.is_absolute() and directory.is_dir(), "invalid compile directory")
+    obj = Path(entry["output"])
+    if not obj.is_absolute():
+        obj = directory / obj
+    obj = obj.resolve(strict=True)
+    require(obj.is_file(), "missing production object")
+    return obj
+
+
 def capture_dependencies(build, entry, output, roots):
     records = cache_records(Path(build) / "CMakeCache.txt")
     ninja = records.get("CMAKE_MAKE_PROGRAM", (None, ""))[1]
     require(Path(ninja).name.lower() in {"ninja", "ninja.exe"},
             "actual dependency capture currently requires Ninja")
-    obj = Path(entry["output"])
-    if not obj.is_absolute():
-        obj = Path(build) / obj
-    require(obj.is_file(), "missing production object")
+    obj = compile_object(entry)
     relative = obj.relative_to(Path(build)).as_posix()
     _, process = capture([ninja, "-t", "deps", relative], build, output / "ninja-deps", roots)
     require(process.returncode == 0, "Ninja dependency query failed")
