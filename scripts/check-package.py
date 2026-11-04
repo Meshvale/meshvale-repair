@@ -60,6 +60,9 @@ def inspect(path):
         for required in [".clang-format", ".gitattributes", ".git_archival.txt",
                          "tests/ply-physical-oracle/physical_oracle.py",
                          "tests/ply-physical-oracle/test_physical_oracle.py",
+                         "tests/ply-corpus/test_ply_corpus.py", "tests/ply-corpus/mixed_physical_oracle.py",
+                         "tests/fixtures/ply-mixed-polygons/literal-expectations.json",
+                         "tests/fixtures/ply-mixed-polygons/README.md", "docs/ply-mixed-polygon-walkthrough.md",
                          "scripts/gltf-deformation-test-evidence.py",
                          "scripts/check-gltf-deformation-python.py",
                          "scripts/gltf_deformation_test_support.py",
@@ -228,6 +231,12 @@ def inspect(path):
                          "examples/python/obj_triangle_export.py",
                          "scripts/portable-preview.py","examples/python/obj_walkthrough.py","docs/quickstart.md"]:
             assert required in names,required
+        for variant in ("clean", "exact", "cyclic", "reversed", "distinct-ids", "unused-vertex",
+                        "label-different", "whole-request", "malformed-index"):
+            for encoding in ("ascii", "binary_little_endian", "binary_big_endian"):
+                suffix = ".ply" if encoding == "ascii" else ".ply.hex"
+                required = "tests/fixtures/ply-mixed-polygons/" + variant + "." + encoding + suffix
+                assert required in names, required
         for license in ["eigen-mpl2.txt", "eigen-apache.txt", "eigen-notices.txt", "meshvale-geometry-notice.txt", "meshvale-interchange-notice.txt", "cgltf.txt", "jsoncons.txt", "tinyobjloader.txt"]:
             assert "licenses/" + license in names, license
         assert not any(name.endswith(".hpp") for name in names)

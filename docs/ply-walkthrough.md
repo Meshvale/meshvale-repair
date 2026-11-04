@@ -12,6 +12,9 @@ preservation rules and [PLY report contract](ply-reports.md) owns actual report
 fields. This example checks position/topology-only ASCII; it does not qualify
 other schemas, encodings, runtimes or platforms.
 
+For an additional original triangle/quad/concave-pentagon source with explicit
+safe face-local labels, use the [mixed-polygon example](ply-mixed-polygon-walkthrough.md).
+
 ## Use an installed development build
 
 Follow [PLY Python build and installed checks](../ENVIRONMENT.md#ply-python-build-and-installed-checks)

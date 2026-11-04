@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 .git_archival.txt export-subst
 
+# Keep original mixed-polygon wire, hex containers and literal words exact.
+tests/fixtures/ply-mixed-polygons/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
 # Deformation fixtures are hashed and compared as authored wire bytes.
 tests/fixtures/gltf-deformation-end-to-end/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 tests/fixtures/gltf-deformation-rich-end-to-end/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

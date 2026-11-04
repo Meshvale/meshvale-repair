@@ -69,6 +69,12 @@ def ply_installed(options, root):
         destination = inputs / Path(relative).name
         shutil.copyfile(root / relative, destination)
         copied[relative] = hashlib.sha256(destination.read_bytes()).hexdigest()
+    for relative in ("tests/ply-corpus", "tests/fixtures/ply-mixed-polygons"):
+        destination = inputs / Path(relative).name
+        shutil.copytree(root / relative, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        for path in destination.rglob("*"):
+            if path.is_file():
+                copied[relative + "/" + path.relative_to(destination).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     environment = output / "env"
     venv.EnvBuilder(with_pip=True).create(environment)
     python = environment / "Scripts/python.exe"
@@ -129,11 +135,21 @@ pathlib.Path(sys.argv[2]).write_text(json.dumps({'passed':True,'validator_versio
             counts != dict(events=109, native_attempts=102, workflow_attempts=100, capture_only_attempts=2) or
             len(bundles) != 97):
         raise RuntimeError("Installed PLY journal/bundle inventory differs from the qualified test")
+    # Keep the established fixed-corpus count above distinct from this addition.
+    mixed_output = output / "results/mixed-polygons"
+    run(python, "-I", inputs / "ply-corpus/test_ply_corpus.py", "--fixture-root", inputs / "ply-mixed-polygons",
+        "--output-root", mixed_output, "--native-version", options.ply_native_version, "--console", console, cwd=output)
+    mixed = json.loads((mixed_output / "corpus-results.json").read_text(encoding="utf8"))
+    if (mixed["passed"] is not True or mixed["inputs_unchanged"] is not True or
+            len(mixed["events"]) != 347 or len(mixed["physical_publications"]) != 237):
+        raise RuntimeError("Representative PLY corpus did not complete its declared cases")
     run(python, "-m", "pip", "check", cwd=output)
     (output / "qualification.json").write_text(json.dumps({
         "passed": True, "scope": "Windows ordinary CPython3.13 development PLY integration",
         "journal_counts": counts, "bundles": len(bundles), "input_sha256": copied,
         "counts_source": "complete passing integration journal; native attempts include capture-only failures",
+        "representative_corpus": {"attempts": len(mixed["events"]), "publications": len(mixed["physical_publications"]),
+                                  "journal": str(mixed_output / "corpus-results.json")},
         "runtime_floor_qualified": False, "interchange_python_installed": False}, indent=2) + "\n", encoding="utf8")
     return 0
 
