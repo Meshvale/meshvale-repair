@@ -1,0 +1,325 @@
+{
+  "type": "object",
+  "properties": {
+    "schema": {
+      "const": "meshvale.gltf-deformation-python-producer/1"
+    },
+    "roots": {
+      "type": "object",
+      "properties": {
+        "evidence": {
+          "type": "string"
+        },
+        "producer_source": {
+          "type": "string"
+        },
+        "sdk": {
+          "type": "string"
+        },
+        "geometry_sdk": {
+          "type": "string"
+        },
+        "toolchain": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "evidence",
+        "producer_source",
+        "sdk",
+        "geometry_sdk",
+        "toolchain"
+      ],
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "object",
+      "properties": {
+        "interchange_manifest": {
+          "$ref": "#/$defs/artifact"
+        },
+        "geometry_manifest": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "required": [
+        "interchange_manifest",
+        "geometry_manifest"
+      ],
+      "additionalProperties": false
+    },
+    "producer": {
+      "type": "object",
+      "properties": {
+        "generator": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "single",
+                "multi"
+              ]
+            },
+            "kind_observation": {
+              "$ref": "#/$defs/artifact"
+            },
+            "cache": {
+              "$ref": "#/$defs/artifact"
+            },
+            "configurations": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 0
+            },
+            "selected_configuration": {
+              "type": "string"
+            },
+            "compiler_record": {
+              "$ref": "#/$defs/artifact"
+            }
+          },
+          "required": [
+            "name",
+            "kind",
+            "kind_observation",
+            "cache",
+            "configurations",
+            "selected_configuration",
+            "compiler_record"
+          ],
+          "additionalProperties": false
+        },
+        "guard": {
+          "type": "string",
+          "enum": [
+            "true",
+            "false",
+            "unprobed"
+          ]
+        },
+        "guard_definition_source": {
+          "$ref": "#/$defs/artifact"
+        },
+        "predicate_source": {
+          "$ref": "#/$defs/artifact"
+        },
+        "production_compile_command": {
+          "$ref": "#/$defs/artifact"
+        },
+        "production_object": {
+          "$ref": "#/$defs/artifact"
+        },
+        "dependency_headers": {
+          "$ref": "#/$defs/artifact"
+        },
+        "common_probe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_true_probe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_false_probe": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/artifact"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "abi": {
+          "type": "object",
+          "properties": {
+            "architecture": {
+              "type": "string"
+            },
+            "effective_standard": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 18446744073709551615
+            },
+            "runtime": {
+              "type": "string"
+            },
+            "iterator_debug": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 18446744073709551615
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "stdlib_abi": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "architecture",
+            "effective_standard",
+            "runtime",
+            "iterator_debug",
+            "stdlib_abi"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "generator",
+        "guard",
+        "guard_definition_source",
+        "predicate_source",
+        "production_compile_command",
+        "production_object",
+        "dependency_headers",
+        "common_probe",
+        "expected_true_probe",
+        "expected_false_probe",
+        "abi"
+      ],
+      "additionalProperties": false
+    },
+    "sdk": {
+      "type": "object",
+      "properties": {
+        "libraries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "minItems": 1
+        },
+        "installed_headers": {
+          "$ref": "#/$defs/artifact"
+        },
+        "exports": {
+          "$ref": "#/$defs/artifact"
+        },
+        "archive_object_membership": {
+          "$ref": "#/$defs/artifact"
+        },
+        "installed_to_source_bridge": {
+          "$ref": "#/$defs/artifact"
+        }
+      },
+      "required": [
+        "libraries",
+        "installed_headers",
+        "exports",
+        "archive_object_membership",
+        "installed_to_source_bridge"
+      ],
+      "additionalProperties": false
+    },
+    "unsupported_control": {
+      "type": "object",
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/artifact"
+        },
+        "executable": {
+          "$ref": "#/$defs/artifact"
+        },
+        "build_process": {
+          "$ref": "#/$defs/artifact"
+        },
+        "resolved_link_inputs": {
+          "$ref": "#/$defs/artifact"
+        },
+        "actual_header_dependencies": {
+          "$ref": "#/$defs/artifact"
+        },
+        "fixture_manifest": {
+          "$ref": "#/$defs/artifact"
+        },
+        "fixtures_relative": {
+          "const": "tests/fixtures/gltf-deformation/matrix-weights"
+        }
+      },
+      "required": [
+        "source",
+        "executable",
+        "build_process",
+        "resolved_link_inputs",
+        "actual_header_dependencies",
+        "fixture_manifest",
+        "fixtures_relative"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema",
+    "roots",
+    "sources",
+    "producer",
+    "sdk",
+    "unsupported_control"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "enum": [
+            "evidence",
+            "producer_source",
+            "receiver_source",
+            "sdk",
+            "geometry_sdk",
+            "toolchain",
+            "installed"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)[A-Za-z0-9._+/-]+$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "root",
+        "path",
+        "bytes",
+        "sha256"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

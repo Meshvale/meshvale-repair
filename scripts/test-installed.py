@@ -63,10 +63,18 @@ def ply_installed(options, root):
     inputs.mkdir()
     copied = {}
     for relative in ("tests/ply_workflow_python.py", "docs/ply-presets.json",
+                     "tests/ply-physical-oracle/physical_oracle.py",
+                     "tests/ply-physical-oracle/test_physical_oracle.py",
                      "tests/fixtures/ply-workflow/literal-predicates.json"):
         destination = inputs / Path(relative).name
         shutil.copyfile(root / relative, destination)
         copied[relative] = hashlib.sha256(destination.read_bytes()).hexdigest()
+    for relative in ("tests/ply-corpus", "tests/fixtures/ply-mixed-polygons"):
+        destination = inputs / Path(relative).name
+        shutil.copytree(root / relative, destination, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+        for path in destination.rglob("*"):
+            if path.is_file():
+                copied[relative + "/" + path.relative_to(destination).as_posix()] = hashlib.sha256(path.read_bytes()).hexdigest()
     environment = output / "env"
     venv.EnvBuilder(with_pip=True).create(environment)
     python = environment / "Scripts/python.exe"
@@ -114,6 +122,8 @@ assert len(rows)==31 and Counter(x['exit_code'] for x in rows)=={0:29,1:1,2:1}
 pathlib.Path(sys.argv[2]).write_text(json.dumps({'passed':True,'validator_version':m.version('meshvale-geometry'),'validator_sha256':hashlib.sha256(pathlib.Path(meshvale_reports.__file__).read_bytes()).hexdigest(),'reports':rows},indent=2)+chr(10),encoding='utf8')
 """
     run(python, "-I", "-c", shared, options.ply_cases.resolve(), output / "shared-reports.json", cwd=output)
+    run(python, "-I", inputs / "test_physical_oracle.py", "--fixture-root", fixture,
+        "--literal-oracles", inputs / "literal-predicates.json", cwd=output)
     run(python, "-I", inputs / "ply_workflow_python.py", "--fixture-root", fixture,
         "--output-root", output / "results", "--literal-oracles", inputs / "literal-predicates.json",
         "--presets", inputs / "ply-presets.json", "--native-version", options.ply_native_version,
@@ -125,11 +135,21 @@ pathlib.Path(sys.argv[2]).write_text(json.dumps({'passed':True,'validator_versio
             counts != dict(events=109, native_attempts=102, workflow_attempts=100, capture_only_attempts=2) or
             len(bundles) != 97):
         raise RuntimeError("Installed PLY journal/bundle inventory differs from the qualified test")
+    # Keep the established fixed-corpus count above distinct from this addition.
+    mixed_output = output / "results/mixed-polygons"
+    run(python, "-I", inputs / "ply-corpus/test_ply_corpus.py", "--fixture-root", inputs / "ply-mixed-polygons",
+        "--output-root", mixed_output, "--native-version", options.ply_native_version, "--console", console, cwd=output)
+    mixed = json.loads((mixed_output / "corpus-results.json").read_text(encoding="utf8"))
+    if (mixed["passed"] is not True or mixed["inputs_unchanged"] is not True or
+            len(mixed["events"]) != 347 or len(mixed["physical_publications"]) != 237):
+        raise RuntimeError("Representative PLY corpus did not complete its declared cases")
     run(python, "-m", "pip", "check", cwd=output)
     (output / "qualification.json").write_text(json.dumps({
         "passed": True, "scope": "Windows ordinary CPython3.13 development PLY integration",
         "journal_counts": counts, "bundles": len(bundles), "input_sha256": copied,
         "counts_source": "complete passing integration journal; native attempts include capture-only failures",
+        "representative_corpus": {"attempts": len(mixed["events"]), "publications": len(mixed["physical_publications"]),
+                                  "journal": str(mixed_output / "corpus-results.json")},
         "runtime_floor_qualified": False, "interchange_python_installed": False}, indent=2) + "\n", encoding="utf8")
     return 0
 
@@ -138,6 +158,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--geometry-wheel",required=True,type=Path)
     parser.add_argument("--repair-wheel",required=True,type=Path)
+    parser.add_argument("--gltf-deformation-receiver", type=Path,
+                        help="Actual source/sdist wheel receiver record for the new numerical test domain")
+    parser.add_argument("--gltf-deformation-output", type=Path,
+                        help="New ignored evidence directory for installed identity and selected tests")
+    parser.add_argument("--gltf-components", choices=["qualified", "unsupported"],
+                        help="Legacy glTF and independent binding/admission/command checks only; no deformation domain credit")
     parser.add_argument("--workflow",action="store_true",help="Install the declared validator extra and test reported operations")
     parser.add_argument("--gltf", choices=["qualified", "unsupported"],
                         help="Exercise the installed glTF API with an explicit numerical profile")
@@ -152,6 +178,18 @@ if __name__ == "__main__":
     parser.add_argument("--ply-cases", type=Path, help="Actual public make-cases manifest for the same native run")
     parser.add_argument("--ply-native-version", help="Actual producing native CMake version, not wheel version")
     options = parser.parse_args(); root = Path(__file__).resolve().parents[1]
+    if options.gltf and options.gltf_components:
+        parser.error("select --gltf or --gltf-components, not both")
+    legacy_gltf = options.gltf or options.gltf_components
+    if options.gltf and not (options.gltf_deformation_receiver and options.gltf_deformation_output):
+        parser.error("selection-error: --gltf requires actual deformation receiver evidence and a new output directory")
+    if not options.gltf and (options.gltf_deformation_receiver or options.gltf_deformation_output):
+        parser.error("deformation evidence inputs require --gltf")
+    if options.gltf:
+        # Keep the actual loaded files available for independent rehashing after
+        # this helper exits; the old temporary-only modes keep their lifetime.
+        options.gltf_deformation_output = options.gltf_deformation_output.resolve()
+        options.gltf_deformation_output.mkdir(parents=True, exist_ok=False)
     if options.off_glb and (options.off != "qualified" or options.ply or
             sys.platform != "win32" or sys.version_info[:2] != (3, 13) or
             sys.implementation.name != "cpython" or sysconfig.get_config_var("Py_GIL_DISABLED") or
@@ -159,13 +197,14 @@ if __name__ == "__main__":
         parser.error("--off-glb requires --off qualified and Windows ordinary x64 CPython 3.13, without PLY mode")
     ply_inputs = (options.ply_fixture_root, options.ply_output_root, options.ply_native_version, options.ply_cases)
     if options.ply:
-        if not all(ply_inputs) or options.workflow or options.gltf or options.off or options.interchange_wheel:
+        if not all(ply_inputs) or options.workflow or legacy_gltf or options.off or options.interchange_wheel:
             parser.error("PLY requires its four explicit inputs, without another installed mode")
         raise SystemExit(ply_installed(options, root))
     if any(ply_inputs):
         parser.error("PLY inputs require --ply")
     with tempfile.TemporaryDirectory(prefix="meshvale-repair-installed-") as scratch:
-        directory = Path(scratch); environment = directory/"env"
+        directory = Path(scratch)
+        environment = (options.gltf_deformation_output/"runtime" if options.gltf else directory/"env")
         venv.EnvBuilder(with_pip=True).create(environment)
         python = environment/("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
         run(python,"-m","pip","install","--no-index",options.geometry_wheel.resolve(),options.repair_wheel.resolve(),cwd=directory)
@@ -180,16 +219,25 @@ if __name__ == "__main__":
                     "import meshvale_repair; import meshvale_geometry")
             code += "; assert meshvale_repair.Mesh is meshvale_geometry.Mesh; assert meshvale_repair.remove_duplicate_faces(meshvale_geometry.Mesh(), []).outcome == 'unchanged'; print('Installed import order passed: "+order+"')"
             run(python,"-I","-c",code,cwd=directory)
-        if options.workflow or options.gltf or options.off:
+        if options.workflow or legacy_gltf or options.off:
             run(python,"-m","pip","install",str(options.repair_wheel.resolve())+"[workflow]",cwd=directory)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/workflow","-v",cwd=directory)
             run(python,"-I",root/"examples/python/reported_duplicate.py",cwd=directory)
         if options.gltf:
+            # This lane is independent of the legacy profile below. The normal
+            # loaded module, actual producer and receiver must all be attested.
+            domain_output = options.gltf_deformation_output.resolve()
+            run(sys.executable, "-I", root/"scripts/gltf-deformation-test-evidence.py", "installed",
+                "--receiver", options.gltf_deformation_receiver.resolve(), "--python", python,
+                "--wheel", options.repair_wheel.resolve(), "--output", domain_output/"installed", cwd=directory)
+            run(python, "-I", root/"scripts/check-gltf-deformation-python.py",
+                "--manifest", domain_output/"installed/installed.json", "--result", domain_output/"result.json", cwd=directory)
+        if legacy_gltf:
             gltf_environment = os.environ.copy()
-            gltf_environment["MESHVALE_GLTF_PYTHON_PROFILE"] = options.gltf
+            gltf_environment["MESHVALE_GLTF_PYTHON_PROFILE"] = legacy_gltf
             run(python,"-I","-m","unittest","discover","-s",root/"tests/gltf-python","-v",
                 cwd=directory,env=gltf_environment)
-            profile_arguments = ["--unsupported-profile"] if options.gltf == "unsupported" else []
+            profile_arguments = ["--unsupported-profile"] if legacy_gltf == "unsupported" else []
             run(python,"-I",root/"examples/python/gltf_walkthrough.py",*profile_arguments,
                 cwd=directory,env=gltf_environment)
             run(python,"-I","-m","unittest","discover","-s",root/"tests/gltf-cli","-v",

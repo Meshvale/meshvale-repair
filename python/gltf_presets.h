@@ -15,6 +15,12 @@ inline constexpr std::string_view kBalancedTranslationGltfPreset =
     "balanced-direct-translation-v1";
 inline constexpr std::string_view kSerialTranslationGltfPreset =
     "serial-direct-translation-v1";
+inline constexpr std::string_view kBalancedDeformationGltfPreset =
+    "balanced-deformation-v1";
+inline constexpr std::string_view kSerialDeformationGltfPreset =
+    "serial-deformation-v1";
+inline constexpr std::string_view kDeformationGltfProcessingProfile =
+    "deformation-retained-v1";
 inline constexpr std::string_view kStaticGltfProcessingProfile =
     "static-local-triangles-v1";
 inline constexpr std::string_view kDirectTranslationGltfProcessingProfile =
@@ -35,6 +41,12 @@ struct GltfPreset {
   interchange::GltfFileReadWorkPolicy capture_work;
   GltfDuplicateFileWorkflowLimits workflow_limits;
   GltfDuplicateFileWorkflowWorkPolicy workflow_work;
+  // Resolved configuration, retained before capture; never reconstructed from
+  // effective-request observations. Old preset outputs keep zero new policies.
+  interchange::GltfFileReadOptions capture_options{};
+  GltfWorkflowDeformationPolicies deformation{};
+  interchange::GltfDeformationPolicy source_deformation{};
+  interchange::GltfDeformationPublicationPolicies deformation_publication{};
 };
 [[nodiscard]] GltfPreset MakeGltfPreset(std::string_view name);
 }  // namespace meshvale::repair::python

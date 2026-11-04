@@ -9,6 +9,12 @@
 namespace meshvale::repair::gltf_file_workflow_detail {
 struct FileWorkflowTestOptions;
 }
+namespace meshvale::interchange {
+struct GltfExtractionRequest;
+}
+namespace meshvale::repair::python {
+struct GltfPreset;
+}
 namespace meshvale::repair::python::binding_test {
 class AllocationScope {
  public:
@@ -26,6 +32,11 @@ class AllocationScope {
 WorkflowOptions();
 // Test-only shared token capture before native work, never a Python callback.
 void ObserveStopSource(const std::stop_source& source) noexcept;
+// Consumes one test-only override before native request construction. Only
+// this invocation's owned preset/extraction changes; the public table is fixed.
+void ApplyStagedWork(GltfPreset& preset,
+                     interchange::GltfExtractionRequest& extraction);
+void FinishStagedWork() noexcept;
 void AfterNativeReturn() noexcept;
 void BeforeReturn(nanobind::handle prepared) noexcept;
 void Restore() noexcept;

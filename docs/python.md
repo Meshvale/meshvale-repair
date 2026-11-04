@@ -17,7 +17,7 @@ Wrong Python shapes/types raise `TypeError`/`ValueError`/`OverflowError`, with n
 
 ## Build and consumption
 
-The distribution is `meshvale-repair`; the import is `meshvale_repair`. Optional builds require ordinary GIL-enabled CPython 3.10+, C++20, CMake 3.24+, and the pinned nanobind/scikit-build-core/version provider in [pyproject.toml](../pyproject.toml). The native SDK cohort for the default/glTF-coenabled wheel is [specified by the retained-file interface](gltf-file-workflow.md): Geometry `48298b24be7c132816fb5580d22d58bde61558d0` and Interchange `33f483d2f5bed45dd2c3273957c08c404fc03bee`. Separately build the Python dependencies from public source: Geometry `0.0.1.dev134+g48298b24b` from that same Geometry revision and, for the assets extra, Interchange `0.0.1.dev179+g5b9b695ba` from `5b9b695ba1fef166baa8c7cf9ad21a5630691f70`. The native Interchange SDK and optional Interchange Python wheel therefore use separate selected source trees. These development candidates are not on a package index; build their wheels first. Native snapshots still use version `0.0.0`.
+The distribution is `meshvale-repair`; the import is `meshvale_repair`. Optional builds require ordinary GIL-enabled CPython 3.10+, C++20, CMake 3.24+, and the pinned nanobind/scikit-build-core/version provider in [pyproject.toml](../pyproject.toml). The native SDK cohort for the default/glTF-coenabled wheel is [specified by the retained-file interface](gltf-file-workflow.md): Geometry `48298b24be7c132816fb5580d22d58bde61558d0` and Interchange `d431643cdeb77a64a614ed0af90b9ccae8f007d2`. Separately build the Python dependencies from public source: Geometry `0.0.1.dev134+g48298b24b` from that same Geometry revision and, for the assets extra, Interchange `0.0.1.dev179+g5b9b695ba` from `5b9b695ba1fef166baa8c7cf9ad21a5630691f70`. The native Interchange SDK and optional Interchange Python wheel therefore use separate selected source trees. These development candidates are not on a package index; build their wheels first. Native snapshots still use version `0.0.0`.
 
 The default wheel enables the charged, glTF memory and retained-file native modules.
 A wheel that also enables OFF/PLY must satisfy their additional native targets
@@ -130,13 +130,13 @@ native and installed SDK interfaces, the Python API, single/batch commands and
 legacy behavior. Source-archive and relocated installed-SDK checks have also
 passed, including fresh default-branch CI. GNU 13 checks cover native
 unsupported-profile outcomes and relocated installed consumers. The
-[development workflow](../.github/workflows/off-glb-workflow.yml) owns these
+[development workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/off-glb-workflow.yml) owns these
 configured profiles; they do not establish a supported release, published wheel
 or runtime floor.
 
 ## Portable development cohort
 
-The [candidate workflow](../.github/workflows/portable-candidates.yml) evaluates ordinary GIL-enabled CPython 3.13 on Linux x86_64 with a manylinux_2_28 floor and Windows x64 on `windows-2022`. Artifacts are development candidates retained for 14 days; they do not establish a supported release matrix. A clean Windows 11 consumer floor, macOS and additional interpreter/architecture combinations remain unevaluated by this workflow.
+The [candidate workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/portable-candidates.yml) evaluates ordinary GIL-enabled CPython 3.13 on Linux x86_64 with a manylinux_2_28 floor and Windows x64 on `windows-2022`. Artifacts are development candidates retained for 14 days; they do not establish a supported release matrix. A clean Windows 11 consumer floor, macOS and additional interpreter/architecture combinations remain unevaluated by this workflow.
 
 Each configured lane rebuilds the exact Geometry and optional Interchange Python revisions above from full-history public source. The optional Interchange Python producer's preparation supplies the Geometry/parser dependencies and double-precision static tinyobjloader manifest. The helper then separately checks out the native Interchange SDK revision and builds its native glTF interfaces using those inputs. Repair then builds independently from source and its Git-free source archive with that native cohort. This configured route does not by itself establish successful final artifact qualification. Upstream CI downloads are not build dependencies. The workflow pins cibuildwheel `4.2.0`, product and isolated-backend CMake `4.3.1`, the manylinux image digest and action revisions; retained reports record compiler, dependency tools, final metadata, symbols, hashes and notices.
 

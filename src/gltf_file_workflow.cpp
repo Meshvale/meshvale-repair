@@ -106,7 +106,8 @@ GltfDuplicateWorkflowRequest MemoryRequest(
           request.extraction,
           request.targets,
           request.repair,
-          request.report_failure_retention};
+          request.report_failure_retention,
+          request.deformation};
 }
 GltfDuplicateWorkflowLimits MemoryLimits(
     const GltfDuplicateFileWorkflowLimits& outer) {
@@ -172,6 +173,25 @@ void Validate(const GltfDuplicateFileWorkflowRequest& request,
   if (request.publication && request.publication->report_path.empty())
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
          Code::kConfigurationExtent);
+  if (request.publication &&
+      request.extraction.processing_profile ==
+          ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1) {
+    const auto& p = request.publication->deformation_publication;
+    for (const auto* policy : {&p.read, &p.extraction, &p.verification})
+      if (const auto error = memory::DeformationPolicyError(*policy))
+        Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
+             *error == GltfWorkflowDiagnosticCode::kRequiredFieldZero
+                 ? Code::kRequiredFieldZero
+                 : Code::kConfigurationExtent);
+    if (p.read.limits.max_new_requested_bytes >
+            limits.publication.reload.max_new_requested_bytes ||
+        p.extraction.limits.max_new_requested_bytes >
+            limits.publication.extraction.max_output_requested_bytes ||
+        p.verification.limits.max_new_requested_bytes >
+            limits.publication.inspection.max_new_requested_bytes)
+      Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
+           Code::kConfigurationExtent);
+  }
   if (request.publication &&
       !memory::IsWorkflowReportUtf8(request.publication->report_path))
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
@@ -254,6 +274,16 @@ void Compute(State& state, bool requested) {
     failed |= c.state == CoverageState::kPerformed && c.passed == false;
     incomplete |= c.state != CoverageState::kPerformed;
   }
+  if (state.deformation) {
+    const auto end = requested ? memory::kDeformationCoverageCount
+                               : memory::kDeformationMemoryEnd;
+    for (std::size_t i = memory::kDeformationFirstCheck; i < end; ++i) {
+      const auto c = memory::DeformationCoverage(
+          *state.deformation, static_cast<GltfWorkflowCheck>(i), requested);
+      failed |= c.passed == false;
+      incomplete |= c.state != CoverageState::kPerformed;
+    }
+  }
   outcomes.profile = failed       ? GltfWorkflowProfileOutcome::kFailed
                      : incomplete ? GltfWorkflowProfileOutcome::kIncomplete
                                   : GltfWorkflowProfileOutcome::kPassed;
@@ -293,6 +323,15 @@ memory::FileReportProjection Projection(
                     ? memory::FileReportFormat::kJson
                     : memory::FileReportFormat::kGlb;
   file.translation = state.translation;
+  file.deformation = state.deformation;
+  file.deformation_policies = state.deformation_policies;
+  if (state.deformation) {
+    for (std::size_t i = memory::kDeformationFirstCheck;
+         i < memory::kDeformationCoverageCount; ++i)
+      file.deformation_coverage[i] = memory::DeformationCoverage(
+          *state.deformation, static_cast<GltfWorkflowCheck>(i),
+          file.requested);
+  }
   file.translation_coverage =
       memory::TranslationCoverage(state.translation, file.requested);
   file.staged_primitive = state.staged_primitive;
@@ -527,11 +566,29 @@ std::span<const ic::GltfFileView> Provide(
     state.translation.publication_reload = *facts;
   if (const auto* facts = content.inspection.DirectTranslationFacts())
     state.translation.publication_verification = *facts;
+  if (state.deformation) {
+    // Actual staged owners exist only in this verified-content callback.
+    if (const auto* facts =
+            content.inspection.ReloadedAsset().DeformationReadFacts())
+      state.deformation->publication_read = *facts;
+    if (const auto* facts =
+            content.inspection.ReloadedExtraction().DeformationFacts())
+      state.deformation->publication_reload = *facts;
+    // The generic inspection does not own staged physical verification. Its
+    // facts must never be relabeled as the publication operation's observation.
+    if (content.staged_deformation)
+      state.deformation->publication_verification = *content.staged_deformation;
+  }
   state.staged_primitive.state = CoverageState::kPerformed;
   state.staged_primitive.passed = true;
   state.physical_members.state = CoverageState::kPerformed;
   state.physical_members.passed = true;
   try {
+    // A required real precommit return may never be replaced by a generic
+    // observation or delayed until the publisher's postcommit result.
+    if (state.deformation && !state.deformation->publication_verification)
+      Fail(Status::kSourceContractFailure, Stage::kReport,
+           Code::kReportPreparation);
     HashFiles(state, content, provider.limits, provider.work, provider.context,
               provider.stop, provider.options);
     state.outcomes.stage = Stage::kReport;
@@ -641,6 +698,17 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
     const FileWorkflowTestOptions& options) {
   GltfDuplicateFileWorkflowResult result;
   result.translation.profile = request.extraction.processing_profile;
+  if (request.extraction.processing_profile ==
+      ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1) {
+    auto& facts =
+        result.deformation.emplace(memory::SelectedDeformationFacts());
+    if (const auto* read = request.source.DeformationReadFacts())
+      facts.capture_read = *read;
+    if (const auto revision = request.source.Asset().DeformationRevision())
+      facts.normative_revision = *revision;
+    if (const auto policy = request.source.Asset().QuaternionPolicy())
+      facts.quaternion_policy = *policy;
+  }
   result.outcomes.publication = request.publication
                                     ? Publication::kNotAttempted
                                     : Publication::kNotRequested;
@@ -661,6 +729,23 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
     state = std::allocate_shared<State>(
         allocation::Allocator<State>(allocation), allocation, request.source);
     state->translation.profile = request.extraction.processing_profile;
+    state->deformation = result.deformation;
+    if (state->deformation) {
+      const auto* read = request.source.Asset().DeformationReadPolicy();
+      if (read) state->deformation_policies[0] = *read;
+      state->deformation_policies[2] = request.extraction.deformation;
+      state->deformation_policies[3] = request.deformation.materialization;
+      state->deformation_policies[4] = request.deformation.writing;
+      state->deformation_policies[5] = request.deformation.reload_read;
+      state->deformation_policies[6] = request.deformation.reload;
+      state->deformation_policies[7] = request.deformation.verification;
+      if (request.publication) {
+        const auto& p = request.publication->deformation_publication;
+        state->deformation_policies[8] = p.read;
+        state->deformation_policies[9] = p.extraction;
+        state->deformation_policies[10] = p.verification;
+      }
+    }
     state->outcomes.publication = result.outcomes.publication;
     if (request.publication)
       state->report_path.assign(request.publication->report_path.begin(),
@@ -671,6 +756,8 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
         Initialization(request, limits), memory_request, MemoryLimits(limits),
         work.memory, context, stop, options.memory);
     state->translation = memory_result.translation;
+    if (memory_result.deformation)
+      state->deformation = memory_result.deformation;
     state->memory = memory_result.record;
     state->retained_repair = memory_result.retained_repair;
     state->memory_outcomes = memory_result.outcomes;
@@ -697,12 +784,21 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
           request.publication->supplemental_files,
           {},
           {},
-          {Provide, &provider}};
+          {Provide, &provider},
+          request.publication->deformation_publication};
       state->outcomes.stage = Stage::kPublication;
       result.publication = ic::PublishGltfTopologyBundle(
           {state->source, *state->memory->OutputInspection()},
           request.publication->destination, publication_options,
           limits.publication, work.publication, stop);
+      if (state->deformation) {
+        state->deformation->publication_read =
+            result.publication->deformation_read;
+        state->deformation->publication_reload =
+            result.publication->deformation_extraction;
+        state->deformation->publication_verification =
+            result.publication->deformation_verification;
+      }
       state->translation.publication_reload =
           result.publication->translation_extraction;
       state->translation.publication_verification =
@@ -770,6 +866,7 @@ GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflowForTest(
     result.diagnostic = state->diagnostic;
     result.execution = state->execution;
     result.translation = state->translation;
+    result.deformation = state->deformation;
     result.record = Access::Make(state);
   } else if (result.status == Status::kCanceled) {
     result.outcomes.execution = GltfWorkflowExecutionOutcome::kCanceled;
@@ -843,6 +940,10 @@ GltfFileWorkflowByteExecution GltfDuplicateFileWorkflowRecord::Execution()
 const GltfWorkflowTranslationFacts&
 GltfDuplicateFileWorkflowRecord::TranslationFacts() const noexcept {
   return state_->translation;
+}
+const GltfWorkflowDeformationFacts*
+GltfDuplicateFileWorkflowRecord::DeformationFacts() const noexcept {
+  return state_->deformation ? &*state_->deformation : nullptr;
 }
 GltfDuplicateFileWorkflowResult RunGltfDuplicateFileWorkflow(
     const GltfDuplicateFileWorkflowRequest& request,

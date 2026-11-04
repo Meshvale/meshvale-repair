@@ -1,0 +1,8 @@
+{
+  "schema": "meshvale.repair.gltf-jobs/3",
+  "jobs": [
+    {"id":"static","input":"inputs/static/scene.gltf","destination":"outputs/static","targets":[],"primitive_ordinal":0,"triangles":"require-triangles","values":"raw","processing_profile":"static-local-triangles-v1"},
+    {"id":"translation","input":"inputs/translation/scene.glb","destination":"outputs/translation","targets":[[0,1]],"primitive_ordinal":0,"triangles":"require-triangles","values":"raw-and-normalized","processing_profile":"direct-translation-v1"},
+    {"id":"deformation","input":"inputs/deformation/scene.glb","destination":"outputs/deformation","targets":[[0,1]],"primitive_ordinal":0,"triangles":"require-triangles","values":"raw","processing_profile":"deformation-retained-v1"}
+  ]
+}

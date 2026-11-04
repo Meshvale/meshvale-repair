@@ -142,7 +142,14 @@ or values recovered from ReportJson. It has exactly the following members:
   publisher outcome/diagnostic/cleanup/error projection, or null publisher when
   not returned. Separate writer/reloader diagnostic getters are not invented.
 
-The checker also reads bounded physical format headers and verifies memory entry,
+The checker also independently decodes the fixture's physical PLY values using
+the [bounded physical oracle](../../ply-physical-oracle/physical_oracle.py).
+It checks the literal ordered schema, all eight wire scalar types, binary byte
+order, exact floating bits including signed zero and subnormals, ragged list
+lengths/values and directed polygon indices. Expected values come from the
+original literal file, separately from native mesh observations and serialized
+byte parity. Both verified memory output and committed entries are checked.
+It also verifies memory entry,
 committed entry, returned receipt copy and physical receipt bytes/inventory.
 Uncalled/unreached work must be absent/zero even when no report exists. Serial
 codec observations are zero. Retained prior success and delegated failure facts
@@ -170,7 +177,8 @@ rejects duplicate keys, bool-as-integer fields and nonfinite/overflow numbers.
 Directory inventory stops at the third member. These are checker bounds, not
 new product defaults. Optional `--shared-schema`/`--require-shared-validation`
 checks only structural Geometry JSON Schema; it is not full shared report
-semantic validation. No generic PLY parser, external physical source-state,
+semantic validation. The oracle accepts only this bounded fixture schema and
+counts; it is not a generic PLY parser. No external physical source-state,
 worker/budget stress, supported platform, runtime floor or release claim follows.
 
 ## Installed Python API and command checks
@@ -213,12 +221,18 @@ unpublished missing-source result instead exercises the closed command projectio
 integer version 1. There is no Interchange Python dependency.
 
 The test independently checks literal source digests, four maps, vertex identity,
-counts and original/current wire types/order/schema. Physical entry comparisons
-against the same retained native matrix cell are explicitly byte parity, not an
-independent scalar-value decoder. Existing native checker bit/value checks
-remain separate. It rehashes fixtures and expectations after the run, retaining
+counts and original/current wire types/order/schema. Every committed entry also
+passes the same independent physical value oracle used by the native report
+checker. Comparisons against the retained native matrix cell remain additional
+byte parity checks. Neither replaces the native checker mesh observations.
+The [focused controls](../../ply-physical-oracle/test_physical_oracle.py) require
+all 27 native published matrix/empty cells to pass and reject scalar, list-count,
+winding, signed-zero, truncation, trailing-body and header mutations. Run them
+with `--fixture-root` and `--literal-oracles` pointing to the same retained inputs;
+the installed test driver copies and runs both helper files outside the checkout.
+It rehashes fixtures and expectations after the run, retaining
 all own outputs and an event journal. Only a completed journal establishes
-reached scope: the current Windows x64 MSVC Release / ordinary CPython 3.13
+reached scope: a recorded Windows x64 MSVC Release / ordinary CPython 3.13
 development run records 102 attempts, 97 bundles and 109 events. This is not a
 full unsupported-profile, concurrency/fault/stress or platform qualification,
 an independently executed PLY-only Python build, or a released-wheel claim.

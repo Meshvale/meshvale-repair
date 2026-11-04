@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | ID | REPAIR-GLTF-PYTHON-001 |
-| Version | 0.1.1 |
+| Version | 0.2.0 |
 | Status | Development interface; qualification in progress |
 | Owner | Python path arguments, application execution presets and result observations |
 | Native owner | [Retained-file workflow](gltf-file-workflow.md) |
@@ -222,3 +222,25 @@ JSON/GLB examples, Unicode paths, actual receipts/hashes/maps, failure/cancellat
 shared-session lifetime/GIL behavior, all OBJ/import-order regressions and actual
 public checks remain required. A design contract or a native test is not an
 installed Python capability or a supported software release.
+
+## RGDEF-PYTHON-PROJECTION-001: Retained deformation selection
+
+The [retained deformation contract](gltf-deformation.md) selects the opt-in
+deformation-retained-v1 extension for readonly actual native observations.
+Development implementation is present; full workflow and dependency-cohort
+qualification and release availability remain pending. Existing static/direct-translation clauses, defaults and
+unchanged-request wire keep their current meaning. The new contract owns the
+additional source/read/processing authority, policies, roles and called facts.
+There is no implicit source upgrade or widening of a legacy schema/preset.
+
+The development test domain is selected from recorded compiler and artifact
+provenance, independently of the older materialization profile labels. Matched
+guard-true named Release producers run all ten strict end-to-end methods in
+`tests/gltf-deformation-python`. Matched guard-false producers run a linked
+Interchange control that must report its actual compiled numerical refusal;
+these checks credit zero positive Python methods. Unknown evidence and supported
+but unqualified configurations fail selection. Runtime success or refusal never
+chooses the lane. See [environment and test instructions](../ENVIRONMENT.md).
+The independently emitted source and genuine-sdist wheels have their own results.
+Portable candidate baselines do not inherit those wheels' deformation results,
+and these checks do not establish a supported release, new floor or ABI claim.

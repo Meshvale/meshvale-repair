@@ -90,10 +90,12 @@ GltfWorkflowOutcomes GltfDuplicateWorkflowRecord::Outcomes() const noexcept {
 std::span<const GltfWorkflowCoverage> GltfDuplicateWorkflowRecord::Coverage()
     const noexcept {
   return std::span(state_->coverage)
-      .first(state_->translation.profile == interchange::GltfProcessingProfile::
-                                                kDirectTranslationTrianglesV1
-                 ? gltf_workflow_detail::kCoverageCount
-                 : gltf_workflow_detail::kStaticCoverageCount);
+      .first(
+          state_->deformation ? gltf_workflow_detail::kDeformationCoverageCount
+          : state_->translation.profile == interchange::GltfProcessingProfile::
+                                               kDirectTranslationTrianglesV1
+              ? gltf_workflow_detail::kCoverageCount
+              : gltf_workflow_detail::kStaticCoverageCount);
 }
 std::span<const std::byte> GltfDuplicateWorkflowRecord::ReportJson()
     const noexcept {
@@ -138,6 +140,10 @@ GltfDuplicateWorkflowRecord::OutputInspection() const noexcept {
 const GltfWorkflowTranslationFacts&
 GltfDuplicateWorkflowRecord::TranslationFacts() const noexcept {
   return state_->translation;
+}
+const GltfWorkflowDeformationFacts*
+GltfDuplicateWorkflowRecord::DeformationFacts() const noexcept {
+  return state_->deformation ? &*state_->deformation : nullptr;
 }
 GltfWorkflowRequestedBytes GltfDuplicateWorkflowRecord::NewRequestedBytes()
     const noexcept {
@@ -337,10 +343,40 @@ void ValidateRequest(const GltfDuplicateWorkflowRequest& r,
   if (r.extraction.processing_profile !=
           ic::GltfProcessingProfile::kStaticLocalTrianglesV1 &&
       r.extraction.processing_profile !=
-          ic::GltfProcessingProfile::kDirectTranslationTrianglesV1)
+          ic::GltfProcessingProfile::kDirectTranslationTrianglesV1 &&
+      r.extraction.processing_profile !=
+          ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1)
     Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
          Code::kConfigurationExtent);
 
+  if (r.extraction.processing_profile ==
+      ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1) {
+    detail::ValidateDeformationPolicy(r.extraction.deformation);
+    if (!retained) detail::ValidateDeformationPolicy(r.deformation.source_read);
+    for (const auto* policy :
+         {&r.deformation.materialization, &r.deformation.writing,
+          &r.deformation.reload_read, &r.deformation.reload,
+          &r.deformation.verification})
+      detail::ValidateDeformationPolicy(*policy);
+    // Child allowances contain real allocations inside their unchanged parent;
+    // they never grant another budget or alter the materialization triple.
+    if ((!retained && r.deformation.source_read.limits.max_new_requested_bytes >
+                          l.read.max_new_requested_bytes) ||
+        r.extraction.deformation.limits.max_new_requested_bytes >
+            l.extraction.max_output_requested_bytes ||
+        r.deformation.materialization.limits.max_new_requested_bytes >
+            l.materialization.max_bridge_new_requested_bytes ||
+        r.deformation.writing.limits.max_new_requested_bytes >
+            l.writing.output.max_output_requested_bytes ||
+        r.deformation.reload_read.limits.max_new_requested_bytes >
+            l.reload.max_new_requested_bytes ||
+        r.deformation.reload.limits.max_new_requested_bytes >
+            l.reload_extraction.max_output_requested_bytes ||
+        r.deformation.verification.limits.max_new_requested_bytes >
+            l.verification.max_new_requested_bytes)
+      Fail(Status::kInvalidConfiguration, Stage::kConfiguration,
+           Code::kConfigurationExtent);
+  }
   if (r.report_failure_retention != GltfReportFailureRetention::kRelease &&
       r.report_failure_retention !=
           GltfReportFailureRetention::kRetainCompletedRepair)
@@ -416,6 +452,16 @@ void ComputeOutcomes(detail::WorkflowState& s, Status status) {
     c = detail::TranslationCoverage(s.translation, false);
     failed |= c.state == State::kPerformed && c.passed == false;
     incomplete |= c.state != State::kPerformed;
+  }
+  if (s.deformation) {
+    for (std::size_t i = detail::kDeformationFirstCheck;
+         i < detail::kDeformationMemoryEnd; ++i) {
+      auto& c = s.coverage[i];
+      c = detail::DeformationCoverage(*s.deformation, static_cast<Check>(i),
+                                      false);
+      failed |= c.passed == false;
+      incomplete |= c.state != State::kPerformed;
+    }
   }
   for (std::size_t i = 0; i < detail::kRequiredCheckCount; ++i) {
     const auto& c = s.coverage[i];
@@ -617,6 +663,74 @@ void ProjectInspection(detail::WorkflowState& s,
       r.diagnostic.stage == NativeStage::kCorrespondence && mismatch)
     Observe(s, Check::kRepairCorrespondence, false);
 }
+detail::Vector<RowLocalAttributeDeclaration> SelectedDeclarations(
+    detail::WorkflowState& state, const GltfDuplicateWorkflowRequest& request,
+    const MaterializedDuplicateLimits& limits, std::stop_token stop) {
+  detail::Vector<RowLocalAttributeDeclaration> declarations{
+      allocation::Allocator<RowLocalAttributeDeclaration>(state.allocation)};
+  const auto associations = state.source->DeformationAssociations();
+  if (request.repair.row_local_attributes.size() >
+      limits.max_row_local_declarations)
+    Fail(Status::kLimitExceeded, Stage::kRepair, Code::kCountLimit);
+  auto capacity = request.repair.row_local_attributes.size();
+  for (const auto& association : associations) {
+    if (stop.stop_requested())
+      Fail(Status::kCanceled, Stage::kRepair, Code::kStopRequested);
+    if (association.destination ==
+            ic::GltfDeformationDestination::kCanonicalVertexAttribute &&
+        association.canonical_attribute &&
+        capacity < limits.max_row_local_declarations)
+      ++capacity;
+  }
+  if (capacity > std::numeric_limits<std::size_t>::max() /
+                     sizeof(RowLocalAttributeDeclaration))
+    Fail(Status::kLimitExceeded, Stage::kRepair, Code::kCountLimit);
+  declarations.reserve(capacity);
+  std::uint64_t name_bytes = 0;
+  const auto add = [&](const RowLocalAttributeDeclaration& value) {
+    for (const auto& existing : declarations) {
+      if (stop.stop_requested())
+        Fail(Status::kCanceled, Stage::kRepair, Code::kStopRequested);
+      if (existing.domain != value.domain ||
+          existing.name.size() != value.name.size())
+        continue;
+      bool equal = true;
+      for (std::size_t i = 0; equal && i < value.name.size(); ++i) {
+        if (stop.stop_requested())
+          Fail(Status::kCanceled, Stage::kRepair, Code::kStopRequested);
+        equal = existing.name[i] == value.name[i];
+      }
+      if (equal) return;
+    }
+    if (value.name.size() > limits.max_declaration_name_bytes - name_bytes)
+      Fail(Status::kLimitExceeded, Stage::kRepair, Code::kCountLimit);
+    if (declarations.size() == capacity)
+      Fail(Status::kLimitExceeded, Stage::kRepair, Code::kCountLimit);
+    name_bytes += value.name.size();
+    declarations.push_back(value);
+  };
+  for (const auto& declaration : request.repair.row_local_attributes) {
+    // Preserve the caller inventory exactly, including invalid duplicates for
+    // the owning Repair validator. Only generated additions are deduplicated.
+    if (stop.stop_requested())
+      Fail(Status::kCanceled, Stage::kRepair, Code::kStopRequested);
+    if (declaration.name.size() >
+        limits.max_declaration_name_bytes - name_bytes)
+      Fail(Status::kLimitExceeded, Stage::kRepair, Code::kCountLimit);
+    name_bytes += declaration.name.size();
+    declarations.push_back(declaration);
+  }
+  for (const auto& association : associations) {
+    if (stop.stop_requested())
+      Fail(Status::kCanceled, Stage::kRepair, Code::kStopRequested);
+    // Never project unselected/catalog-only or noncanonical declarations.
+    if (association.destination ==
+            ic::GltfDeformationDestination::kCanonicalVertexAttribute &&
+        association.canonical_attribute)
+      add({geometry::AttributeDomain::vertex, association.declaration_name});
+  }
+  return declarations;
+}
 void RunStages(detail::WorkflowState& s,
                const GltfDuplicateWorkflowRequest& request,
                const GltfDuplicateWorkflowLimits& limits,
@@ -629,8 +743,16 @@ void RunStages(detail::WorkflowState& s,
     auto effective = limits.read;
     effective.max_new_requested_bytes =
         allowance.Cap(effective.max_new_requested_bytes);
-    auto r = ic::ReadGltfAssetCapped(request.json, request.resources, effective,
-                                     work.interchange, context, stop);
+    auto r = s.deformation
+                 ? ic::ReadGltfAssetCapped(
+                       request.json, request.resources,
+                       {ic::GltfAdmissionProfile::kRetainedCoreDeformationV1,
+                        request.deformation.source_read},
+                       effective, work.interchange, context, stop)
+                 : ic::ReadGltfAssetCapped(request.json, request.resources,
+                                           effective, work.interchange, context,
+                                           stop);
+    if (s.deformation) s.deformation->source_read = r.deformation;
     if (!r.asset)
       DelegateFailure(Translate(r.diagnostic.status), Stage::kRead, Code::kRead,
                       r.diagnostic.status, r.diagnostic);
@@ -638,6 +760,13 @@ void RunStages(detail::WorkflowState& s,
   }
   if (!s.read->NewRequestedBytes())
     Fail(Status::kSourceContractFailure, Stage::kRead, Code::kSourceAccounting);
+  if (s.deformation) {
+    // Revision and policy authority come from the real admitted owner.
+    if (const auto revision = s.read->DeformationRevision())
+      s.deformation->normative_revision = *revision;
+    if (const auto policy = s.read->QuaternionPolicy())
+      s.deformation->quaternion_policy = *policy;
+  }
   auto primitive = s.read->Primitive(*request.primitive_ordinal);
   if (!primitive)
     Fail(Status::kLimitExceeded, Stage::kRead, Code::kPrimitiveSelection);
@@ -651,6 +780,7 @@ void RunStages(detail::WorkflowState& s,
     auto r = ic::ExtractGltfPrimitiveCapped(
         *s.read, *primitive, request.extraction, effective, stop);
     s.translation.source = r.direct_translation;
+    if (s.deformation) s.deformation->source = r.deformation;
     if (!r.extraction)
       DelegateFailure(Translate(r.diagnostic.status), Stage::kExtract,
                       Code::kExtract, r.diagnostic.status, r.diagnostic);
@@ -666,8 +796,14 @@ void RunStages(detail::WorkflowState& s,
     if (required > s.allocation.RemainingBytes())
       Fail(Status::kBudgetExceeded, Stage::kMaterialize,
            Code::kMaterializationAllowance);
-    auto r = ic::MaterializeGltfPrimitive(*s.extraction, limits.materialization,
-                                          work.geometry, stop);
+    auto r =
+        s.deformation
+            ? ic::MaterializeGltfPrimitive(
+                  *s.extraction, request.deformation.materialization,
+                  limits.materialization, work.geometry, stop)
+            : ic::MaterializeGltfPrimitive(
+                  *s.extraction, limits.materialization, work.geometry, stop);
+    if (s.deformation) s.deformation->materialization = r.deformation;
     s.execution.materialization = r.execution;
     if (!r.primitive) {
       if (r.status == ic::GltfMaterializationStatus::kInvalidStorage)
@@ -689,12 +825,22 @@ void RunStages(detail::WorkflowState& s,
   }
   s.outcomes.stage = Stage::kRepair;
   {
+    // Names borrow the actual selected materialized owner through the call.
+    // Descriptor storage is charged to this workflow, outside the frozen
+    // delegate.
+    detail::Vector<RowLocalAttributeDeclaration> declarations{
+        allocation::Allocator<RowLocalAttributeDeclaration>(s.allocation)};
+    auto repair_options = request.repair;
+    if (s.deformation) {
+      declarations = SelectedDeclarations(s, request, limits.repair, stop);
+      repair_options.row_local_attributes = declarations;
+    }
     DelegateAllowance allowance(s);
     auto effective = limits.repair;
     effective.max_new_requested_bytes =
         allowance.Cap(effective.max_new_requested_bytes);
     auto r = RemoveMaterializedDuplicateFaces(s.source->Mesh(), request.targets,
-                                              request.repair, effective,
+                                              repair_options, effective,
                                               work.geometry, stop);
     s.execution.repair = r.execution;
     if (!r.repair) {
@@ -729,6 +875,7 @@ void RunStages(detail::WorkflowState& s,
   }
   // Resolve expected reload policy only from independently accepted maps.
   s.reload_policy = request.extraction;
+  if (s.deformation) s.reload_policy->deformation = request.deformation.reload;
   auto kept_faces = s.repair->SourceFaces();
   auto kept_corners = s.repair->SourceCorners();
   bool identity =
@@ -746,9 +893,14 @@ void RunStages(detail::WorkflowState& s,
     auto effective = limits.writing;
     effective.output.max_output_requested_bytes =
         allowance.Cap(effective.output.max_output_requested_bytes);
-    auto r = ic::WriteGltfTopologySelection(
-        {*s.source, s.repair->CandidateInspection(), kept_faces, kept_corners},
-        effective, work.writing, stop);
+    const ic::GltfTopologyWriteRequest writing{
+        *s.source, s.repair->CandidateInspection(), kept_faces, kept_corners};
+    auto r = s.deformation ? ic::WriteGltfTopologySelection(
+                                 writing, request.deformation.writing,
+                                 effective, work.writing, stop)
+                           : ic::WriteGltfTopologySelection(writing, effective,
+                                                            work.writing, stop);
+    if (s.deformation) s.deformation->writing = r.deformation;
     s.translation.writing = r.direct_translation;
     s.execution.writing = r.execution;
     if (!r.bundle) {
@@ -783,8 +935,16 @@ void RunStages(detail::WorkflowState& s,
     auto effective = limits.reload;
     effective.max_new_requested_bytes =
         allowance.Cap(effective.max_new_requested_bytes);
-    auto r = ic::ReadGltfAssetCapped(s.written->Json(), bindings, effective,
-                                     work.interchange, context, stop);
+    auto r =
+        s.deformation
+            ? ic::ReadGltfAssetCapped(
+                  s.written->Json(), bindings,
+                  {ic::GltfAdmissionProfile::kRetainedCoreDeformationV1,
+                   request.deformation.reload_read},
+                  effective, work.interchange, context, stop)
+            : ic::ReadGltfAssetCapped(s.written->Json(), bindings, effective,
+                                      work.interchange, context, stop);
+    if (s.deformation) s.deformation->reload_read = r.deformation;
     if (!r.asset)
       DelegateFailure(Translate(r.diagnostic.status), Stage::kReload,
                       Code::kReload, r.diagnostic.status, r.diagnostic);
@@ -816,6 +976,7 @@ void RunStages(detail::WorkflowState& s,
     auto r = ic::ExtractGltfPrimitiveCapped(*s.reload, *output_primitive,
                                             *s.reload_policy, effective, stop);
     s.translation.reload = r.direct_translation;
+    if (s.deformation) s.deformation->reload = r.deformation;
     if (!r.extraction)
       DelegateFailure(Translate(r.diagnostic.status), Stage::kReloadExtract,
                       Code::kReloadExtract, r.diagnostic.status, r.diagnostic);
@@ -832,10 +993,18 @@ void RunStages(detail::WorkflowState& s,
     auto effective = limits.verification;
     effective.max_new_requested_bytes =
         allowance.Cap(effective.max_new_requested_bytes);
-    auto r = ic::InspectGltfTopologyOutput(
-        {*s.source, s.repair->CandidateInspection(), kept_faces, kept_corners,
-         *s.written, *s.reload, *s.reload_extraction},
-        effective, work.verification, stop);
+    const ic::GltfTopologyOutputInspectionRequest inspection{
+        *s.source,           s.repair->CandidateInspection(),
+        kept_faces,          kept_corners,
+        *s.written,          *s.reload,
+        *s.reload_extraction};
+    auto r = s.deformation
+                 ? ic::InspectGltfTopologyOutput(
+                       inspection, request.deformation.verification, effective,
+                       work.verification, stop)
+                 : ic::InspectGltfTopologyOutput(inspection, effective,
+                                                 work.verification, stop);
+    if (s.deformation) s.deformation->verification = r.deformation;
     s.translation.verification = r.direct_translation;
     s.execution.verification = r.execution;
     ProjectInspection(s, r);
@@ -863,6 +1032,145 @@ void RunStages(detail::WorkflowState& s,
 }  // namespace
 
 namespace gltf_workflow_detail {
+GltfWorkflowDeformationFacts SelectedDeformationFacts() noexcept {
+  // The contract pins this source interpretation, not an admission outcome.
+  constexpr std::string_view kNormativeCommit =
+      "1c84b58ba3338be4731ea546fa4138dcbb93d42d";
+  constexpr std::string_view kNormativeBlob =
+      "aeaab65b1291d722ee610db247ae43c575ed63e1";
+  constexpr std::string_view kQuaternionPolicy =
+      "gltf-quaternion-source-squared-v1";
+  GltfWorkflowDeformationFacts facts;
+  facts.normative_revision = {kNormativeCommit, kNormativeBlob};
+  facts.quaternion_policy = kQuaternionPolicy;
+  return facts;
+}
+void ValidateDeformationPolicy(const interchange::GltfDeformationPolicy& p) {
+  if (const auto error = DeformationPolicyError(p))
+    Fail(Status::kInvalidConfiguration, Stage::kConfiguration, *error);
+}
+std::optional<GltfWorkflowDiagnosticCode> DeformationPolicyError(
+    const interchange::GltfDeformationPolicy& p) noexcept {
+  const auto& x = p.limits;
+  const auto& w = p.work;
+  for (auto n : {x.max_node_rows,
+                 x.max_mesh_users,
+                 x.max_skin_rows,
+                 x.max_joint_references,
+                 x.max_influence_sets,
+                 x.max_lanes_per_vertex,
+                 x.max_morph_targets,
+                 x.max_morph_channels,
+                 x.max_animation_channels,
+                 x.max_samplers,
+                 x.max_keys,
+                 x.max_scalar_values,
+                 x.max_sparse_writes,
+                 x.max_role_edges,
+                 x.max_relationship_steps,
+                 x.max_descriptor_bytes,
+                 x.max_decoded_bytes,
+                 x.max_new_requested_bytes,
+                 w.parallel_min_scalars,
+                 w.partition_scalars,
+                 w.cancellation_block_scalars,
+                 w.parallel_min_bytes,
+                 w.partition_bytes,
+                 w.cancellation_block_bytes,
+                 w.max_jobs,
+                 w.max_relationship_block}) {
+    if (!n) return Code::kRequiredFieldZero;
+    if (n > std::numeric_limits<std::size_t>::max())
+      return Code::kConfigurationExtent;
+  }
+  return std::nullopt;
+}
+GltfWorkflowCoverage DeformationCoverage(const GltfWorkflowDeformationFacts& f,
+                                         GltfWorkflowCheck check,
+                                         bool publication) noexcept {
+  using Predicate = std::optional<bool> ic::GltfDeformationPredicates::*;
+  GltfWorkflowCoverage result{
+      check, State::kBlocked, {}, Code::kBlockedByEarlierStage};
+  bool all = true;
+  bool failed = false;
+  bool unsupported = false;
+  bool false_finding = false;
+  const auto phase = [&](const auto& slot, Predicate predicate,
+                         bool extraction = false) {
+    if (!slot) {
+      all = false;
+      return;
+    }
+    const auto value = slot->predicates.*predicate;
+    false_finding |= value == false;
+    all &= value == true;
+    if (!value && slot->status != ic::GltfStatus::kAccepted &&
+        slot->status != ic::GltfStatus::kCanceled) {
+      const bool excluded =
+          slot->status == ic::GltfStatus::kUnsupportedProfile &&
+          (extraction ||
+           slot->diagnostic.code != ic::GltfDiagnosticCode::kLimitExceeded);
+      unsupported |= excluded;
+      failed |= !excluded;
+    }
+  };
+  using P = ic::GltfDeformationPredicates;
+  switch (check) {
+    case Check::kDeformationSourceAdmission:
+      phase(f.capture_read ? f.capture_read : f.source_read,
+            &P::source_admission);
+      phase(f.source, &P::source_admission, true);
+      break;
+    case Check::kDeformationInfluences:
+    case Check::kDeformationBindings:
+    case Check::kDeformationMorphs:
+    case Check::kDeformationAnimation: {
+      const Predicate predicate =
+          check == Check::kDeformationInfluences ? &P::influences
+          : check == Check::kDeformationBindings ? &P::bindings
+          : check == Check::kDeformationMorphs   ? &P::morphs
+                                                 : &P::affecting_animation;
+      phase(f.source, predicate, true);
+      phase(f.writing, predicate);
+      phase(f.reload, predicate, true);
+      phase(f.verification, predicate);
+      if (publication) {
+        phase(f.publication_reload, predicate, true);
+        phase(f.publication_verification, predicate);
+      }
+      break;
+    }
+    case Check::kDeformationAssociation:
+      phase(f.materialization, &P::canonical_association);
+      phase(f.writing, &P::canonical_association);
+      phase(f.verification, &P::canonical_association);
+      if (publication)
+        phase(f.publication_verification, &P::canonical_association);
+      break;
+    case Check::kDeformationOutputReload:
+      phase(f.reload_read, &P::source_admission);
+      phase(f.reload, &P::source_admission, true);
+      phase(f.verification, &P::output_reload);
+      break;
+    case Check::kDeformationStagedReload:
+      if (!publication) return result;
+      phase(f.publication_read, &P::source_admission);
+      phase(f.publication_reload, &P::source_admission, true);
+      phase(f.publication_verification, &P::staged_reload);
+      break;
+    default:
+      return result;
+  }
+  if (false_finding || all) {
+    result.state = State::kPerformed;
+    result.passed = !false_finding;
+    result.reason = Code::kNone;
+  } else if (failed)
+    result.state = State::kFailed;
+  else if (unsupported)
+    result.state = State::kUnsupported;
+  return result;
+}
 GltfWorkflowCoverage TranslationCoverage(
     const GltfWorkflowTranslationFacts& facts, bool publication) noexcept {
   using S = interchange::GltfStatus;
@@ -989,6 +1297,10 @@ static_assert(
 static_assert(std::is_nothrow_copy_assignable_v<MaterializedDuplicateRepair>);
 static_assert(std::is_nothrow_destructible_v<MaterializedDuplicateRepair>);
 static_assert(
+    std::is_nothrow_copy_constructible_v<GltfWorkflowDeformationFacts>);
+static_assert(std::is_nothrow_copy_assignable_v<GltfWorkflowDeformationFacts>);
+static_assert(std::is_nothrow_destructible_v<GltfWorkflowDeformationFacts>);
+static_assert(
     std::is_nothrow_move_constructible_v<GltfDuplicateWorkflowResult>);
 static_assert(std::is_nothrow_move_assignable_v<GltfDuplicateWorkflowResult>);
 static_assert(std::is_nothrow_destructible_v<GltfDuplicateWorkflowResult>);
@@ -1002,6 +1314,14 @@ GltfDuplicateWorkflowResult RunWorkflow(
     const RetainedSourceInitialization* retained) {
   GltfDuplicateWorkflowResult result;
   result.translation.profile = request.extraction.processing_profile;
+  if (request.extraction.processing_profile ==
+      ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1) {
+    result.deformation = SelectedDeformationFacts();
+    if (retained) {
+      if (const auto* facts = retained->source.DeformationReadFacts())
+        result.deformation->capture_read = *facts;
+    }
+  }
   std::shared_ptr<detail::WorkflowState> state;
   try {
     Validate(limits, work, retained != nullptr,
@@ -1012,7 +1332,15 @@ GltfDuplicateWorkflowResult RunWorkflow(
             ic::GltfProcessingProfile::kDirectTranslationTrianglesV1)
       ValidateTranslation(retained->source.DirectTranslationWork());
     ValidateRequest(request, limits, retained != nullptr);
-    if (retained) ValidateRetained(*retained);
+    if (retained) {
+      ValidateRetained(*retained);
+      const bool deformation_source =
+          retained->source.AdmissionProfile() ==
+          ic::GltfAdmissionProfile::kRetainedCoreDeformationV1;
+      if (deformation_source != result.deformation.has_value())
+        Fail(Status::kSourceContractFailure, Stage::kConfiguration,
+             Code::kSourceAccounting);
+    }
     auto allocator =
         allocation::AllocationContext(context, stop, options.allocation_backend)
             .WithRequestLimit(
@@ -1020,6 +1348,28 @@ GltfDuplicateWorkflowResult RunWorkflow(
     state = std::allocate_shared<detail::WorkflowState>(
         allocation::Allocator<detail::WorkflowState>(allocator), allocator);
     state->translation.profile = request.extraction.processing_profile;
+    state->deformation = result.deformation;
+    if (state->deformation) {
+      state->deformation_policies = {std::nullopt,
+                                     request.deformation.source_read,
+                                     request.extraction.deformation,
+                                     request.deformation.materialization,
+                                     request.deformation.writing,
+                                     request.deformation.reload_read,
+                                     request.deformation.reload,
+                                     request.deformation.verification,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt};
+      if (retained) {
+        // No source_read call was made; retain only the actual capture result.
+        if (const auto* facts = retained->source.DeformationReadFacts())
+          state->deformation->capture_read = *facts;
+        if (const auto* policy = retained->source.DeformationReadPolicy())
+          state->deformation_policies[0] = *policy;
+        state->deformation_policies[1].reset();
+      }
+    }
     state->translation_limits = {limits.extraction.direct_translation,
                                  limits.writing.direct_translation,
                                  limits.reload_extraction.direct_translation,
@@ -1083,6 +1433,7 @@ GltfDuplicateWorkflowResult RunWorkflow(
       result.execution = state->execution;
       RetainCompletedRepair(request, state.get(), result);
       result.translation = state->translation;
+      result.deformation = state->deformation;
       return result;
     }
     state->UpdateDelegates();
@@ -1116,7 +1467,10 @@ GltfDuplicateWorkflowResult RunWorkflow(
     result.outcomes.exit = GltfWorkflowExitMeaning::kCanceled;
   }
   RetainCompletedRepair(request, state.get(), result);
-  if (state) result.translation = state->translation;
+  if (state) {
+    result.translation = state->translation;
+    result.deformation = state->deformation;
+  }
   return result;
 }
 }  // namespace
@@ -1137,6 +1491,12 @@ std::optional<GltfDuplicateWorkflowResult> ValidateRetainedWorkflow(
       ValidateTranslation(retained.source.DirectTranslationWork());
     ValidateRequest(request, limits, true);
     ValidateRetained(retained);
+    if ((retained.source.AdmissionProfile() ==
+         ic::GltfAdmissionProfile::kRetainedCoreDeformationV1) !=
+        (request.extraction.processing_profile ==
+         ic::GltfProcessingProfile::kDeformationRetainedTrianglesV1))
+      Fail(Status::kSourceContractFailure, Stage::kConfiguration,
+           Code::kSourceAccounting);
     return std::nullopt;
   } catch (const ExpectedFailure& failure) {
     GltfDuplicateWorkflowResult result;

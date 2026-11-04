@@ -41,7 +41,7 @@ The Geometry and Interchange Python candidates must match Repair's exact require
 | Interchange | `5b9b695ba1fef166baa8c7cf9ad21a5630691f70` | `0.0.1.dev179+g5b9b695ba` |
 
 The default Repair wheel additionally needs a separate native Interchange checkout
-at `33f483d2f5bed45dd2c3273957c08c404fc03bee`. Keep that native SDK source separate
+at `d431643cdeb77a64a614ed0af90b9ccae8f007d2`. Keep that native SDK source separate
 from the Interchange Python candidate above, as specified by
 [Python installation](python.md#build-and-consumption).
 
@@ -61,7 +61,7 @@ git -C "$GEOMETRY_SOURCE" checkout 48298b24be7c132816fb5580d22d58bde61558d0
 git clone https://github.com/Meshvale/meshvale-interchange.git "$INTERCHANGE_SOURCE"
 git -C "$INTERCHANGE_SOURCE" checkout 5b9b695ba1fef166baa8c7cf9ad21a5630691f70
 git clone https://github.com/Meshvale/meshvale-interchange.git "$INTERCHANGE_NATIVE_SOURCE"
-git -C "$INTERCHANGE_NATIVE_SOURCE" checkout 33f483d2f5bed45dd2c3273957c08c404fc03bee
+git -C "$INTERCHANGE_NATIVE_SOURCE" checkout d431643cdeb77a64a614ed0af90b9ccae8f007d2
 python -m venv "$VENV"
 . "$VENV/bin/activate"
 python -m pip install jsonschema==4.26.0
@@ -76,10 +76,10 @@ cmake --install "$GEOMETRY_SOURCE/.local/native" --config Release --prefix "$GEO
 ```
 
 Interchange also needs **double-precision tinyobjloader `2.0.0rc13`**. Follow its
-[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/33f483d2f5bed45dd2c3273957c08c404fc03bee/ENVIRONMENT.md)
+[public dependency setup](https://github.com/Meshvale/meshvale-interchange/blob/d431643cdeb77a64a614ed0af90b9ccae8f007d2/ENVIRONMENT.md)
 using the pinned vcpkg manifest, and set `TINYOBJLOADER_PREFIX` to the resulting
 installed target-triplet prefix. Retain the same compiler/runtime and Release
-configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/33f483d2f5bed45dd2c3273957c08c404fc03bee/THIRD_PARTY.md)
+configuration. The [dependency inventory](https://github.com/Meshvale/meshvale-interchange/blob/d431643cdeb77a64a614ed0af90b9ccae8f007d2/THIRD_PARTY.md)
 owns the parser revision and notices; the
 [binding build contract](https://github.com/Meshvale/meshvale-interchange/blob/5b9b695ba1fef166baa8c7cf9ad21a5630691f70/docs/python.md#build-installation-and-example)
 owns its package requirements.

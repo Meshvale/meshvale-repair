@@ -22,6 +22,13 @@ using Vector = std::vector<T, allocation::Allocator<T>>;
 inline constexpr std::size_t kRequiredCheckCount = 8;
 inline constexpr std::size_t kStaticCoverageCount = kRequiredCheckCount + 1;
 inline constexpr std::size_t kCoverageCount = kStaticCoverageCount + 1;
+inline constexpr std::size_t kDeformationFirstCheck =
+    static_cast<std::size_t>(GltfWorkflowCheck::kDeformationSourceAdmission);
+inline constexpr std::size_t kDeformationMemoryEnd =
+    static_cast<std::size_t>(GltfWorkflowCheck::kDeformationStagedReload);
+inline constexpr std::size_t kDeformationCoverageCount =
+    kDeformationMemoryEnd + 1;
+inline constexpr std::size_t kDeformationPhaseCount = 11;
 inline constexpr std::size_t kTranslationPhaseCount = 6;
 inline constexpr std::size_t kReportIdentityBytes = 256;
 struct ReportExtentFailure {};
@@ -50,9 +57,15 @@ struct WorkflowState {
   GltfWorkflowDiagnostic diagnostic;
   GltfWorkflowExecutionStats execution;
   GltfWorkflowTranslationFacts translation;
+  std::optional<GltfWorkflowDeformationFacts> deformation;
+  // Borrowed configuration is copied before work; clipped telemetry is
+  // separate.
+  std::array<std::optional<interchange::GltfDeformationPolicy>,
+             kDeformationPhaseCount>
+      deformation_policies;
   std::array<interchange::GltfDirectTranslationLimits, kTranslationPhaseCount>
       translation_limits;
-  std::array<GltfWorkflowCoverage, kCoverageCount> coverage;
+  std::array<GltfWorkflowCoverage, kDeformationCoverageCount> coverage;
   std::optional<interchange::GltfAsset> read;
   // A retained read owner is authoritative input, never fresh read traffic.
   bool retained_read = false;
@@ -79,6 +92,16 @@ struct WorkflowState {
 // Extraction logical limits remain unsupported; W/V logical limits are failed.
 [[nodiscard]] GltfWorkflowCoverage TranslationCoverage(
     const GltfWorkflowTranslationFacts& facts, bool publication) noexcept;
+// Only actual predicate returns participate; false dominates missing evidence.
+[[nodiscard]] GltfWorkflowCoverage DeformationCoverage(
+    const GltfWorkflowDeformationFacts& facts, GltfWorkflowCheck check,
+    bool publication) noexcept;
+void ValidateDeformationPolicy(
+    const interchange::GltfDeformationPolicy& policy);
+[[nodiscard]] std::optional<GltfWorkflowDiagnosticCode> DeformationPolicyError(
+    const interchange::GltfDeformationPolicy& policy) noexcept;
+// Immutable selected profile identity only; all producer slots remain empty.
+[[nodiscard]] GltfWorkflowDeformationFacts SelectedDeformationFacts() noexcept;
 struct Access {
   static GltfDuplicateWorkflowRecord Make(
       std::shared_ptr<const WorkflowState> state) noexcept {

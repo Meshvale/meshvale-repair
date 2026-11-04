@@ -12,10 +12,31 @@ from .commands import InvocationError
 
 _REQUEST_SCHEMA = "meshvale.repair.gltf-jobs/1"
 _REQUEST_SCHEMA_V2 = "meshvale.repair.gltf-jobs/2"
+_REQUEST_SCHEMA_V3 = "meshvale.repair.gltf-jobs/3"
 _STATIC_PROFILE = "static-local-triangles-v1"
 _TRANSLATION_PROFILE = "direct-translation-v1"
-_PROCESSING_PROFILES = (_STATIC_PROFILE, _TRANSLATION_PROFILE)
+_DEFORMATION_PROFILE = "deformation-retained-v1"
+_LEGACY_PROCESSING_PROFILES = (_STATIC_PROFILE, _TRANSLATION_PROFILE)
+_PROCESSING_PROFILES = (*_LEGACY_PROCESSING_PROFILES, _DEFORMATION_PROFILE)
 _TRANSLATION_PRESETS = ("balanced-direct-translation-v1", "serial-direct-translation-v1")
+_DEFORMATION_PRESETS = ("balanced-deformation-v1", "serial-deformation-v1")
+_DEFORMATION_PHASES = (
+    "capture_read", "source_read", "source", "materialization", "writing",
+    "reload_read", "reload", "verification", "publication_read",
+    "publication_reload", "publication_verification",
+)
+_DEFORMATION_PROCESSING_FIELDS = frozenset((
+    "profile", "read_admission_profile", "normative_revision", "quaternion_policy", *_DEFORMATION_PHASES,
+))
+_DEFORMATION_OPTION_FIELDS = frozenset((
+    "processing_profile", "read_admission_profile", "normative_revision",
+    "numerical_profile", "quaternion_policy", "deformation_limits", "deformation_work",
+))
+_DEFAULT_PRESETS = {
+    _REQUEST_SCHEMA: "balanced-v1",
+    _REQUEST_SCHEMA_V2: "balanced-direct-translation-v1",
+    _REQUEST_SCHEMA_V3: "balanced-deformation-v1",
+}
 _REPORT_SCHEMA = "meshvale.report/1"
 _BATCH_SCHEMA = "meshvale.batch/1"
 _EXTENSION = "meshvale.repair.gltf.commands"
@@ -215,10 +236,10 @@ def _report_path(value, limit):
 
 def _shape(request, limits):
     if (type(request) is not dict or len(request) != 2 or set(request) != {"schema", "jobs"} or
-            type(request["schema"]) is not str or request["schema"] not in (_REQUEST_SCHEMA, _REQUEST_SCHEMA_V2) or
+            type(request["schema"]) is not str or request["schema"] not in _DEFAULT_PRESETS or
             type(request["jobs"]) is not list or len(request["jobs"]) > _MAX_JOBS):
         raise _invocation_error()
-    required = _REQUIRED | {"processing_profile"} if request["schema"] == _REQUEST_SCHEMA_V2 else _REQUIRED
+    required = _REQUIRED if request["schema"] == _REQUEST_SCHEMA else _REQUIRED | {"processing_profile"}
     rows, identities, targets = [], set(), 0
     for row in request["jobs"]:
         if (type(row) is not dict or not len(required) <= len(row) <= len(required) + len(_OPTIONAL) or
@@ -240,8 +261,9 @@ def _shape(request, limits):
             _text(copied[name], max_chars=limits.path_units - 1)
         _choice(copied["triangles"], _TRIANGLE_POLICIES)
         _choice(copied["values"], _VALUE_POLICIES)
-        if request["schema"] == _REQUEST_SCHEMA_V2:
-            _choice(copied["processing_profile"], _PROCESSING_PROFILES)
+        if request["schema"] != _REQUEST_SCHEMA:
+            profiles = _PROCESSING_PROFILES if request["schema"] == _REQUEST_SCHEMA_V3 else _LEGACY_PROCESSING_PROFILES
+            _choice(copied["processing_profile"], profiles)
         if copied["id"] in identities:
             raise _invocation_error()
         identities.add(copied["id"])
@@ -300,18 +322,22 @@ def _admit(request, base, execution, cancellation):
         if cancellation is not None and not isinstance(cancellation, _workflow.GltfCancellation):
             raise _invocation_error()
         if execution is None:
-            preset = ("balanced-direct-translation-v1"
-                      if type(request) is dict and request.get("schema") == _REQUEST_SCHEMA_V2
-                      else "balanced-v1")
+            schema = request.get("schema") if type(request) is dict else None
+            # Malformed schema values need not be hashable; _shape owns their
+            # closed-type refusal. No asset or result preparation has run yet.
+            preset = _DEFAULT_PRESETS.get(schema, "balanced-v1") if type(schema) is str else "balanced-v1"
             session = _workflow.GltfExecution(preset=preset)
         else:
             session = execution
         token = _workflow.GltfCancellation() if cancellation is None else cancellation
         limits = _AdmissionLimits.from_session(session)
         rows = _shape(request, limits)
-        if any(row.get("processing_profile", _STATIC_PROFILE) == _TRANSLATION_PROFILE for row in rows):
+        selected_profiles = {row.get("processing_profile", _STATIC_PROFILE) for row in rows}
+        if _TRANSLATION_PROFILE in selected_profiles or _DEFORMATION_PROFILE in selected_profiles:
             preset = _workflow.GltfExecution.preset.__get__(session, _workflow.GltfExecution)
-            if preset not in _TRANSLATION_PRESETS:
+            if _TRANSLATION_PROFILE in selected_profiles and preset not in (*_TRANSLATION_PRESETS, *_DEFORMATION_PRESETS):
+                raise _invocation_error()
+            if _DEFORMATION_PROFILE in selected_profiles and preset not in _DEFORMATION_PRESETS:
                 raise _invocation_error()
         _preflight_reports()
         base_text = os.fspath(Path.cwd() if base is None else base)
@@ -385,7 +411,7 @@ def _failure_exit(result):
     return 130 if _canceled(result) else 2
 
 
-def _core_outcomes(result):
+def _core_outcomes(result, processing_profile=_STATIC_PROFILE):
     if not result.workflow_started:
         return ("cancelled" if _canceled(result) else "failed"), "import", "not-attempted", "not-attempted"
     outcomes = result.outcomes
@@ -397,7 +423,11 @@ def _core_outcomes(result):
         inner = result.memory_outcomes
         if inner is None:
             raise ValueError("Reached memory operation has no returned outcomes.")
-        stage = _MEMORY_STAGES[_member(inner.stage, "GltfWorkflowStage")]
+        memory_stage = _member(inner.stage, "GltfWorkflowStage")
+        stage = _MEMORY_STAGES[memory_stage]
+        if processing_profile == _DEFORMATION_PROFILE and (
+                memory_stage == "kWrite" or memory_stage == "kRepair" and candidate in ("accepted", "unchanged")):
+            stage = "verify"
     else:
         stage = _FILE_STAGES[stage]
     if execution == "completed":
@@ -410,7 +440,10 @@ def _core_outcomes(result):
 def _project_gltf_fallback(result, job):
     """Detach actual no-receipt observations, including a real test-module result."""
     try:
-        execution, stage, candidate, publication = _core_outcomes(result)
+        profile = result.processing_profile
+        if type(profile) is not str or profile != job.get("processing_profile", _STATIC_PROFILE):
+            raise GltfCommandDeliveryError(_failure_exit(result))
+        execution, stage, candidate, publication = _core_outcomes(result, profile)
         if publication == "published" or result.publication is not None and _member(
                 result.publication.outcome, "GltfFilePublicationOutcome") == "kPublished":
             raise GltfCommandDeliveryError(_failure_exit(result))
@@ -459,14 +492,30 @@ def _project_gltf_fallback(result, job):
                 "diagnostic": _observe(result.diagnostic), "execution": _observe(result.execution)},
             "memory_outcomes": _observe(result.memory_outcomes), "publication": _observe(result.publication),
             "requested_bytes": _observe(result.requested_bytes)}
-        profile = result.processing_profile
-        if type(profile) is not str or profile != job.get("processing_profile", _STATIC_PROFILE):
-            raise GltfCommandDeliveryError(_failure_exit(result))
         if profile == _TRANSLATION_PROFILE:
             extension = report["extensions"][_EXTENSION]
             extension["version"] = "2"
             extension["processing_profile"] = profile
             extension["processing"] = result.translation_facts
+        elif profile == _DEFORMATION_PROFILE:
+            # Both views are fresh readonly binding projections of the actual
+            # prepared configuration/reached returns. Never fill absent phases
+            # from a preset, another phase, a source file or a report.
+            processing = result.deformation_facts
+            configured = result.deformation_options
+            if (type(processing) is not dict or set(processing) != _DEFORMATION_PROCESSING_FIELDS or
+                    processing.get("profile") != profile or
+                    type(configured) is not dict or set(configured) != _DEFORMATION_OPTION_FIELDS or
+                    configured.get("processing_profile") != profile):
+                raise GltfCommandDeliveryError(_failure_exit(result))
+            for key in ("read_admission_profile", "normative_revision", "quaternion_policy"):
+                if processing[key] != configured[key]:
+                    raise GltfCommandDeliveryError(_failure_exit(result))
+            extension = report["extensions"][_EXTENSION]
+            extension["version"] = "3"
+            extension["processing_profile"] = profile
+            extension["processing"] = processing
+            options.update(configured)
         return report
     finally:
         # A handled delivery exception must not pin a native owner in traceback
@@ -564,7 +613,7 @@ def _frame_batch(rows, mode, canceled, codes):
 
 
 def run_gltf_jobs(request, *, base=None, fail_fast=False, execution=None, cancellation=None):
-    """Admit the complete invocation, then run jobs once in order and detach v1."""
+    """Admit a closed versioned invocation, then run once in order and detach."""
     if type(fail_fast) is not bool:
         raise _invocation_error()
     jobs, token = _admit(request, base, execution, cancellation)
@@ -601,8 +650,8 @@ def _run_gltf_single(job, *, base=None, execution=None, cancellation=None,
                      processing_profile=_STATIC_PROFILE):
     _choice(processing_profile, _PROCESSING_PROFILES)
     schema = _REQUEST_SCHEMA
-    if processing_profile == _TRANSLATION_PROFILE:
-        schema = _REQUEST_SCHEMA_V2
+    if processing_profile != _STATIC_PROFILE:
+        schema = _REQUEST_SCHEMA_V3 if processing_profile == _DEFORMATION_PROFILE else _REQUEST_SCHEMA_V2
         job = {**job, "processing_profile": processing_profile}
     jobs, _ = _admit({"schema": schema, "jobs": [job]}, base, execution, cancellation)
     try:

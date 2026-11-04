@@ -1,0 +1,562 @@
+{
+  "schema": "meshvale.repair.gltf.deformation-fields/1",
+  "status": "Development implementation present; full workflow and dependency-cohort qualification pending",
+  "selected_profile": "deformation-retained-v1",
+  "read_profile": "retained-core-deformation-v1",
+  "numerical_profile": "gltf-deformation-rne-gradual-v1",
+  "processing_keys": [
+    "profile",
+    "read_admission_profile",
+    "normative_revision",
+    "quaternion_policy",
+    "capture_read",
+    "source_read",
+    "source",
+    "materialization",
+    "writing",
+    "reload_read",
+    "reload",
+    "verification",
+    "publication_read",
+    "publication_reload",
+    "publication_verification"
+  ],
+  "slot_keys": [
+    "capture_read",
+    "source_read",
+    "source",
+    "materialization",
+    "writing",
+    "reload_read",
+    "reload",
+    "verification",
+    "publication_read",
+    "publication_reload",
+    "publication_verification"
+  ],
+  "observation_keys": [
+    "status",
+    "diagnostic",
+    "phase",
+    "complete",
+    "location",
+    "counts",
+    "predicates",
+    "new_requested_bytes",
+    "effective_request_cap",
+    "work",
+    "execution",
+    "numeric",
+    "weight_sums",
+    "quaternions"
+  ],
+  "location_keys": [
+    "user",
+    "skin",
+    "target",
+    "set",
+    "sampler",
+    "channel",
+    "vertex",
+    "component"
+  ],
+  "count_keys": [
+    "node_rows",
+    "mesh_users",
+    "skin_rows",
+    "joint_references",
+    "influence_sets",
+    "lane_checks",
+    "morph_targets",
+    "morph_channels",
+    "animation_channels",
+    "distinct_samplers",
+    "keys_checked",
+    "scalar_checks",
+    "sparse_writes",
+    "relationship_steps",
+    "decoded_bytes_checked"
+  ],
+  "predicate_keys": [
+    "source_admission",
+    "influences",
+    "bindings",
+    "morphs",
+    "affecting_animation",
+    "canonical_association",
+    "output_reload",
+    "staged_reload"
+  ],
+  "work_keys": [
+    "parallel_min_scalars",
+    "partition_scalars",
+    "cancellation_block_scalars",
+    "parallel_min_bytes",
+    "partition_bytes",
+    "cancellation_block_bytes",
+    "max_jobs",
+    "max_relationship_block"
+  ],
+  "limit_keys": [
+    "max_node_rows",
+    "max_mesh_users",
+    "max_skin_rows",
+    "max_joint_references",
+    "max_influence_sets",
+    "max_lanes_per_vertex",
+    "max_morph_targets",
+    "max_morph_channels",
+    "max_animation_channels",
+    "max_samplers",
+    "max_keys",
+    "max_scalar_values",
+    "max_sparse_writes",
+    "max_role_edges",
+    "max_relationship_steps",
+    "max_descriptor_bytes",
+    "max_decoded_bytes",
+    "max_new_requested_bytes"
+  ],
+  "execution_keys": [
+    "planned_jobs",
+    "launched_workers",
+    "joined_workers",
+    "caller_jobs"
+  ],
+  "numeric_keys": [
+    "profile",
+    "compiled_profile",
+    "guard_calls",
+    "established_calls",
+    "exact_blocks",
+    "exception_masks",
+    "refusal"
+  ],
+  "numeric_refusal_keys": [
+    "reason",
+    "partition",
+    "caller",
+    "nearest_even",
+    "ftz_disabled",
+    "daz_disabled",
+    "unit",
+    "exception_masks"
+  ],
+  "phase_ordinals": [
+    "configuration",
+    "numeric-gate",
+    "declarations",
+    "roles",
+    "weight-sums",
+    "bindings",
+    "morphs",
+    "animations",
+    "association",
+    "compare",
+    "complete"
+  ],
+  "native_check_first": 10,
+  "new_check_ids": [
+    "gltf.deformation.source-admission",
+    "gltf.deformation.influences",
+    "gltf.deformation.bindings",
+    "gltf.deformation.morphs",
+    "gltf.deformation.affecting-animation",
+    "gltf.deformation.canonical-association",
+    "gltf.deformation.output-reload",
+    "gltf.deformation.staged-reload"
+  ],
+  "profiles": {
+    "memory": "gltf-deformation-duplicate-preservation",
+    "file": "gltf-deformation-duplicate-publication",
+    "version": "1"
+  },
+  "native_extension": {
+    "owner": "meshvale.repair.gltf",
+    "version": "3",
+    "base_keys": "unchanged GWF-REPORT-001 version1 fields",
+    "additional_keys": [
+      "processing"
+    ]
+  },
+  "fallback_extension": {
+    "owner": "meshvale.repair.gltf.commands",
+    "version": "3",
+    "keys": [
+      "version",
+      "origin",
+      "native_report_available",
+      "workflow_started",
+      "capture",
+      "workflow",
+      "memory_outcomes",
+      "publication",
+      "requested_bytes",
+      "processing_profile",
+      "processing"
+    ]
+  },
+  "request_top_keys": [
+    "schema",
+    "jobs"
+  ],
+  "request_required_row_keys": [
+    "id",
+    "input",
+    "destination",
+    "targets",
+    "primitive_ordinal",
+    "triangles",
+    "values",
+    "processing_profile"
+  ],
+  "request_optional_row_keys": [
+    "resource_root",
+    "row_local_attributes",
+    "report_path"
+  ],
+  "exception_mask_keys": [
+    "required_units",
+    "sse2_mask",
+    "x87_mask",
+    "sample_partition",
+    "sample_caller"
+  ],
+  "weight_summary_keys": [
+    "scope",
+    "complete",
+    "floating_rows_expected",
+    "rows_evaluated",
+    "advisory_rows",
+    "all_zero_rows",
+    "first_evaluated",
+    "first_advisory"
+  ],
+  "weight_sample_keys": [
+    "mesh",
+    "primitive",
+    "vertex",
+    "set_count",
+    "nonzero_weights",
+    "sum_bits",
+    "deviation_bits",
+    "epsilon_bits",
+    "advisory",
+    "all_zero"
+  ],
+  "weight_sample_uint64_keys": [
+    "mesh",
+    "primitive",
+    "vertex",
+    "set_count",
+    "nonzero_weights",
+    "sum_bits",
+    "deviation_bits",
+    "epsilon_bits"
+  ],
+  "weight_sum_producer_slots": [
+    "source",
+    "reload",
+    "publication_reload"
+  ],
+  "max_influence_sets_unit": "paired influence sets per primitive",
+  "memory_required_native_checks": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16
+  ],
+  "file_required_native_checks": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17
+  ],
+  "inherited_file_required_ids": [
+    "staged-selected-primitive",
+    "staged-physical-members"
+  ],
+  "memory_required_checks": [
+    "source-storage",
+    "target-policy",
+    "candidate-storage",
+    "repair-correspondence",
+    "canonical-preservation",
+    "reload-selected-primitive",
+    "retained-asset-preservation",
+    "source-unchanged",
+    "gltf.deformation.source-admission",
+    "gltf.deformation.influences",
+    "gltf.deformation.bindings",
+    "gltf.deformation.morphs",
+    "gltf.deformation.affecting-animation",
+    "gltf.deformation.canonical-association",
+    "gltf.deformation.output-reload"
+  ],
+  "file_required_checks": [
+    "source-storage",
+    "target-policy",
+    "candidate-storage",
+    "repair-correspondence",
+    "canonical-preservation",
+    "reload-selected-primitive",
+    "retained-asset-preservation",
+    "source-unchanged",
+    "gltf.deformation.source-admission",
+    "gltf.deformation.influences",
+    "gltf.deformation.bindings",
+    "gltf.deformation.morphs",
+    "gltf.deformation.affecting-animation",
+    "gltf.deformation.canonical-association",
+    "gltf.deformation.output-reload",
+    "gltf.deformation.staged-reload",
+    "staged-selected-primitive",
+    "staged-physical-members"
+  ],
+  "inherited_file_check_owner": {
+    "staged-selected-primitive": "FileReportProjection.staged_primitive -> existing FileCoverage",
+    "staged-physical-members": "FileReportProjection.physical_members -> existing FileCoverage"
+  },
+  "quaternion_policy": "gltf-quaternion-source-squared-v1",
+  "quaternion_summary_keys": [
+    "policy",
+    "complete",
+    "node_values_checked",
+    "animation_values_checked",
+    "tangent_rows_checked",
+    "rows_admitted",
+    "first_refusal"
+  ],
+  "quaternion_refusal_keys": [
+    "role",
+    "encoding",
+    "node",
+    "animation",
+    "sampler",
+    "key",
+    "accessor",
+    "row",
+    "reason"
+  ],
+  "quaternion_node_producers": [
+    "capture_read",
+    "source_read",
+    "reload_read",
+    "publication_read"
+  ],
+  "quaternion_animation_producers": [
+    "source",
+    "reload",
+    "publication_reload"
+  ],
+  "quaternion_compare_only": [
+    "materialization",
+    "writing",
+    "verification",
+    "publication_verification"
+  ],
+  "quaternion_domains": {
+    "role": [
+      "node-rotation",
+      "animation-value",
+      "cubic-tangent"
+    ],
+    "encoding": [
+      "json-decimal",
+      "float32",
+      "snorm8",
+      "unorm8",
+      "snorm16",
+      "unorm16"
+    ],
+    "reason": [
+      "range",
+      "nonfinite",
+      "nonunit",
+      "representation"
+    ]
+  },
+  "quaternion_rules": [
+    {
+      "id": 65537,
+      "name": "NodeExactRange",
+      "origin": "new quaternion helper only",
+      "status": 3,
+      "code": 16,
+      "phase": 3,
+      "role": "node-rotation"
+    },
+    {
+      "id": 65538,
+      "name": "AnimationNonfinite",
+      "origin": "new quaternion helper only",
+      "status": 3,
+      "code": 21,
+      "phase": 7,
+      "role": [
+        "animation-value",
+        "cubic-tangent"
+      ]
+    },
+    {
+      "id": 65539,
+      "name": "FloatMagnitudeNonunit",
+      "origin": "new quaternion exact finite-magnitude path",
+      "status": 3,
+      "code": 21,
+      "phase": 7,
+      "role": "animation-value",
+      "encoding": "float32"
+    },
+    {
+      "id": 65540,
+      "name": "ExactBandNonunit",
+      "origin": "new quaternion exact fallback",
+      "status": 3,
+      "code_by_role": {
+        "node-rotation": 16,
+        "animation-value": 21
+      },
+      "phase_by_role": {
+        "node-rotation": 3,
+        "animation-value": 7
+      }
+    },
+    {
+      "id": 65541,
+      "name": "FilterBandNonunit",
+      "origin": "new quaternion certified filter outside",
+      "status": 3,
+      "code_by_role": {
+        "node-rotation": 16,
+        "animation-value": 21
+      },
+      "phase_by_role": {
+        "node-rotation": 3,
+        "animation-value": 7
+      }
+    },
+    {
+      "id": 65542,
+      "name": "RepresentationEnvelope",
+      "origin": "new quaternion helper representation bound",
+      "status": 4,
+      "code": 24,
+      "phase": 3,
+      "role": "node-rotation"
+    }
+  ],
+  "quaternion_rule_namespace": {
+    "range": [
+      65537,
+      65542
+    ],
+    "processing_profile": "deformation-retained-v1",
+    "policy": "gltf-quaternion-source-squared-v1",
+    "legacy": "Existing earlier schema/accessor/graph/translation IDs and phase are preserved,not reinterpreted;selection text alone is no source authority",
+    "stability": "Names/numbers stable for contractv1;no reuse or collision allocation in this reserved range"
+  },
+  "type_contracts": {
+    "processing": {
+      "profile": "exact deformation-retained-v1",
+      "read_admission_profile": "exact retained-core-deformation-v1",
+      "normative_revision": "exact object{commit,blob}",
+      "quaternion_policy": "exact gltf-quaternion-source-squared-v1",
+      "producer_slots": "each required null|observation;never omitted"
+    },
+    "observation": {
+      "status": "u32 enum0..9",
+      "diagnostic": "existing GltfDiagnostic exact fields;status agrees;code0..36;rule_id u32",
+      "phase": "u32 enum0..10",
+      "complete": "bool",
+      "location": "exact8 fields each null|u64",
+      "counts": "exact15 fields each u64",
+      "predicates": "exact8 fields each null|bool",
+      "new_requested_bytes": "u64",
+      "effective_request_cap": "u64",
+      "work": "exact8 fields each positive u64",
+      "execution": "exact4 fields each u64",
+      "numeric": "null|exact7-field numeric",
+      "weight_sums": "null|exact8-field summary",
+      "quaternions": "null|exact7-field quaternion summary"
+    },
+    "quaternion_summary": {
+      "policy": "exact gltf-quaternion-source-squared-v1",
+      "complete": "bool actual applicable checks complete",
+      "node_values_checked": "u64 authored tuple examinations;absent default not a row",
+      "animation_values_checked": "u64 actual value-role examinations including shared uses",
+      "tangent_rows_checked": "u64 actual finite/encoding rows;not unit predicates",
+      "rows_admitted": "u64 actual node+value rows admitted within band",
+      "first_refusal": "null|exact9-field source refusal;host gate uses numeric instead"
+    },
+    "quaternion_refusal": {
+      "role": "closed role string",
+      "encoding": "closed encoding string",
+      "node": "null|u64",
+      "animation": "null|u64",
+      "sampler": "null|u64",
+      "key": "null|u64",
+      "accessor": "null|u64",
+      "row": "null|u64",
+      "reason": "closed source reason string"
+    },
+    "weight_summary": "scope string;complete bool;4u64 counts;2null|ten-field samples;bit fields u64;classification bool",
+    "numeric": "profile exact;compiled_profile null|string;guard_calls/established_calls/exact_blocks u64;exception_masks exact5-key object;refusal null|exact8-key object",
+    "limits": "exact18 required positive u64 fields;max_influence_sets per primitive",
+    "work": "exact8 required positive u64 fields"
+  },
+  "intrinsic_predicate_ownership": {
+    "scope": "Required conjunction correction; no new observation/API field or role option",
+    "generic_read": "source_admission",
+    "generic_extraction": "source_admission",
+    "memory_comparison_owner": "verification.output_reload",
+    "staged_comparison_owner": "publication_verification.staged_reload; actual private publication verification return, not relabeled generic inspection",
+    "required_conjunctions": {
+      "gltf.deformation.output-reload": [
+        "reload_read.source_admission",
+        "reload.source_admission",
+        "verification.output_reload"
+      ],
+      "gltf.deformation.staged-reload": [
+        "publication_read.source_admission",
+        "publication_reload.source_admission",
+        "publication_verification.staged_reload"
+      ]
+    },
+    "inherited_physical_checks": [
+      "staged-selected-primitive",
+      "staged-physical-members"
+    ],
+    "false_dominates_missing": true,
+    "staged_observation_carrier": {
+      "declaration": "const GltfDeformationObservation* GltfFileVerifiedContent::staged_deformation = nullptr",
+      "authority": "Actual private publication verification operation; no generic relabel",
+      "borrow": "Only through synchronous verified callback/provider return; never retained as a pointer",
+      "delivery": "Copy fixed actual observation before fallible report work, before native commit",
+      "status": "Stable selected append-only declaration and receiving fixed-copy source; positive new-profile callback/runtime qualification remains pending"
+    }
+  }
+}

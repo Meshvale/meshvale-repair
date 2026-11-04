@@ -94,7 +94,9 @@ function(meshvale_add_gltf_workflow_tests)
   if(NOT MESHVALE_REPAIR_GLTF_WORKFLOW)
     return()
   endif()
-  target_sources(meshvale_repair_header_checks PRIVATE tests/header_gltf_workflow.cpp)
+  target_sources(meshvale_repair_header_checks PRIVATE
+    tests/header_gltf_workflow.cpp
+    tests/header_gltf_workflow_standalone.cpp)
   target_link_libraries(meshvale_repair_header_checks PRIVATE meshvale::gltf_workflow)
   add_executable(meshvale_gltf_workflow_tests tests/gltf_workflow.cpp)
   target_link_libraries(meshvale_gltf_workflow_tests PRIVATE meshvale::gltf_workflow)

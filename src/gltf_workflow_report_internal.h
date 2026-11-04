@@ -2,6 +2,7 @@
 #ifndef MESHVALE_REPAIR_SRC_GLTF_WORKFLOW_REPORT_INTERNAL_H_
 #define MESHVALE_REPAIR_SRC_GLTF_WORKFLOW_REPORT_INTERNAL_H_
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -83,6 +84,12 @@ struct FileReportProjection {
   FileReportFormat format = FileReportFormat::kJson;
   GltfWorkflowCoverage staged_primitive, physical_members;
   GltfWorkflowTranslationFacts translation;
+  std::optional<GltfWorkflowDeformationFacts> deformation;
+  std::array<GltfWorkflowCoverage, kDeformationCoverageCount>
+      deformation_coverage;
+  std::array<std::optional<interchange::GltfDeformationPolicy>,
+             kDeformationPhaseCount>
+      deformation_policies;
   GltfWorkflowCoverage translation_coverage;
   const interchange::GltfTopologyOutputInspection* output = nullptr;
   std::string_view input_sha256, report_path;

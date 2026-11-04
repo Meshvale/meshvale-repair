@@ -297,9 +297,17 @@ constexpr interchange::GltfDirectTranslationWorkPolicy kTranslationWork{
 };
 constexpr std::uint64_t kSerialThreshold =
     static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max());
+#include "gltf_deformation_presets.inc"
 }  // namespace
 
 GltfPreset MakeGltfPreset(std::string_view name) {
+  if (name == kBalancedDeformationGltfPreset ||
+      name == kSerialDeformationGltfPreset) {
+    if (name == kSerialDeformationGltfPreset &&
+        std::numeric_limits<std::size_t>::max() < kSerialThreshold)
+      throw std::invalid_argument("serial reference requires a 64-bit host");
+    return MakeDeformationPreset(name == kSerialDeformationGltfPreset);
+  }
   GltfPreset preset{kExecution, kCaptureLimits, kCaptureWork, kWorkflowLimits,
                     kWorkflowWork};
   const bool translation = name == kBalancedTranslationGltfPreset ||

@@ -31,7 +31,7 @@ constexpr std::string_view kCornerMapId = "repair-corners";
 constexpr std::string_view kVertexDomain = "vertex";
 constexpr std::string_view kFaceDomain = "face";
 constexpr std::string_view kCornerDomain = "corner";
-constexpr std::array<std::string_view, kCoverageCount> kCheckNames{
+constexpr std::array<std::string_view, kDeformationCoverageCount> kCheckNames{
     "source-storage",
     "target-policy",
     "candidate-storage",
@@ -41,7 +41,15 @@ constexpr std::array<std::string_view, kCoverageCount> kCheckNames{
     "retained-asset-preservation",
     "source-unchanged",
     "solid-validity",
-    "translation-preservation"};
+    "translation-preservation",
+    "gltf.deformation.source-admission",
+    "gltf.deformation.influences",
+    "gltf.deformation.bindings",
+    "gltf.deformation.morphs",
+    "gltf.deformation.affecting-animation",
+    "gltf.deformation.canonical-association",
+    "gltf.deformation.output-reload",
+    "gltf.deformation.staged-reload"};
 constexpr std::array<std::string_view, 11> kStageNames{
     "configuration", "read",   "extract", "materialize",
     "repair",        "write",  "reload",  "reload-extract",
@@ -678,7 +686,12 @@ void FilePublication(Sink& out, const FileReportProjection& file,
   constexpr std::string_view kTranslationExtension =
       "},\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"2\",\"native_"
       "stage\":";
-  out.Raw(translation ? kTranslationExtension : kExtension);
+  constexpr std::string_view kDeformationExtension =
+      "},\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"3\",\"native_"
+      "stage\":";
+  out.Raw(file.deformation ? kDeformationExtension
+          : translation    ? kTranslationExtension
+                           : kExtension);
 }
 constexpr std::string_view kTranslationProfile = "direct-translation-v1";
 constexpr std::array<std::string_view, kTranslationPhaseCount>
@@ -813,12 +826,17 @@ void TranslationProcessing(Sink& out,
   }
   out.Raw("}");
 }
+#include "gltf_workflow_deformation_report.inc"
 void Prefix(Sink& out, const WorkflowState& s,
             const GltfDuplicateWorkflowRequest& r,
             const FileReportProjection* file = nullptr) {
   const bool translation =
       r.extraction.processing_profile ==
       interchange::GltfProcessingProfile::kDirectTranslationTrianglesV1;
+  const bool deformation =
+      r.extraction.processing_profile ==
+      interchange::GltfProcessingProfile::kDeformationRetainedTrianglesV1;
+  const auto& deformation_facts = file ? file->deformation : s.deformation;
   constexpr std::string_view kCompletedExecution = "completed";
   constexpr std::string_view kCancelledExecution = "cancelled";
   constexpr std::string_view kFailedOutcome = "failed";
@@ -964,6 +982,10 @@ void Prefix(Sink& out, const WorkflowState& s,
     }
     out.Raw("}");
   }
+  if (deformation && deformation_facts)
+    deformation_report::Options(
+        out, *deformation_facts,
+        file ? file->deformation_policies : s.deformation_policies);
   out.Raw(kRowLocalAttributesFields);
   bool comma = false;
   for (const auto& declaration : r.repair.row_local_attributes) {
@@ -1015,7 +1037,15 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.String(kCandidateSnapshotId);
   else
     out.Raw("null");
-  if (translation) {
+  if (deformation) {
+    constexpr std::string_view kMemoryProfile =
+        "},\"profile\":{\"name\":\"gltf-deformation-duplicate-preservation\","
+        "\"version\":\"1\",\"required_checks\":[";
+    constexpr std::string_view kFileProfile =
+        "},\"profile\":{\"name\":\"gltf-deformation-duplicate-publication\","
+        "\"version\":\"1\",\"required_checks\":[";
+    out.Raw(file && file->requested ? kFileProfile : kMemoryProfile);
+  } else if (translation) {
     constexpr std::string_view kMemoryProfile =
         "},\"profile\":{\"name\":\"gltf-direct-translation-duplicate-"
         "preservation\",\"version\":\"1\",\"required_checks\":[";
@@ -1039,7 +1069,15 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.String(
         kCheckNames[static_cast<std::size_t>(Check::kTranslationPreservation)]);
   }
-  if (file) {
+  if (deformation) {
+    const auto end = file && file->requested ? kDeformationCoverageCount
+                                             : kDeformationMemoryEnd;
+    for (std::size_t i = kDeformationFirstCheck; i < end; ++i) {
+      out.Raw(",");
+      out.String(kCheckNames[i]);
+    }
+  }
+  if (file && (!deformation || file->requested)) {
     constexpr std::string_view kStagedChecks =
         ",\"staged-selected-primitive\",\"staged-physical-members\"";
     out.Raw(kStagedChecks);
@@ -1082,11 +1120,15 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.Raw("}}");
   }
   out.Raw(kCoverageFields);
-  for (std::size_t i = 0;
-       i < (translation ? kCoverageCount : kStaticCoverageCount); ++i) {
+  for (std::size_t i = 0; i < (deformation   ? kDeformationCoverageCount
+                               : translation ? kCoverageCount
+                                             : kStaticCoverageCount);
+       ++i) {
     if (i) out.Raw(",");
     const auto& c =
-        file && i == static_cast<std::size_t>(Check::kTranslationPreservation)
+        file && deformation && i >= kDeformationFirstCheck
+            ? file->deformation_coverage[i]
+        : file && i == static_cast<std::size_t>(Check::kTranslationPreservation)
             ? file->translation_coverage
             : s.coverage[i];
     out.Raw(kIdFields);
@@ -1155,6 +1197,13 @@ void Prefix(Sink& out, const WorkflowState& s,
         ",\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"2\",\"native_"
         "stage\":";
     out.Raw(kTranslationPublication);
+  } else if (deformation) {
+    constexpr std::string_view kDeformationPublication =
+        ",\"publication\":{\"requested\":false,\"outcome\":\"not-requested\","
+        "\"snapshot\":null,\"artifacts\":[],\"verified\":false,\"reason\":null}"
+        ",\"extensions\":{\"meshvale.repair.gltf\":{\"version\":\"3\",\"native_"
+        "stage\":";
+    out.Raw(kDeformationPublication);
   } else
     out.Raw(kPublicationRequestedOutcomeSnapshotNativeStageFields);
   out.String(kStageNames[static_cast<std::size_t>(s.outcomes.stage)]);
@@ -1257,6 +1306,11 @@ void Prefix(Sink& out, const WorkflowState& s,
     out.Raw("null");
   if (translation)
     TranslationProcessing(out, file ? file->translation : s.translation);
+  if (deformation && deformation_facts) {
+    constexpr std::string_view kProcessing = ",\"processing\":";
+    out.Raw(kProcessing);
+    deformation_report::Processing(out, *deformation_facts);
+  }
   out.Raw(kMemoryOutputVerifiedFields);
   out.Boolean(s.output.has_value());
   out.Raw(kPhaseExecutionFields);

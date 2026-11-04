@@ -13,7 +13,14 @@ import math
 import os
 from pathlib import Path
 import re
+import runpy
 import sys
+
+
+_ORACLE_PATH = Path(__file__).with_name("physical_oracle.py")
+if not _ORACLE_PATH.is_file():
+    _ORACLE_PATH = Path(__file__).resolve().parents[1] / "tests/ply-physical-oracle/physical_oracle.py"
+verify_physical_ply = runpy.run_path(str(_ORACLE_PATH))["verify_physical_ply"]
 
 
 MAX_CASES = 128
@@ -616,6 +623,7 @@ def validate_case(case, literal, empty_literal, shared):
     if e["memory_output_verified"]:
         output_hash = digest(absolute(case["memory_output_file"]))
         exact(physical_encoding(case["memory_output_file"]), case["encoding"], "actual memory output format declaration")
+        verify_physical_ply(read_bytes(absolute(case["memory_output_file"]), MAX_ENTRY_BYTES), literal, case["kind"], case["encoding"])
     else:
         require(case["memory_output_file"] is None, "no exposed unverified output bytes")
     if case["report_file"] is None:
@@ -744,6 +752,7 @@ def validate_case(case, literal, empty_literal, shared):
         exact(read_bytes(root / case["receipt_name"], MAX_JSON_BYTES), read_bytes(report_path, MAX_JSON_BYTES), "physical receipt exact returned bytes")
         physical_hash = digest(root / case["entry_name"])
         exact(physical_encoding(root / case["entry_name"]), case["encoding"], "actual published physical format declaration")
+        verify_physical_ply(read_bytes(root / case["entry_name"], MAX_ENTRY_BYTES), literal, case["kind"], case["encoding"])
         exact(physical_hash, output_hash, "physical entry equals actual retained memory output hash")
         exact(ext["artifact_paths"], {"entry": case["entry_name"], "receipt": case["receipt_name"]}, "committed portable paths")
         exact(pub["snapshot"], "output", "published output snapshot")

@@ -1,0 +1,5673 @@
+{
+  "schema": "meshvale.repair.gltf.deformation-report-fixtures/1",
+  "boundary": "Expected projection fixtures for the selected unimplemented contract. Standalone native shape inputs are distinct from the three complete command fallbacks, which project the explicitly selected balanced retained-file-publication preset. No literal count,tuple identifier or compiled-profile label is a product result,allocation-size prediction or supported-runtime declaration.",
+  "successful_memory_v3_projection": {
+    "profile": {
+      "name": "gltf-deformation-duplicate-preservation",
+      "version": "1",
+      "required_checks": [
+        "source-storage",
+        "target-policy",
+        "candidate-storage",
+        "repair-correspondence",
+        "canonical-preservation",
+        "reload-selected-primitive",
+        "retained-asset-preservation",
+        "source-unchanged",
+        "gltf.deformation.source-admission",
+        "gltf.deformation.influences",
+        "gltf.deformation.bindings",
+        "gltf.deformation.morphs",
+        "gltf.deformation.affecting-animation",
+        "gltf.deformation.canonical-association",
+        "gltf.deformation.output-reload"
+      ],
+      "outcome": "passed"
+    },
+    "extension_new_keys": {
+      "version": "3",
+      "processing": {
+        "profile": "deformation-retained-v1",
+        "read_admission_profile": "retained-core-deformation-v1",
+        "normative_revision": {
+          "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+          "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+        },
+        "capture_read": null,
+        "source_read": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": true,
+            "influences": null,
+            "bindings": null,
+            "morphs": null,
+            "affecting_animation": null,
+            "canonical_association": null,
+            "output_reload": null,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": null,
+          "quaternions": {
+            "policy": "gltf-quaternion-source-squared-v1",
+            "complete": true,
+            "node_values_checked": 0,
+            "animation_values_checked": 0,
+            "tangent_rows_checked": 0,
+            "rows_admitted": 0,
+            "first_refusal": null
+          }
+        },
+        "source": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": true,
+            "influences": true,
+            "bindings": true,
+            "morphs": true,
+            "affecting_animation": true,
+            "canonical_association": null,
+            "output_reload": null,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": {
+            "scope": "asset-core-influence-rows",
+            "complete": true,
+            "floating_rows_expected": 0,
+            "rows_evaluated": 0,
+            "advisory_rows": 0,
+            "all_zero_rows": 0,
+            "first_evaluated": null,
+            "first_advisory": null
+          },
+          "quaternions": {
+            "policy": "gltf-quaternion-source-squared-v1",
+            "complete": true,
+            "node_values_checked": 0,
+            "animation_values_checked": 0,
+            "tangent_rows_checked": 0,
+            "rows_admitted": 0,
+            "first_refusal": null
+          }
+        },
+        "materialization": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": null,
+            "influences": null,
+            "bindings": null,
+            "morphs": null,
+            "affecting_animation": null,
+            "canonical_association": true,
+            "output_reload": null,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": null,
+          "quaternions": null
+        },
+        "writing": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": null,
+            "influences": true,
+            "bindings": true,
+            "morphs": true,
+            "affecting_animation": true,
+            "canonical_association": true,
+            "output_reload": null,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": null,
+          "quaternions": null
+        },
+        "reload_read": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": true,
+            "influences": null,
+            "bindings": null,
+            "morphs": null,
+            "affecting_animation": null,
+            "canonical_association": null,
+            "output_reload": null,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": null,
+          "quaternions": {
+            "policy": "gltf-quaternion-source-squared-v1",
+            "complete": true,
+            "node_values_checked": 0,
+            "animation_values_checked": 0,
+            "tangent_rows_checked": 0,
+            "rows_admitted": 0,
+            "first_refusal": null
+          }
+        },
+        "reload": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": true,
+            "influences": true,
+            "bindings": true,
+            "morphs": true,
+            "affecting_animation": true,
+            "canonical_association": null,
+            "output_reload": null,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": {
+            "scope": "asset-core-influence-rows",
+            "complete": true,
+            "floating_rows_expected": 0,
+            "rows_evaluated": 0,
+            "advisory_rows": 0,
+            "all_zero_rows": 0,
+            "first_evaluated": null,
+            "first_advisory": null
+          },
+          "quaternions": {
+            "policy": "gltf-quaternion-source-squared-v1",
+            "complete": true,
+            "node_values_checked": 0,
+            "animation_values_checked": 0,
+            "tangent_rows_checked": 0,
+            "rows_admitted": 0,
+            "first_refusal": null
+          }
+        },
+        "verification": {
+          "status": 0,
+          "diagnostic": {
+            "status": 0,
+            "code": 0,
+            "json_span": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "resource_span": null,
+            "rule_id": 0
+          },
+          "phase": 10,
+          "complete": true,
+          "location": {
+            "user": null,
+            "skin": null,
+            "target": null,
+            "set": null,
+            "sampler": null,
+            "channel": null,
+            "vertex": null,
+            "component": null
+          },
+          "counts": {
+            "node_rows": 0,
+            "mesh_users": 0,
+            "skin_rows": 0,
+            "joint_references": 0,
+            "influence_sets": 0,
+            "lane_checks": 0,
+            "morph_targets": 0,
+            "morph_channels": 0,
+            "animation_channels": 0,
+            "distinct_samplers": 0,
+            "keys_checked": 0,
+            "scalar_checks": 0,
+            "sparse_writes": 0,
+            "relationship_steps": 0,
+            "decoded_bytes_checked": 0
+          },
+          "predicates": {
+            "source_admission": null,
+            "influences": true,
+            "bindings": true,
+            "morphs": true,
+            "affecting_animation": true,
+            "canonical_association": true,
+            "output_reload": true,
+            "staged_reload": null
+          },
+          "new_requested_bytes": 128,
+          "effective_request_cap": 67108864,
+          "work": {
+            "parallel_min_scalars": 64,
+            "partition_scalars": 64,
+            "cancellation_block_scalars": 64,
+            "parallel_min_bytes": 64,
+            "partition_bytes": 64,
+            "cancellation_block_bytes": 64,
+            "max_jobs": 1,
+            "max_relationship_block": 64
+          },
+          "execution": {
+            "planned_jobs": 1,
+            "launched_workers": 0,
+            "joined_workers": 0,
+            "caller_jobs": 1
+          },
+          "numeric": {
+            "profile": "gltf-deformation-rne-gradual-v1",
+            "compiled_profile": "test-numerical-profile",
+            "guard_calls": 1,
+            "established_calls": 1,
+            "exact_blocks": 1,
+            "refusal": null,
+            "exception_masks": {
+              "required_units": 1,
+              "sse2_mask": 63,
+              "x87_mask": null,
+              "sample_partition": null,
+              "sample_caller": true
+            }
+          },
+          "weight_sums": null,
+          "quaternions": null
+        },
+        "publication_read": null,
+        "publication_reload": null,
+        "publication_verification": null,
+        "quaternion_policy": "gltf-quaternion-source-squared-v1"
+      }
+    },
+    "note": "Projection only: unchanged native-extension v1 keys remain required by GWF-REPORT-001, not elided in a real receipt."
+  },
+  "pre_admission_native_result_projection": {
+    "processing_profile": "deformation-retained-v1",
+    "record": null,
+    "report_json": null,
+    "called_deformation_helper": false,
+    "processing": {
+      "profile": "deformation-retained-v1",
+      "read_admission_profile": "retained-core-deformation-v1",
+      "normative_revision": {
+        "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+        "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+      },
+      "capture_read": null,
+      "source_read": null,
+      "source": null,
+      "materialization": null,
+      "writing": null,
+      "reload_read": null,
+      "reload": null,
+      "verification": null,
+      "publication_read": null,
+      "publication_reload": null,
+      "publication_verification": null,
+      "quaternion_policy": "gltf-quaternion-source-squared-v1"
+    },
+    "expected_coverage": "No predicate invented; real configuration failure, not a successful source proof."
+  },
+  "later_writer_budget_failure_projection": {
+    "candidate": "accepted",
+    "native_stage": "kWrite",
+    "schema_stage": "verify",
+    "execution": "failed",
+    "exit": 2,
+    "report_json": null,
+    "processing": {
+      "profile": "deformation-retained-v1",
+      "read_admission_profile": "retained-core-deformation-v1",
+      "normative_revision": {
+        "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+        "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+      },
+      "capture_read": null,
+      "source_read": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": null,
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 0,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": null
+        }
+      },
+      "source": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 1,
+          "lane_checks": 4,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 20
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": true,
+          "bindings": true,
+          "morphs": true,
+          "affecting_animation": true,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": true,
+          "floating_rows_expected": 1,
+          "rows_evaluated": 1,
+          "advisory_rows": 1,
+          "all_zero_rows": 0,
+          "first_evaluated": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4602678819172646912,
+            "deviation_bits": 4602678819172646912,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": true,
+            "all_zero": false
+          },
+          "first_advisory": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4602678819172646912,
+            "deviation_bits": 4602678819172646912,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": true,
+            "all_zero": false
+          }
+        },
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 2,
+          "tangent_rows_checked": 4,
+          "rows_admitted": 2,
+          "first_refusal": null
+        }
+      },
+      "materialization": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": null,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": true,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": null,
+        "quaternions": null
+      },
+      "writing": {
+        "status": 7,
+        "diagnostic": {
+          "status": 7,
+          "code": 32,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 0,
+        "complete": false,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": null,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 0,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 0,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 0
+        },
+        "numeric": null,
+        "weight_sums": null,
+        "quaternions": null
+      },
+      "reload_read": null,
+      "reload": null,
+      "verification": null,
+      "publication_read": null,
+      "publication_reload": null,
+      "publication_verification": null,
+      "quaternion_policy": "gltf-quaternion-source-squared-v1"
+    },
+    "retention": "Actual completed-Repair counts/maps only through real normal or explicit retained-Repair owner; none fabricated here."
+  },
+  "missing_native_receipt_full_report": {
+    "schema": "meshvale.report/1",
+    "tool": {
+      "name": "meshvale-repair",
+      "version": "0.0.0"
+    },
+    "input": {
+      "id": "source",
+      "sha256": null
+    },
+    "operation": {
+      "kind": "repair",
+      "name": "remove-duplicate-faces",
+      "version": "1",
+      "options": {
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "target_pairs": [],
+        "row_local_attributes": [],
+        "processing_profile": "deformation-retained-v1",
+        "read_admission_profile": "retained-core-deformation-v1",
+        "normative_revision": {
+          "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+          "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+        },
+        "numerical_profile": "gltf-deformation-rne-gradual-v1",
+        "deformation_limits": {
+          "capture_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "source": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "source_read": null,
+          "materialization": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 2097152
+          },
+          "writing": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "reload_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "reload": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "verification": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 8388608
+          },
+          "publication_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "publication_reload": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "publication_verification": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 8388608
+          }
+        },
+        "deformation_work": {
+          "capture_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "source": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "source_read": null,
+          "materialization": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "writing": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "reload_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "reload": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "verification": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_reload": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_verification": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          }
+        },
+        "quaternion_policy": "gltf-quaternion-source-squared-v1"
+      },
+      "targets": []
+    },
+    "execution": {
+      "outcome": "failed",
+      "stage": "import",
+      "reason": "Native numerical profile was unsupported before metadata parsing."
+    },
+    "candidate": {
+      "outcome": "not-attempted",
+      "snapshot": null
+    },
+    "profile": {
+      "name": "gltf-command-native-receipt",
+      "version": "1",
+      "required_checks": [
+        "native-receipt-validation"
+      ],
+      "outcome": "incomplete"
+    },
+    "snapshots": [],
+    "maps": [],
+    "preservation": [],
+    "diagnostics": [
+      {
+        "id": "native-receipt-absent",
+        "code": "gltf.command.native-receipt-unavailable",
+        "severity": "warning",
+        "message": "Native receipt validation was blocked because no native receipt bytes are available.",
+        "scope": {
+          "snapshot": null,
+          "mesh": null,
+          "subject": "command receipt validation"
+        },
+        "element": null,
+        "data": {
+          "origin": "command",
+          "workflow_started": false
+        }
+      }
+    ],
+    "coverage": [
+      {
+        "id": "native-receipt-validation",
+        "check": "native-receipt-validation",
+        "version": "1",
+        "scope": {
+          "snapshot": null,
+          "mesh": null,
+          "subject": "command receipt validation"
+        },
+        "status": "skipped",
+        "finding": null,
+        "reason": "Native receipt validation was blocked because no native receipt bytes are available.",
+        "diagnostics": [
+          "native-receipt-absent"
+        ]
+      }
+    ],
+    "publication": {
+      "requested": true,
+      "outcome": "not-attempted",
+      "snapshot": null,
+      "artifacts": [],
+      "verified": false,
+      "reason": "No verified publication was completed; exact reached observations are in the command extension."
+    },
+    "extensions": {
+      "meshvale.repair.gltf.commands": {
+        "version": "3",
+        "origin": "command-capture-fallback",
+        "native_report_available": false,
+        "workflow_started": false,
+        "capture": {
+          "status": {
+            "domain": "GltfFileStatus",
+            "member": "kUnsupportedProfile"
+          },
+          "diagnostic": {
+            "type": "GltfFileDiagnostic",
+            "status": {
+              "domain": "GltfFileStatus",
+              "member": "kUnsupportedProfile"
+            },
+            "stage": {
+              "domain": "GltfFileStage",
+              "member": "kAssetRead"
+            },
+            "code": {
+              "domain": "GltfFileDiagnosticCode",
+              "member": "kDelegatedRead"
+            },
+            "file_index": null,
+            "byte_offset": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "system_error": null,
+            "gltf_diagnostic": {
+              "type": "GltfDiagnostic",
+              "status": {
+                "domain": "GltfStatus",
+                "member": "kUnsupportedProfile"
+              },
+              "code": {
+                "domain": "GltfDiagnosticCode",
+                "member": "kNumericalProfile"
+              },
+              "json_span": null,
+              "resource_kind": null,
+              "resource_index": null,
+              "resource_span": null,
+              "rule_id": 0
+            },
+            "container_status": null,
+            "container_byte_offset": null,
+            "inspection_status": null,
+            "inspection_diagnostic": null
+          },
+          "execution": {
+            "type": "GltfFileExecution",
+            "capture": {
+              "type": "GltfFileExecutionStats",
+              "planned_jobs": 1,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 1
+            },
+            "byte_verification": {
+              "type": "GltfFileExecutionStats",
+              "planned_jobs": 0,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 0
+            }
+          }
+        },
+        "workflow": null,
+        "memory_outcomes": null,
+        "publication": null,
+        "requested_bytes": null,
+        "processing_profile": "deformation-retained-v1",
+        "processing": {
+          "profile": "deformation-retained-v1",
+          "read_admission_profile": "retained-core-deformation-v1",
+          "normative_revision": {
+            "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+            "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+          },
+          "capture_read": {
+            "status": 4,
+            "diagnostic": {
+              "status": 4,
+              "code": 36,
+              "json_span": null,
+              "resource_kind": null,
+              "resource_index": null,
+              "resource_span": null,
+              "rule_id": 0
+            },
+            "phase": 1,
+            "complete": false,
+            "location": {
+              "user": null,
+              "skin": null,
+              "target": null,
+              "set": null,
+              "sampler": null,
+              "channel": null,
+              "vertex": null,
+              "component": null
+            },
+            "counts": {
+              "node_rows": 0,
+              "mesh_users": 0,
+              "skin_rows": 0,
+              "joint_references": 0,
+              "influence_sets": 0,
+              "lane_checks": 0,
+              "morph_targets": 0,
+              "morph_channels": 0,
+              "animation_channels": 0,
+              "distinct_samplers": 0,
+              "keys_checked": 0,
+              "scalar_checks": 0,
+              "sparse_writes": 0,
+              "relationship_steps": 0,
+              "decoded_bytes_checked": 0
+            },
+            "predicates": {
+              "source_admission": null,
+              "influences": null,
+              "bindings": null,
+              "morphs": null,
+              "affecting_animation": null,
+              "canonical_association": null,
+              "output_reload": null,
+              "staged_reload": null
+            },
+            "new_requested_bytes": 0,
+            "effective_request_cap": 4194304,
+            "work": {
+              "parallel_min_scalars": 16384,
+              "partition_scalars": 16384,
+              "cancellation_block_scalars": 256,
+              "parallel_min_bytes": 262144,
+              "partition_bytes": 262144,
+              "cancellation_block_bytes": 16384,
+              "max_jobs": 64,
+              "max_relationship_block": 256
+            },
+            "execution": {
+              "planned_jobs": 0,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 0
+            },
+            "numeric": {
+              "profile": "gltf-deformation-rne-gradual-v1",
+              "compiled_profile": "test-numerical-profile",
+              "guard_calls": 1,
+              "established_calls": 0,
+              "exact_blocks": 0,
+              "refusal": {
+                "reason": "rounding",
+                "partition": null,
+                "caller": true,
+                "nearest_even": false,
+                "ftz_disabled": true,
+                "daz_disabled": true,
+                "unit": "sse2",
+                "exception_masks": {
+                  "required_units": 1,
+                  "sse2_mask": 63,
+                  "x87_mask": null,
+                  "sample_partition": null,
+                  "sample_caller": true
+                }
+              },
+              "exception_masks": {
+                "required_units": 1,
+                "sse2_mask": 63,
+                "x87_mask": null,
+                "sample_partition": null,
+                "sample_caller": true
+              }
+            },
+            "weight_sums": null,
+            "quaternions": null
+          },
+          "source_read": null,
+          "source": null,
+          "materialization": null,
+          "writing": null,
+          "reload_read": null,
+          "reload": null,
+          "verification": null,
+          "publication_read": null,
+          "publication_reload": null,
+          "publication_verification": null,
+          "quaternion_policy": "gltf-quaternion-source-squared-v1"
+        }
+      }
+    }
+  },
+  "valid_mixed_request": {
+    "schema": "meshvale.repair.gltf-jobs/3",
+    "jobs": [
+      {
+        "id": "legacy",
+        "input": "source/legacy.gltf",
+        "destination": "output/legacy",
+        "targets": [],
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "processing_profile": "static-local-triangles-v1"
+      },
+      {
+        "id": "deformed",
+        "input": "source/deformed.gltf",
+        "destination": "output/deformed",
+        "targets": [],
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "processing_profile": "deformation-retained-v1"
+      }
+    ]
+  },
+  "invalid_last_row_request": {
+    "schema": "meshvale.repair.gltf-jobs/3",
+    "jobs": [
+      {
+        "id": "valid-first",
+        "input": "source/valid-first.gltf",
+        "destination": "output/valid-first",
+        "targets": [],
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "processing_profile": "static-local-triangles-v1"
+      },
+      {
+        "id": "invalid-last",
+        "input": "source/invalid-last.gltf",
+        "destination": "output/invalid-last",
+        "targets": [],
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "processing_profile": "float16"
+      }
+    ]
+  },
+  "invalid_last_row_expectation": "InvocationError before any capture/asset work, no implicit schema/profile upgrade.",
+  "weight_sum_cases": {
+    "in_range": {
+      "source": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 1,
+          "lane_checks": 4,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 20
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": true,
+          "bindings": true,
+          "morphs": true,
+          "affecting_animation": true,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": true,
+          "floating_rows_expected": 1,
+          "rows_evaluated": 1,
+          "advisory_rows": 0,
+          "all_zero_rows": 0,
+          "first_evaluated": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4607182418800017408,
+            "deviation_bits": 0,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": false,
+            "all_zero": false
+          },
+          "first_advisory": null
+        },
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 0,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": null
+        }
+      }
+    },
+    "deviating": {
+      "source": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 1,
+          "lane_checks": 4,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 20
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": true,
+          "bindings": true,
+          "morphs": true,
+          "affecting_animation": true,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": true,
+          "floating_rows_expected": 1,
+          "rows_evaluated": 1,
+          "advisory_rows": 1,
+          "all_zero_rows": 0,
+          "first_evaluated": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4602678819172646912,
+            "deviation_bits": 4602678819172646912,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": true,
+            "all_zero": false
+          },
+          "first_advisory": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4602678819172646912,
+            "deviation_bits": 4602678819172646912,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": true,
+            "all_zero": false
+          }
+        },
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 0,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": null
+        }
+      }
+    },
+    "all_zero": {
+      "source": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 1,
+          "lane_checks": 4,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 20
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": true,
+          "bindings": true,
+          "morphs": true,
+          "affecting_animation": true,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": true,
+          "floating_rows_expected": 1,
+          "rows_evaluated": 1,
+          "advisory_rows": 1,
+          "all_zero_rows": 1,
+          "first_evaluated": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 0,
+            "sum_bits": 0,
+            "deviation_bits": 4607182418800017408,
+            "epsilon_bits": 0,
+            "advisory": true,
+            "all_zero": true
+          },
+          "first_advisory": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 0,
+            "set_count": 1,
+            "nonzero_weights": 0,
+            "sum_bits": 0,
+            "deviation_bits": 4607182418800017408,
+            "epsilon_bits": 0,
+            "advisory": true,
+            "all_zero": true
+          }
+        },
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 0,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": null
+        }
+      }
+    },
+    "uncalled": {
+      "source": null
+    },
+    "partial_noncontiguous": {
+      "source": {
+        "status": 6,
+        "diagnostic": {
+          "status": 6,
+          "code": 31,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 4,
+        "complete": false,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 1,
+          "lane_checks": 8,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 8,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 40
+        },
+        "predicates": {
+          "source_admission": null,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": false,
+          "floating_rows_expected": 4,
+          "rows_evaluated": 2,
+          "advisory_rows": 1,
+          "all_zero_rows": 0,
+          "first_evaluated": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 1,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4607182418800017408,
+            "deviation_bits": 0,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": false,
+            "all_zero": false
+          },
+          "first_advisory": {
+            "mesh": 0,
+            "primitive": 0,
+            "vertex": 3,
+            "set_count": 1,
+            "nonzero_weights": 2,
+            "sum_bits": 4602678819172646912,
+            "deviation_bits": 4602678819172646912,
+            "epsilon_bits": 4511155413743087432,
+            "advisory": true,
+            "all_zero": false
+          }
+        },
+        "quaternions": null
+      },
+      "completed_source_vertices": [
+        1,
+        3
+      ],
+      "no_claim": "No unfinished row sum or contiguous-prefix inference"
+    }
+  },
+  "weight_sum_inputs": {
+    "in_range": "distinct joint lanes float32[0.25,0.75,+0,-0]",
+    "deviating": "distinct joint lanes float32[0.25,0.25,+0,-0]",
+    "all_zero": "float32[+0,-0,+0,-0]",
+    "word_rule": "uint64 binary64 bits copied from defined guarded fold; integer-authored literals only;not measured product records"
+  },
+  "requested_file_profile_projection": {
+    "profile": {
+      "name": "gltf-deformation-duplicate-publication",
+      "version": "1",
+      "required_checks": [
+        "source-storage",
+        "target-policy",
+        "candidate-storage",
+        "repair-correspondence",
+        "canonical-preservation",
+        "reload-selected-primitive",
+        "retained-asset-preservation",
+        "source-unchanged",
+        "gltf.deformation.source-admission",
+        "gltf.deformation.influences",
+        "gltf.deformation.bindings",
+        "gltf.deformation.morphs",
+        "gltf.deformation.affecting-animation",
+        "gltf.deformation.canonical-association",
+        "gltf.deformation.output-reload",
+        "gltf.deformation.staged-reload",
+        "staged-selected-primitive",
+        "staged-physical-members"
+      ],
+      "outcome": "passed"
+    },
+    "coverage": [
+      {
+        "id": "source-storage",
+        "check": "source-storage",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "target-policy",
+        "check": "target-policy",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "candidate-storage",
+        "check": "candidate-storage",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "repair-correspondence",
+        "check": "repair-correspondence",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "canonical-preservation",
+        "check": "canonical-preservation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "reload-selected-primitive",
+        "check": "reload-selected-primitive",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "retained-asset-preservation",
+        "check": "retained-asset-preservation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "source-unchanged",
+        "check": "source-unchanged",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.source-admission",
+        "check": "gltf.deformation.source-admission",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.influences",
+        "check": "gltf.deformation.influences",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.bindings",
+        "check": "gltf.deformation.bindings",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.morphs",
+        "check": "gltf.deformation.morphs",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.affecting-animation",
+        "check": "gltf.deformation.affecting-animation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.canonical-association",
+        "check": "gltf.deformation.canonical-association",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.output-reload",
+        "check": "gltf.deformation.output-reload",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.staged-reload",
+        "check": "gltf.deformation.staged-reload",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "staged-selected-primitive",
+        "check": "staged-selected-primitive",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "staged-physical-members",
+        "check": "staged-physical-members",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      }
+    ],
+    "projection_boundary": "Unchanged report envelope/snapshots/typed owners not manufactured here;literal profile/coverage projection only."
+  },
+  "inherited_physical_false_projection": {
+    "profile": {
+      "name": "gltf-deformation-duplicate-publication",
+      "version": "1",
+      "required_checks": [
+        "source-storage",
+        "target-policy",
+        "candidate-storage",
+        "repair-correspondence",
+        "canonical-preservation",
+        "reload-selected-primitive",
+        "retained-asset-preservation",
+        "source-unchanged",
+        "gltf.deformation.source-admission",
+        "gltf.deformation.influences",
+        "gltf.deformation.bindings",
+        "gltf.deformation.morphs",
+        "gltf.deformation.affecting-animation",
+        "gltf.deformation.canonical-association",
+        "gltf.deformation.output-reload",
+        "gltf.deformation.staged-reload",
+        "staged-selected-primitive",
+        "staged-physical-members"
+      ],
+      "outcome": "failed"
+    },
+    "coverage": [
+      {
+        "id": "source-storage",
+        "check": "source-storage",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "target-policy",
+        "check": "target-policy",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "candidate-storage",
+        "check": "candidate-storage",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "repair-correspondence",
+        "check": "repair-correspondence",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "canonical-preservation",
+        "check": "canonical-preservation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "reload-selected-primitive",
+        "check": "reload-selected-primitive",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "retained-asset-preservation",
+        "check": "retained-asset-preservation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "source-unchanged",
+        "check": "source-unchanged",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.source-admission",
+        "check": "gltf.deformation.source-admission",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.influences",
+        "check": "gltf.deformation.influences",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.bindings",
+        "check": "gltf.deformation.bindings",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.morphs",
+        "check": "gltf.deformation.morphs",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.affecting-animation",
+        "check": "gltf.deformation.affecting-animation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.canonical-association",
+        "check": "gltf.deformation.canonical-association",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.output-reload",
+        "check": "gltf.deformation.output-reload",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.staged-reload",
+        "check": "gltf.deformation.staged-reload",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "staged-selected-primitive",
+        "check": "staged-selected-primitive",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "staged-physical-members",
+        "check": "staged-physical-members",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "failed",
+        "reason": null,
+        "diagnostics": []
+      }
+    ],
+    "projection_boundary": "Unchanged report envelope/snapshots/typed owners not manufactured here;literal profile/coverage projection only.",
+    "control": "Existing FileCoverage actual physical_members performed=false dominates even when all deformation rows true;actual publication fails/no output claim."
+  },
+  "inherited_staged_unperformed_projection": {
+    "profile": {
+      "name": "gltf-deformation-duplicate-publication",
+      "version": "1",
+      "required_checks": [
+        "source-storage",
+        "target-policy",
+        "candidate-storage",
+        "repair-correspondence",
+        "canonical-preservation",
+        "reload-selected-primitive",
+        "retained-asset-preservation",
+        "source-unchanged",
+        "gltf.deformation.source-admission",
+        "gltf.deformation.influences",
+        "gltf.deformation.bindings",
+        "gltf.deformation.morphs",
+        "gltf.deformation.affecting-animation",
+        "gltf.deformation.canonical-association",
+        "gltf.deformation.output-reload",
+        "gltf.deformation.staged-reload",
+        "staged-selected-primitive",
+        "staged-physical-members"
+      ],
+      "outcome": "incomplete"
+    },
+    "coverage": [
+      {
+        "id": "source-storage",
+        "check": "source-storage",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "target-policy",
+        "check": "target-policy",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "candidate-storage",
+        "check": "candidate-storage",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "repair-correspondence",
+        "check": "repair-correspondence",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "canonical-preservation",
+        "check": "canonical-preservation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "reload-selected-primitive",
+        "check": "reload-selected-primitive",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "retained-asset-preservation",
+        "check": "retained-asset-preservation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "source-unchanged",
+        "check": "source-unchanged",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.source-admission",
+        "check": "gltf.deformation.source-admission",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.influences",
+        "check": "gltf.deformation.influences",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.bindings",
+        "check": "gltf.deformation.bindings",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.morphs",
+        "check": "gltf.deformation.morphs",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.affecting-animation",
+        "check": "gltf.deformation.affecting-animation",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.canonical-association",
+        "check": "gltf.deformation.canonical-association",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.output-reload",
+        "check": "gltf.deformation.output-reload",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "gltf.deformation.staged-reload",
+        "check": "gltf.deformation.staged-reload",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      },
+      {
+        "id": "staged-selected-primitive",
+        "check": "staged-selected-primitive",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "skipped",
+        "finding": null,
+        "reason": "Blocked by the actual earlier native file stage.",
+        "diagnostics": []
+      },
+      {
+        "id": "staged-physical-members",
+        "check": "staged-physical-members",
+        "version": "1",
+        "scope": {
+          "snapshot": "candidate",
+          "mesh": "selected",
+          "subject": "selected primitive"
+        },
+        "status": "performed",
+        "finding": "passed",
+        "reason": null,
+        "diagnostics": []
+      }
+    ],
+    "projection_boundary": "Unchanged report envelope/snapshots/typed owners not manufactured here;literal profile/coverage projection only.",
+    "control": "Existing staged_primitive unperformed remains required/incomplete;no enum8/9 or deformation predicate substitute."
+  },
+  "unmasked_inexact_full_fallback": {
+    "schema": "meshvale.report/1",
+    "tool": {
+      "name": "meshvale-repair",
+      "version": "0.0.0"
+    },
+    "input": {
+      "id": "source",
+      "sha256": null
+    },
+    "operation": {
+      "kind": "repair",
+      "name": "remove-duplicate-faces",
+      "version": "1",
+      "options": {
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "target_pairs": [],
+        "row_local_attributes": [],
+        "processing_profile": "deformation-retained-v1",
+        "read_admission_profile": "retained-core-deformation-v1",
+        "normative_revision": {
+          "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+          "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+        },
+        "numerical_profile": "gltf-deformation-rne-gradual-v1",
+        "deformation_limits": {
+          "capture_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "source": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "source_read": null,
+          "materialization": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 2097152
+          },
+          "writing": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "reload_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "reload": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "verification": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 8388608
+          },
+          "publication_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "publication_reload": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "publication_verification": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 8388608
+          }
+        },
+        "deformation_work": {
+          "capture_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "source": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "source_read": null,
+          "materialization": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "writing": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "reload_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "reload": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "verification": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_reload": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_verification": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          }
+        },
+        "quaternion_policy": "gltf-quaternion-source-squared-v1"
+      },
+      "targets": []
+    },
+    "execution": {
+      "outcome": "failed",
+      "stage": "import",
+      "reason": "Actual numerical gate refused an unmasked inexact exception before floating work."
+    },
+    "candidate": {
+      "outcome": "not-attempted",
+      "snapshot": null
+    },
+    "profile": {
+      "name": "gltf-command-native-receipt",
+      "version": "1",
+      "required_checks": [
+        "native-receipt-validation"
+      ],
+      "outcome": "incomplete"
+    },
+    "snapshots": [],
+    "maps": [],
+    "preservation": [],
+    "diagnostics": [
+      {
+        "id": "native-receipt-absent",
+        "code": "gltf.command.native-receipt-unavailable",
+        "severity": "warning",
+        "message": "Native receipt validation was blocked because no native receipt bytes are available.",
+        "scope": {
+          "snapshot": null,
+          "mesh": null,
+          "subject": "command receipt validation"
+        },
+        "element": null,
+        "data": {
+          "origin": "command",
+          "workflow_started": false
+        }
+      }
+    ],
+    "coverage": [
+      {
+        "id": "native-receipt-validation",
+        "check": "native-receipt-validation",
+        "version": "1",
+        "scope": {
+          "snapshot": null,
+          "mesh": null,
+          "subject": "command receipt validation"
+        },
+        "status": "skipped",
+        "finding": null,
+        "reason": "Native receipt validation was blocked because no native receipt bytes are available.",
+        "diagnostics": [
+          "native-receipt-absent"
+        ]
+      }
+    ],
+    "publication": {
+      "requested": true,
+      "outcome": "not-attempted",
+      "snapshot": null,
+      "artifacts": [],
+      "verified": false,
+      "reason": "No verified publication was completed; exact reached observations are in the command extension."
+    },
+    "extensions": {
+      "meshvale.repair.gltf.commands": {
+        "version": "3",
+        "origin": "command-capture-fallback",
+        "native_report_available": false,
+        "workflow_started": false,
+        "capture": {
+          "status": {
+            "domain": "GltfFileStatus",
+            "member": "kUnsupportedProfile"
+          },
+          "diagnostic": {
+            "type": "GltfFileDiagnostic",
+            "status": {
+              "domain": "GltfFileStatus",
+              "member": "kUnsupportedProfile"
+            },
+            "stage": {
+              "domain": "GltfFileStage",
+              "member": "kAssetRead"
+            },
+            "code": {
+              "domain": "GltfFileDiagnosticCode",
+              "member": "kDelegatedRead"
+            },
+            "file_index": null,
+            "byte_offset": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "system_error": null,
+            "gltf_diagnostic": {
+              "type": "GltfDiagnostic",
+              "status": {
+                "domain": "GltfStatus",
+                "member": "kUnsupportedProfile"
+              },
+              "code": {
+                "domain": "GltfDiagnosticCode",
+                "member": "kNumericalProfile"
+              },
+              "json_span": null,
+              "resource_kind": null,
+              "resource_index": null,
+              "resource_span": null,
+              "rule_id": 0
+            },
+            "container_status": null,
+            "container_byte_offset": null,
+            "inspection_status": null,
+            "inspection_diagnostic": null
+          },
+          "execution": {
+            "type": "GltfFileExecution",
+            "capture": {
+              "type": "GltfFileExecutionStats",
+              "planned_jobs": 1,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 1
+            },
+            "byte_verification": {
+              "type": "GltfFileExecutionStats",
+              "planned_jobs": 0,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 0
+            }
+          }
+        },
+        "workflow": null,
+        "memory_outcomes": null,
+        "publication": null,
+        "requested_bytes": null,
+        "processing_profile": "deformation-retained-v1",
+        "processing": {
+          "profile": "deformation-retained-v1",
+          "read_admission_profile": "retained-core-deformation-v1",
+          "normative_revision": {
+            "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+            "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+          },
+          "capture_read": {
+            "status": 4,
+            "diagnostic": {
+              "status": 4,
+              "code": 36,
+              "json_span": null,
+              "resource_kind": null,
+              "resource_index": null,
+              "resource_span": null,
+              "rule_id": 0
+            },
+            "phase": 1,
+            "complete": false,
+            "location": {
+              "user": null,
+              "skin": null,
+              "target": null,
+              "set": null,
+              "sampler": null,
+              "channel": null,
+              "vertex": null,
+              "component": null
+            },
+            "counts": {
+              "node_rows": 0,
+              "mesh_users": 0,
+              "skin_rows": 0,
+              "joint_references": 0,
+              "influence_sets": 0,
+              "lane_checks": 0,
+              "morph_targets": 0,
+              "morph_channels": 0,
+              "animation_channels": 0,
+              "distinct_samplers": 0,
+              "keys_checked": 0,
+              "scalar_checks": 0,
+              "sparse_writes": 0,
+              "relationship_steps": 0,
+              "decoded_bytes_checked": 0
+            },
+            "predicates": {
+              "source_admission": null,
+              "influences": null,
+              "bindings": null,
+              "morphs": null,
+              "affecting_animation": null,
+              "canonical_association": null,
+              "output_reload": null,
+              "staged_reload": null
+            },
+            "new_requested_bytes": 0,
+            "effective_request_cap": 4194304,
+            "work": {
+              "parallel_min_scalars": 16384,
+              "partition_scalars": 16384,
+              "cancellation_block_scalars": 256,
+              "parallel_min_bytes": 262144,
+              "partition_bytes": 262144,
+              "cancellation_block_bytes": 16384,
+              "max_jobs": 64,
+              "max_relationship_block": 256
+            },
+            "execution": {
+              "planned_jobs": 0,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 0
+            },
+            "numeric": {
+              "profile": "gltf-deformation-rne-gradual-v1",
+              "compiled_profile": "test-numerical-profile",
+              "guard_calls": 1,
+              "established_calls": 0,
+              "exact_blocks": 0,
+              "refusal": {
+                "reason": "exceptions",
+                "partition": null,
+                "caller": true,
+                "nearest_even": true,
+                "ftz_disabled": true,
+                "daz_disabled": true,
+                "unit": "sse2",
+                "exception_masks": {
+                  "required_units": 1,
+                  "sse2_mask": 31,
+                  "x87_mask": null,
+                  "sample_partition": null,
+                  "sample_caller": true
+                }
+              },
+              "exception_masks": {
+                "required_units": 1,
+                "sse2_mask": 31,
+                "x87_mask": null,
+                "sample_partition": null,
+                "sample_caller": true
+              }
+            },
+            "weight_sums": null,
+            "quaternions": null
+          },
+          "source_read": null,
+          "source": null,
+          "materialization": null,
+          "writing": null,
+          "reload_read": null,
+          "reload": null,
+          "verification": null,
+          "publication_read": null,
+          "publication_reload": null,
+          "publication_verification": null,
+          "quaternion_policy": "gltf-quaternion-source-squared-v1"
+        }
+      }
+    }
+  },
+  "exception_mask_controls": {
+    "input": "legal finite normal float32 weights1 and2^-100 on distinct real joints;existing binary64 fold rounds inexactly to1",
+    "safe_mask_word": 63,
+    "inexact_unmasked_word": 31,
+    "expected_sum_bits_when_safe": 4607182418800017408,
+    "required_controls": [
+      "actual caller-safe/worker-unmasked",
+      "actual caller-unmasked/worker-safe on an actual caller numerical path",
+      "all six masked positive",
+      "unknown mask query returns unqueryable",
+      "each actual used unit or unsupported compiled path"
+    ],
+    "no_action": "No production mask/clear, exception suppression, catch of a hardware fault, changed fold or runtime execution by this design."
+  },
+  "quaternion_value_cases": {
+    "source_decimal_unit": {
+      "source_json": "{\"rotation\":[0.6,0.8,0,0]}",
+      "source_read": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 1,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": null,
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 1,
+          "animation_values_checked": 0,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 1,
+          "first_refusal": null
+        }
+      },
+      "authority": "original exact decimal tuple,not the separately projected binary32 vector"
+    },
+    "absent_rotation": {
+      "source_json": "{}",
+      "source_read": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": null,
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 0,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": null
+        }
+      }
+    },
+    "cubic_tangents_not_unit": {
+      "source": {
+        "status": 0,
+        "diagnostic": {
+          "status": 0,
+          "code": 0,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 10,
+        "complete": true,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": true,
+          "influences": true,
+          "bindings": true,
+          "morphs": true,
+          "affecting_animation": true,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": true,
+          "floating_rows_expected": 0,
+          "rows_evaluated": 0,
+          "advisory_rows": 0,
+          "all_zero_rows": 0,
+          "first_evaluated": null,
+          "first_advisory": null
+        },
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": true,
+          "node_values_checked": 0,
+          "animation_values_checked": 2,
+          "tangent_rows_checked": 4,
+          "rows_admitted": 2,
+          "first_refusal": null
+        }
+      },
+      "value_rows": [
+        1,
+        4
+      ],
+      "tangent_rows": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "unit_predicate_on_tangents": false
+    },
+    "largest_finite_value_exact_path": {
+      "source": {
+        "status": 3,
+        "diagnostic": {
+          "status": 3,
+          "code": 21,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 65539
+        },
+        "phase": 7,
+        "complete": false,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 1,
+          "distinct_samplers": 1,
+          "keys_checked": 1,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 16
+        },
+        "predicates": {
+          "source_admission": false,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": false,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": null,
+          "guard_calls": 0,
+          "established_calls": 0,
+          "exact_blocks": 1,
+          "exception_masks": {
+            "required_units": 0,
+            "sse2_mask": null,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": null
+          },
+          "refusal": null
+        },
+        "weight_sums": null,
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": false,
+          "node_values_checked": 0,
+          "animation_values_checked": 1,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": {
+            "role": "animation-value",
+            "encoding": "float32",
+            "node": 0,
+            "animation": 0,
+            "sampler": 0,
+            "key": 0,
+            "accessor": 1,
+            "row": 0,
+            "reason": "nonunit"
+          }
+        }
+      },
+      "input": {
+        "component_type": 5126,
+        "shape": "VEC4",
+        "normalized": false,
+        "target_tuple": 0,
+        "target_words_hex": [
+          "7f7fffff",
+          "00000000",
+          "00000000",
+          "00000000"
+        ],
+        "source_output_stream_words_hex": [
+          "7f7fffff",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "3f800000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "3f800000",
+          "00000000",
+          "00000000",
+          "00000000",
+          "00000000"
+        ],
+        "linear_time_words_hex": [
+          "00000000",
+          "3f800000",
+          "40000000",
+          "40400000",
+          "40800000",
+          "40a00000"
+        ],
+        "source_family": "minimal-two-accessor-descriptor",
+        "input_accessor": 0,
+        "output_accessor": 1
+      },
+      "required_assertion": {
+        "status": 3,
+        "code": 21,
+        "phase": 7,
+        "rule_id": 65539,
+        "row": 0,
+        "key": 0,
+        "accessor": 1,
+        "raw_word": "7f7fffff",
+        "branch": "actual exact finite magnitude nonunit path;not generic later zero-row failure or telemetry",
+        "logical_json_pointer": "/animations/0/samplers/0/output",
+        "source_family": "minimal-two-accessor-descriptor"
+      }
+    },
+    "original_decimal_range_before_projection": {
+      "source_json": "{\"rotation\":[1.0000000000000000001,0,0,0]}",
+      "source_read": {
+        "status": 3,
+        "diagnostic": {
+          "status": 3,
+          "code": 16,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 187
+        },
+        "phase": 2,
+        "complete": false,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": false,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": null,
+        "weight_sums": null,
+        "quaternions": null
+      },
+      "required_rule_origin": "existing core range rule187 before projection/new unit helper;do not relabel as new65537"
+    },
+    "partial_role_work": {
+      "source": {
+        "status": 6,
+        "diagnostic": {
+          "status": 6,
+          "code": 31,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 0
+        },
+        "phase": 7,
+        "complete": false,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 0,
+          "distinct_samplers": 0,
+          "keys_checked": 0,
+          "scalar_checks": 0,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 0
+        },
+        "predicates": {
+          "source_admission": null,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": null,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": "test-numerical-profile",
+          "guard_calls": 1,
+          "established_calls": 1,
+          "exact_blocks": 1,
+          "refusal": null,
+          "exception_masks": {
+            "required_units": 1,
+            "sse2_mask": 63,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": true
+          }
+        },
+        "weight_sums": {
+          "scope": "asset-core-influence-rows",
+          "complete": true,
+          "floating_rows_expected": 0,
+          "rows_evaluated": 0,
+          "advisory_rows": 0,
+          "all_zero_rows": 0,
+          "first_evaluated": null,
+          "first_advisory": null
+        },
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": false,
+          "node_values_checked": 0,
+          "animation_values_checked": 3,
+          "tangent_rows_checked": 2,
+          "rows_admitted": 2,
+          "first_refusal": null
+        }
+      },
+      "first_refusal": null
+    },
+    "uncalled": {
+      "source": null
+    }
+  },
+  "quaternion_missing_receipt_processing_projection": {
+    "processing_profile": "deformation-retained-v1",
+    "processing": {
+      "profile": "deformation-retained-v1",
+      "read_admission_profile": "retained-core-deformation-v1",
+      "normative_revision": {
+        "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+        "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+      },
+      "capture_read": null,
+      "source_read": null,
+      "source": {
+        "status": 3,
+        "diagnostic": {
+          "status": 3,
+          "code": 21,
+          "json_span": null,
+          "resource_kind": null,
+          "resource_index": null,
+          "resource_span": null,
+          "rule_id": 65539
+        },
+        "phase": 7,
+        "complete": false,
+        "location": {
+          "user": null,
+          "skin": null,
+          "target": null,
+          "set": null,
+          "sampler": null,
+          "channel": null,
+          "vertex": null,
+          "component": null
+        },
+        "counts": {
+          "node_rows": 0,
+          "mesh_users": 0,
+          "skin_rows": 0,
+          "joint_references": 0,
+          "influence_sets": 0,
+          "lane_checks": 0,
+          "morph_targets": 0,
+          "morph_channels": 0,
+          "animation_channels": 1,
+          "distinct_samplers": 1,
+          "keys_checked": 1,
+          "scalar_checks": 4,
+          "sparse_writes": 0,
+          "relationship_steps": 0,
+          "decoded_bytes_checked": 16
+        },
+        "predicates": {
+          "source_admission": false,
+          "influences": null,
+          "bindings": null,
+          "morphs": null,
+          "affecting_animation": false,
+          "canonical_association": null,
+          "output_reload": null,
+          "staged_reload": null
+        },
+        "new_requested_bytes": 128,
+        "effective_request_cap": 67108864,
+        "work": {
+          "parallel_min_scalars": 64,
+          "partition_scalars": 64,
+          "cancellation_block_scalars": 64,
+          "parallel_min_bytes": 64,
+          "partition_bytes": 64,
+          "cancellation_block_bytes": 64,
+          "max_jobs": 1,
+          "max_relationship_block": 64
+        },
+        "execution": {
+          "planned_jobs": 1,
+          "launched_workers": 0,
+          "joined_workers": 0,
+          "caller_jobs": 1
+        },
+        "numeric": {
+          "profile": "gltf-deformation-rne-gradual-v1",
+          "compiled_profile": null,
+          "guard_calls": 0,
+          "established_calls": 0,
+          "exact_blocks": 1,
+          "exception_masks": {
+            "required_units": 0,
+            "sse2_mask": null,
+            "x87_mask": null,
+            "sample_partition": null,
+            "sample_caller": null
+          },
+          "refusal": null
+        },
+        "weight_sums": null,
+        "quaternions": {
+          "policy": "gltf-quaternion-source-squared-v1",
+          "complete": false,
+          "node_values_checked": 0,
+          "animation_values_checked": 1,
+          "tangent_rows_checked": 0,
+          "rows_admitted": 0,
+          "first_refusal": {
+            "role": "animation-value",
+            "encoding": "float32",
+            "node": 0,
+            "animation": 0,
+            "sampler": 0,
+            "key": 0,
+            "accessor": 1,
+            "row": 0,
+            "reason": "nonunit"
+          }
+        }
+      },
+      "materialization": null,
+      "writing": null,
+      "reload_read": null,
+      "reload": null,
+      "verification": null,
+      "publication_read": null,
+      "publication_reload": null,
+      "publication_verification": null,
+      "quaternion_policy": "gltf-quaternion-source-squared-v1"
+    },
+    "native_report_available": false,
+    "actual_workflow_facts_required": "GLC-RESULT exact existing fields;no invented null workflow for a started operation"
+  },
+  "quaternion_source_read_full_fallback": {
+    "schema": "meshvale.report/1",
+    "tool": {
+      "name": "meshvale-repair",
+      "version": "0.0.0"
+    },
+    "input": {
+      "id": "source",
+      "sha256": null
+    },
+    "operation": {
+      "kind": "repair",
+      "name": "remove-duplicate-faces",
+      "version": "1",
+      "options": {
+        "primitive_ordinal": 0,
+        "triangles": "require-triangles",
+        "values": "raw",
+        "target_pairs": [],
+        "row_local_attributes": [],
+        "processing_profile": "deformation-retained-v1",
+        "read_admission_profile": "retained-core-deformation-v1",
+        "normative_revision": {
+          "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+          "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+        },
+        "numerical_profile": "gltf-deformation-rne-gradual-v1",
+        "deformation_limits": {
+          "capture_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "source": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "source_read": null,
+          "materialization": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 2097152
+          },
+          "writing": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "reload_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "reload": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "verification": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 8388608
+          },
+          "publication_read": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 4194304
+          },
+          "publication_reload": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 16777216
+          },
+          "publication_verification": {
+            "max_node_rows": 4096,
+            "max_mesh_users": 4096,
+            "max_skin_rows": 256,
+            "max_joint_references": 16384,
+            "max_influence_sets": 16,
+            "max_lanes_per_vertex": 64,
+            "max_morph_targets": 64,
+            "max_morph_channels": 512,
+            "max_animation_channels": 1024,
+            "max_samplers": 1024,
+            "max_keys": 262144,
+            "max_scalar_values": 16777216,
+            "max_sparse_writes": 1048576,
+            "max_role_edges": 65536,
+            "max_relationship_steps": 2097152,
+            "max_descriptor_bytes": 2097152,
+            "max_decoded_bytes": 16777216,
+            "max_new_requested_bytes": 8388608
+          }
+        },
+        "deformation_work": {
+          "capture_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "source": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "source_read": null,
+          "materialization": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "writing": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "reload_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "reload": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "verification": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_read": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_reload": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          },
+          "publication_verification": {
+            "parallel_min_scalars": 16384,
+            "partition_scalars": 16384,
+            "cancellation_block_scalars": 256,
+            "parallel_min_bytes": 262144,
+            "partition_bytes": 262144,
+            "cancellation_block_bytes": 16384,
+            "max_jobs": 64,
+            "max_relationship_block": 256
+          }
+        },
+        "quaternion_policy": "gltf-quaternion-source-squared-v1"
+      },
+      "targets": []
+    },
+    "execution": {
+      "outcome": "failed",
+      "stage": "import",
+      "reason": "Actual authored node quaternion was outside the selected squared-norm band."
+    },
+    "candidate": {
+      "outcome": "not-attempted",
+      "snapshot": null
+    },
+    "profile": {
+      "name": "gltf-command-native-receipt",
+      "version": "1",
+      "required_checks": [
+        "native-receipt-validation"
+      ],
+      "outcome": "incomplete"
+    },
+    "snapshots": [],
+    "maps": [],
+    "preservation": [],
+    "diagnostics": [
+      {
+        "id": "native-receipt-absent",
+        "code": "gltf.command.native-receipt-unavailable",
+        "severity": "warning",
+        "message": "Native receipt validation was blocked because no native receipt bytes are available.",
+        "scope": {
+          "snapshot": null,
+          "mesh": null,
+          "subject": "command receipt validation"
+        },
+        "element": null,
+        "data": {
+          "origin": "command",
+          "workflow_started": false
+        }
+      }
+    ],
+    "coverage": [
+      {
+        "id": "native-receipt-validation",
+        "check": "native-receipt-validation",
+        "version": "1",
+        "scope": {
+          "snapshot": null,
+          "mesh": null,
+          "subject": "command receipt validation"
+        },
+        "status": "skipped",
+        "finding": null,
+        "reason": "Native receipt validation was blocked because no native receipt bytes are available.",
+        "diagnostics": [
+          "native-receipt-absent"
+        ]
+      }
+    ],
+    "publication": {
+      "requested": true,
+      "outcome": "not-attempted",
+      "snapshot": null,
+      "artifacts": [],
+      "verified": false,
+      "reason": "No verified publication was completed; exact reached observations are in the command extension."
+    },
+    "extensions": {
+      "meshvale.repair.gltf.commands": {
+        "version": "3",
+        "origin": "command-capture-fallback",
+        "native_report_available": false,
+        "workflow_started": false,
+        "capture": {
+          "status": {
+            "domain": "GltfFileStatus",
+            "member": "kMalformed"
+          },
+          "diagnostic": {
+            "type": "GltfFileDiagnostic",
+            "status": {
+              "domain": "GltfFileStatus",
+              "member": "kMalformed"
+            },
+            "stage": {
+              "domain": "GltfFileStage",
+              "member": "kAssetRead"
+            },
+            "code": {
+              "domain": "GltfFileDiagnosticCode",
+              "member": "kDelegatedRead"
+            },
+            "file_index": null,
+            "byte_offset": null,
+            "resource_kind": null,
+            "resource_index": null,
+            "system_error": null,
+            "gltf_diagnostic": {
+              "type": "GltfDiagnostic",
+              "status": {
+                "domain": "GltfStatus",
+                "member": "kMalformed"
+              },
+              "code": {
+                "domain": "GltfDiagnosticCode",
+                "member": "kCoreRange"
+              },
+              "json_span": null,
+              "resource_kind": null,
+              "resource_index": null,
+              "resource_span": null,
+              "rule_id": 65541
+            },
+            "container_status": null,
+            "container_byte_offset": null,
+            "inspection_status": null,
+            "inspection_diagnostic": null
+          },
+          "execution": {
+            "type": "GltfFileExecution",
+            "capture": {
+              "type": "GltfFileExecutionStats",
+              "planned_jobs": 1,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 1
+            },
+            "byte_verification": {
+              "type": "GltfFileExecutionStats",
+              "planned_jobs": 0,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 0
+            }
+          }
+        },
+        "workflow": null,
+        "memory_outcomes": null,
+        "publication": null,
+        "requested_bytes": null,
+        "processing_profile": "deformation-retained-v1",
+        "processing": {
+          "profile": "deformation-retained-v1",
+          "read_admission_profile": "retained-core-deformation-v1",
+          "normative_revision": {
+            "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+            "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+          },
+          "capture_read": {
+            "status": 3,
+            "diagnostic": {
+              "status": 3,
+              "code": 16,
+              "json_span": null,
+              "resource_kind": null,
+              "resource_index": null,
+              "resource_span": null,
+              "rule_id": 65541
+            },
+            "phase": 3,
+            "complete": false,
+            "location": {
+              "user": null,
+              "skin": null,
+              "target": null,
+              "set": null,
+              "sampler": null,
+              "channel": null,
+              "vertex": null,
+              "component": null
+            },
+            "counts": {
+              "node_rows": 1,
+              "mesh_users": 0,
+              "skin_rows": 0,
+              "joint_references": 0,
+              "influence_sets": 0,
+              "lane_checks": 0,
+              "morph_targets": 0,
+              "morph_channels": 0,
+              "animation_channels": 0,
+              "distinct_samplers": 0,
+              "keys_checked": 0,
+              "scalar_checks": 4,
+              "sparse_writes": 0,
+              "relationship_steps": 0,
+              "decoded_bytes_checked": 0
+            },
+            "predicates": {
+              "source_admission": false,
+              "influences": null,
+              "bindings": null,
+              "morphs": null,
+              "affecting_animation": null,
+              "canonical_association": null,
+              "output_reload": null,
+              "staged_reload": null
+            },
+            "new_requested_bytes": 128,
+            "effective_request_cap": 4194304,
+            "work": {
+              "parallel_min_scalars": 16384,
+              "partition_scalars": 16384,
+              "cancellation_block_scalars": 256,
+              "parallel_min_bytes": 262144,
+              "partition_bytes": 262144,
+              "cancellation_block_bytes": 16384,
+              "max_jobs": 64,
+              "max_relationship_block": 256
+            },
+            "execution": {
+              "planned_jobs": 1,
+              "launched_workers": 0,
+              "joined_workers": 0,
+              "caller_jobs": 1
+            },
+            "numeric": {
+              "profile": "gltf-deformation-rne-gradual-v1",
+              "compiled_profile": "test-numerical-profile",
+              "guard_calls": 1,
+              "established_calls": 1,
+              "exact_blocks": 1,
+              "refusal": null,
+              "exception_masks": {
+                "required_units": 1,
+                "sse2_mask": 63,
+                "x87_mask": null,
+                "sample_partition": null,
+                "sample_caller": true
+              }
+            },
+            "weight_sums": null,
+            "quaternions": {
+              "policy": "gltf-quaternion-source-squared-v1",
+              "complete": false,
+              "node_values_checked": 1,
+              "animation_values_checked": 0,
+              "tangent_rows_checked": 0,
+              "rows_admitted": 0,
+              "first_refusal": {
+                "role": "node-rotation",
+                "encoding": "json-decimal",
+                "node": 0,
+                "animation": null,
+                "sampler": null,
+                "key": null,
+                "accessor": null,
+                "row": null,
+                "reason": "nonunit"
+              }
+            }
+          },
+          "source_read": null,
+          "source": null,
+          "materialization": null,
+          "writing": null,
+          "reload_read": null,
+          "reload": null,
+          "verification": null,
+          "publication_read": null,
+          "publication_reload": null,
+          "publication_verification": null,
+          "quaternion_policy": "gltf-quaternion-source-squared-v1"
+        }
+      }
+    }
+  },
+  "quaternion_source_read_full_fallback_input": {
+    "node_fragment": {
+      "rotation": [
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "source_role": "node-rotation",
+    "expected_status": 3,
+    "expected_code": 16,
+    "expected_phase": 3,
+    "expected_rule_id": 65541,
+    "no_projection_override": true
+  },
+  "independent_mesh_largest_finite_source_expectations": [
+    {
+      "family": "independent-duplicate-mesh",
+      "source_file": "10-same-stream-linear-max-value.gltf",
+      "source_sha256": "11ae8e14b7fb6208091e75d482fd2066b290dd4cd38c35d84c92f29ad7c743cb",
+      "animation": 0,
+      "sampler": 0,
+      "accessor": 3,
+      "buffer": 0,
+      "buffer_view": 3,
+      "tuple": 0,
+      "key": 0,
+      "row": 0,
+      "source_byte_offset": 72,
+      "logical_json_pointer": "/animations/0/samplers/0/output",
+      "raw_words_hex": [
+        "7f7fffff",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "required_native_rule_id": 65539,
+      "source_data_only": true,
+      "interpolation": "LINEAR",
+      "raw_tuple_role": "animation-value",
+      "expected_source_predicate": "nonunit;actual rule65539 required at this source path"
+    },
+    {
+      "family": "independent-duplicate-mesh",
+      "source_file": "10-same-stream-linear-max-value.glb",
+      "source_sha256": "56939fc9adfd001a99f5396ccdc2744806e1a2c510cf164cffc28a2fbafb39fe",
+      "animation": 0,
+      "sampler": 0,
+      "accessor": 3,
+      "buffer": 0,
+      "buffer_view": 3,
+      "tuple": 0,
+      "key": 0,
+      "row": 0,
+      "source_byte_offset": 72,
+      "logical_json_pointer": "/animations/0/samplers/0/output",
+      "raw_words_hex": [
+        "7f7fffff",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "required_native_rule_id": 65539,
+      "source_data_only": true,
+      "interpolation": "LINEAR",
+      "raw_tuple_role": "animation-value",
+      "expected_source_predicate": "nonunit;actual rule65539 required at this source path"
+    },
+    {
+      "family": "independent-duplicate-mesh",
+      "source_file": "13-shared-cubic-linear-roles.gltf",
+      "source_sha256": "ff89e5db9e14ab0c9e5ebebe76be9e75ea57e7c12ca081e6d8cbdbda086c3365",
+      "animation": 1,
+      "sampler": 0,
+      "accessor": 3,
+      "buffer": 0,
+      "buffer_view": 3,
+      "tuple": 0,
+      "key": 0,
+      "row": 0,
+      "source_byte_offset": 72,
+      "logical_json_pointer": "/animations/1/samplers/0/output",
+      "raw_words_hex": [
+        "7f7fffff",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "required_native_rule_id": 65539,
+      "source_data_only": true,
+      "interpolation": "LINEAR",
+      "raw_tuple_role": "animation-value",
+      "expected_source_predicate": "nonunit;actual rule65539 required at this source path"
+    },
+    {
+      "family": "independent-duplicate-mesh",
+      "source_file": "13-shared-cubic-linear-roles.glb",
+      "source_sha256": "53bca02c8a5b3c80ed86653aa8f7449201d1e997132bb3c96a7792e40a205a49",
+      "animation": 1,
+      "sampler": 0,
+      "accessor": 3,
+      "buffer": 0,
+      "buffer_view": 3,
+      "tuple": 0,
+      "key": 0,
+      "row": 0,
+      "source_byte_offset": 72,
+      "logical_json_pointer": "/animations/1/samplers/0/output",
+      "raw_words_hex": [
+        "7f7fffff",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "required_native_rule_id": 65539,
+      "source_data_only": true,
+      "interpolation": "LINEAR",
+      "raw_tuple_role": "animation-value",
+      "expected_source_predicate": "nonunit;actual rule65539 required at this source path"
+    },
+    {
+      "family": "independent-duplicate-mesh",
+      "source_file": "09-finite-cubic-derivatives.gltf",
+      "source_sha256": "8401cd15aead2b797bba160b4e3d0813bde64f6d32c8d489119a4c353706fb2e",
+      "animation": 0,
+      "sampler": 0,
+      "input_accessor": 2,
+      "accessor": 3,
+      "buffer": 0,
+      "buffer_view": 3,
+      "tuple": 0,
+      "key": 0,
+      "row": 0,
+      "source_byte_offset": 72,
+      "logical_json_pointer": "/animations/0/samplers/0/output",
+      "raw_words_hex": [
+        "7f7fffff",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "interpolation": "CUBICSPLINE",
+      "raw_tuple_role": "cubic-tangent",
+      "required_native_rule_id": null,
+      "expected_source_predicate": "finite tangent;no unit predicate;value rows1/4 are separate unit-axis rows",
+      "same96_output_sha256": "49007e1a4904d837919798d399f2a10b7f221ec2a2d2c78f19095d4d1f1dfd71",
+      "paired_linear_source_file": "10-same-stream-linear-max-value.gltf",
+      "source_data_only": true
+    },
+    {
+      "family": "independent-duplicate-mesh",
+      "source_file": "09-finite-cubic-derivatives.glb",
+      "source_sha256": "7f87419c1307a073bc258c54f110c692dbf122d143f49cedc362cf63a2175d67",
+      "animation": 0,
+      "sampler": 0,
+      "input_accessor": 2,
+      "accessor": 3,
+      "buffer": 0,
+      "buffer_view": 3,
+      "tuple": 0,
+      "key": 0,
+      "row": 0,
+      "source_byte_offset": 72,
+      "logical_json_pointer": "/animations/0/samplers/0/output",
+      "raw_words_hex": [
+        "7f7fffff",
+        "00000000",
+        "00000000",
+        "00000000"
+      ],
+      "interpolation": "CUBICSPLINE",
+      "raw_tuple_role": "cubic-tangent",
+      "required_native_rule_id": null,
+      "expected_source_predicate": "finite tangent;no unit predicate;value rows1/4 are separate unit-axis rows",
+      "same96_output_sha256": "49007e1a4904d837919798d399f2a10b7f221ec2a2d2c78f19095d4d1f1dfd71",
+      "paired_linear_source_file": "10-same-stream-linear-max-value.glb",
+      "source_data_only": true
+    }
+  ],
+  "full_command_fallback_configuration": {
+    "status": "Reachable proposed command/file/session policy selection;literal projection inputs only,not executed observations or native allocation-size assertions",
+    "preset": "balanced-deformation-v1",
+    "surface": "retained-file-publication",
+    "invocation": "meshvale-repair gltf source/scene.gltf output/new --primitive-ordinal 0 --triangles require-triangles --values raw --unchanged --processing-profile deformation-retained-v1 --preset balanced-deformation-v1",
+    "session": "One fresh invocation context;536870912 tracked bytes and at most4 original shared worker leases;no raw limits/role overrides",
+    "readonly_deformation_options": {
+      "processing_profile": "deformation-retained-v1",
+      "read_admission_profile": "retained-core-deformation-v1",
+      "normative_revision": {
+        "commit": "1c84b58ba3338be4731ea546fa4138dcbb93d42d",
+        "blob": "aeaab65b1291d722ee610db247ae43c575ed63e1"
+      },
+      "numerical_profile": "gltf-deformation-rne-gradual-v1",
+      "quaternion_policy": "gltf-quaternion-source-squared-v1",
+      "deformation_limits": {
+        "capture_read": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 4194304
+        },
+        "source": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 16777216
+        },
+        "source_read": null,
+        "materialization": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 2097152
+        },
+        "writing": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 4194304
+        },
+        "reload_read": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 4194304
+        },
+        "reload": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 16777216
+        },
+        "verification": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 8388608
+        },
+        "publication_read": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 4194304
+        },
+        "publication_reload": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 16777216
+        },
+        "publication_verification": {
+          "max_node_rows": 4096,
+          "max_mesh_users": 4096,
+          "max_skin_rows": 256,
+          "max_joint_references": 16384,
+          "max_influence_sets": 16,
+          "max_lanes_per_vertex": 64,
+          "max_morph_targets": 64,
+          "max_morph_channels": 512,
+          "max_animation_channels": 1024,
+          "max_samplers": 1024,
+          "max_keys": 262144,
+          "max_scalar_values": 16777216,
+          "max_sparse_writes": 1048576,
+          "max_role_edges": 65536,
+          "max_relationship_steps": 2097152,
+          "max_descriptor_bytes": 2097152,
+          "max_decoded_bytes": 16777216,
+          "max_new_requested_bytes": 8388608
+        }
+      },
+      "deformation_work": {
+        "capture_read": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "source": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "source_read": null,
+        "materialization": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "writing": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "reload_read": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "reload": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "verification": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "publication_read": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "publication_reload": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        },
+        "publication_verification": {
+          "parallel_min_scalars": 16384,
+          "partition_scalars": 16384,
+          "cancellation_block_scalars": 256,
+          "parallel_min_bytes": 262144,
+          "partition_bytes": 262144,
+          "cancellation_block_bytes": 16384,
+          "max_jobs": 64,
+          "max_relationship_block": 256
+        }
+      }
+    },
+    "source_read_inapplicable": "limits/work are null even before capture;called processing source_read is null independently",
+    "capture_parent_configured_bytes": 25165824,
+    "capture_effective_cap_precondition": "At actual validator entry,complete read parent remaining and original shared availability are each at least4194304;effective=min(configured4194304,actual parent remainder,original shared availability). Actual later tests must observe these remainders;no guessed allocation size or unconditional all-input promise. Smaller actual remainders require the real clipped value,not this conditional4194304 literal.",
+    "configured_options_vs_facts": "Applicable uncalled roles retain preset configuration;all actual unreached producer slots remain null. Numeric/source refusal facts remain unchanged. Existing requested-byte literals are projection inputs,not predicted allocation counts;later native run supplies and asserts actual values.",
+    "reports": [
+      "missing_native_receipt_full_report",
+      "unmasked_inexact_full_fallback",
+      "quaternion_source_read_full_fallback"
+    ],
+    "corrected_capture_expectations": {
+      "missing_native_receipt_full_report": {
+        "captured_status": 4,
+        "diagnostic_code": 36,
+        "phase": 1,
+        "unchanged_literal_requested_bytes": 0,
+        "effective_request_cap": 4194304,
+        "all_other_observation_fields_sha256": "23bd2123eeda8095413e1ad97fbf2f404db123ec1a94907652f4831001f4c20e"
+      },
+      "unmasked_inexact_full_fallback": {
+        "captured_status": 4,
+        "diagnostic_code": 36,
+        "phase": 1,
+        "unchanged_literal_requested_bytes": 0,
+        "effective_request_cap": 4194304,
+        "all_other_observation_fields_sha256": "2afb085df439a89a7eb7530e09c9b962ca752b62333d52e4acba76beb71540f0"
+      },
+      "quaternion_source_read_full_fallback": {
+        "captured_status": 3,
+        "diagnostic_code": 16,
+        "phase": 3,
+        "unchanged_literal_requested_bytes": 128,
+        "effective_request_cap": 4194304,
+        "all_other_observation_fields_sha256": "fbc41ca53693c3e75fc89880533c9cdb6a40340f7474bc71c5cdeb8fd5406fa2"
+      }
+    }
+  }
+}

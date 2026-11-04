@@ -1,0 +1,61 @@
+{
+  "schema": "meshvale.test.gltf-rich-inputs/1",
+  "row_local_attributes": [
+    [
+      "vertex",
+      "gltf/0/0/base/7:5f4d4154524958"
+    ],
+    [
+      "vertex",
+      "gltf/0/0/base/5:5f41e4b8ad"
+    ],
+    [
+      "vertex",
+      "gltf/0/0/morph/0/7:5f4d4154524958"
+    ]
+  ],
+  "source_roles": "Declarations copied from owning native kDeclarations and checked against source-qualified semantic UTF-8 grammar, not inferred safety.",
+  "literal_target": {
+    "keep": 0,
+    "remove": 1
+  },
+  "duplicate_face_map": [
+    0,
+    0
+  ],
+  "duplicate_corner_map": [
+    0,
+    1,
+    2,
+    0,
+    1,
+    2
+  ],
+  "duplicate_source_faces": [
+    0
+  ],
+  "duplicate_source_corners": [
+    0,
+    1,
+    2
+  ],
+  "identity_face_map": [
+    0
+  ],
+  "identity_corner_map": [
+    0,
+    1,
+    2
+  ],
+  "duplicate_derivation": "Separate index-only successor appends [0,1,2,0,1,2] and binds selected primitive0. All original scalar tokens and original physical buffer chunks remain unchanged.",
+  "asset_file_sha256": {
+    "catalog-complete-stride.glb.hex": "65d7a6ad86e0b9dcc4786dc73e634583b99cc2a4d4cf0e3d32eac7ae91e5dbd8",
+    "catalog-complete-stride.gltf": "3c203ad2854ea4f03ecab84d37ac6a0ad2706f084f0082ed5b377587f3c419c2",
+    "catalog-duplicate-stride.glb.hex": "7b8895505e6b254fc8433c54f5cbc6a281945610e454097599f67937d83d6d52",
+    "catalog-duplicate-stride.gltf": "179bdb68f2ce8eee26b99afabbf216d922ac59db23e552dceb99bab958f63d1c",
+    "weights-cubic.glb.hex": "30e4ab81dcf79b5e28f1d1c45c212536f38e41667ea9de3ea9f8613468108eda",
+    "weights-cubic.gltf": "85475c180d538b6f93d786114181962f6488e38ca14c75cc89d81cde8c69da3f",
+    "weights-step.glb.hex": "f0cf3e09bf78139a359635d51c453a1704f1a7df6baf5f7b960bfb3995965331",
+    "weights-step.gltf": "f80103091e54751ebeef1c6b8f51ef7c89f8aff9be7c74874686899b6fb7d027"
+  }
+}
