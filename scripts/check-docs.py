@@ -9,12 +9,31 @@ from pathlib import Path
 from urllib.parse import unquote
 
 
+SOURCE_EXCLUSIONS = {".git", ".local", ".scratch", "build", "__pycache__", "references"}
+
+
 def source_files(root):
-    result = subprocess.run(
-        ["git", "-C", str(root), "ls-files", "--cached", "--others",
-         "--exclude-standard", "-z"], capture_output=True, check=True
+    root = root.resolve()
+    try:
+        probe = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--show-toplevel"],
+            capture_output=True, check=False
+        )
+    except FileNotFoundError:
+        probe = None
+    if (probe is not None and probe.returncode == 0 and
+            Path(probe.stdout.decode("utf-8").strip()).resolve() == root):
+        result = subprocess.run(
+            ["git", "-C", str(root), "ls-files", "--cached", "--others",
+             "--exclude-standard", "-z"], capture_output=True, check=True
+        )
+        return sorted(set(result.stdout.decode("utf-8").split("\0")) - {""})
+    # Git-free packages and nested source copies own their filesystem inventory.
+    return sorted(
+        path.relative_to(root).as_posix() for path in root.rglob("*")
+        if path.is_file() and not any(
+            part in SOURCE_EXCLUSIONS for part in path.relative_to(root).parts)
     )
-    return sorted(set(result.stdout.decode("utf-8").split("\0")) - {""})
 
 
 def anchors(text):

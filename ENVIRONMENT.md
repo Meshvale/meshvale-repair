@@ -13,7 +13,7 @@ installed Interchange workflow-support target. Use the matching native SDK
 cohort in the [retained-file dependency instructions](docs/gltf-file-workflow.md);
 the optional Interchange Python wheel has a separate source revision in
 [Python packaging](docs/python.md). The dedicated
-[qualification workflow](.github/workflows/gltf-workflow.yml) pins public
+[qualification workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/gltf-workflow.yml) pins public
 dependency revisions and matches compiler/sanitizer flags across their builds.
 [Its helper](scripts/gltf-workflow-ci.py) checks native inventories, actual report
 fixtures, a production source-package build and relocated installed consumers.
@@ -23,7 +23,7 @@ their presence does not establish a supported release matrix.
 
 The opt-in [retained-file workflow](docs/gltf-file-workflow.md) additionally
 requires `MESHVALE_REPAIR_GLTF_FILE_WORKFLOW=ON` and the memory workflow enabled.
-Use the Interchange producer pinned by the [file qualification workflow](.github/workflows/gltf-file-workflow.yml).
+Use the Interchange producer pinned by the [file qualification workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/gltf-file-workflow.yml).
 Configuration links the producer translation fact/work getters, compiled asset
 ledger query and borrowed verified-file provider, in addition to checking the
 installed `meshvale::gltf_files` target. The
@@ -72,7 +72,7 @@ Optional Python builds use the pinned build/runtime dependencies in [pyproject.t
 The optional [reported OFF workflow](docs/off-workflow.md) requires
 `MESHVALE_REPAIR_OFF_FILE_WORKFLOW=ON`, charged Repair and an installed
 Interchange `meshvale::off_files` target. Its
-[dedicated qualification workflow](.github/workflows/off-workflow.yml) pins the
+[dedicated qualification workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/off-workflow.yml) pins the
 public Geometry and Interchange producers. The existing helper selects this
 independent cohort with `--off-file-workflow`: optional glTF modules are disabled,
 qualified native inventories contain seven tests, unsupported inventories six,

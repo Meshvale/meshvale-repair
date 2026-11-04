@@ -55,7 +55,7 @@ checks a genuine nonempty materialization refusal; it cannot substitute for a
 successful publication test. Test selection does not change producer capability.
 For Git-free production builds, use `BUILD_TESTING=OFF`, then test the installed
 consumer. See the [installed example](../examples/consumer/gltf_file_workflow.cpp)
-and the [file-workflow development gate](../.github/workflows/gltf-file-workflow.yml)
+and the [file-workflow development gate](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/gltf-file-workflow.yml)
 for the public recipe. Configured gates do not establish supported releases.
 
 `RunGltfDuplicateFileWorkflow` takes a strong `GltfFileAsset`, an opaque input

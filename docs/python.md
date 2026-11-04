@@ -130,13 +130,13 @@ native and installed SDK interfaces, the Python API, single/batch commands and
 legacy behavior. Source-archive and relocated installed-SDK checks have also
 passed, including fresh default-branch CI. GNU 13 checks cover native
 unsupported-profile outcomes and relocated installed consumers. The
-[development workflow](../.github/workflows/off-glb-workflow.yml) owns these
+[development workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/off-glb-workflow.yml) owns these
 configured profiles; they do not establish a supported release, published wheel
 or runtime floor.
 
 ## Portable development cohort
 
-The [candidate workflow](../.github/workflows/portable-candidates.yml) evaluates ordinary GIL-enabled CPython 3.13 on Linux x86_64 with a manylinux_2_28 floor and Windows x64 on `windows-2022`. Artifacts are development candidates retained for 14 days; they do not establish a supported release matrix. A clean Windows 11 consumer floor, macOS and additional interpreter/architecture combinations remain unevaluated by this workflow.
+The [candidate workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/portable-candidates.yml) evaluates ordinary GIL-enabled CPython 3.13 on Linux x86_64 with a manylinux_2_28 floor and Windows x64 on `windows-2022`. Artifacts are development candidates retained for 14 days; they do not establish a supported release matrix. A clean Windows 11 consumer floor, macOS and additional interpreter/architecture combinations remain unevaluated by this workflow.
 
 Each configured lane rebuilds the exact Geometry and optional Interchange Python revisions above from full-history public source. The optional Interchange Python producer's preparation supplies the Geometry/parser dependencies and double-precision static tinyobjloader manifest. The helper then separately checks out the native Interchange SDK revision and builds its native glTF interfaces using those inputs. Repair then builds independently from source and its Git-free source archive with that native cohort. This configured route does not by itself establish successful final artifact qualification. Upstream CI downloads are not build dependencies. The workflow pins cibuildwheel `4.2.0`, product and isolated-backend CMake `4.3.1`, the manylinux image digest and action revisions; retained reports record compiler, dependency tools, final metadata, symbols, hashes and notices.
 

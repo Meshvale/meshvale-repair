@@ -18,7 +18,7 @@ Recorded Windows x64 MSVC Release checks with ordinary CPython 3.13 cover the
 native and installed SDK interfaces, Python API, single/batch commands and legacy
 behavior. Source-archive and relocated installed-SDK checks have also passed,
 including fresh default-branch CI. GNU 13 checks cover native unsupported-profile
-outcomes and relocated installed consumers. The [development workflow](../.github/workflows/off-glb-workflow.yml)
+outcomes and relocated installed consumers. The [development workflow](https://github.com/Meshvale/meshvale-repair/blob/main/.github/workflows/off-glb-workflow.yml)
 owns these configured profiles; they do not establish a supported release,
 published wheel or runtime floor.
 
