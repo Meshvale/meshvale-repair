@@ -1,40 +1,50 @@
-# Repair one PLY file or an ordered batch
+# Keep an inspectable PLY repair example
 
-This development walkthrough uses the explicit duplicate-face operation. It
-removes a face only when the supplied keep/remove pair passes the native checks.
-It does not discover duplicates. The [workflow contract](ply-workflow.md) owns
-preservation and resource guarantees; [report fields](ply-reports.md) describe
-what was actually attempted and verified.
+Run the [installed Python example](../examples/python/ply_walkthrough.py) to
+repair the same small ASCII asset through the API, module and console commands,
+and ordered batches. It keeps inputs, output bundles and reports in a new
+directory so you can inspect them after the process exits.
 
-## Prepare the development build
+This is explicit duplicate-face removal: you supply a keep/remove pair. The
+operation does not find duplicates, weld vertices, fix winding, triangulate or
+establish solid validity. The [PLY workflow contract](ply-workflow.md) owns the
+preservation rules and [PLY report contract](ply-reports.md) owns actual report
+fields. This example checks position/topology-only ASCII; it does not qualify
+other schemas, encodings, runtimes or platforms.
 
-Use the compatible native SDKs and ordinary Geometry Python wheel described in
-[ENVIRONMENT.md](../ENVIRONMENT.md). Build Repair with
-`MESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON` and `MESHVALE_REPAIR_PYTHON=ON`, and install
-its declared `workflow` extra for report validation. PLY uses native Interchange;
-it does not require the Interchange Python package. This is a development
-interface; these instructions do not declare a supported wheel or platform floor.
+## Use an installed development build
 
-Confirm that the interpreter uses your installed PLY-enabled build:
+Follow [PLY Python build and installed checks](../ENVIRONMENT.md#ply-python-build-and-installed-checks)
+for compatible native SDKs, the declared Geometry Python wheel and a Repair
+wheel built with `MESHVALE_REPAIR_PLY_FILE_WORKFLOW=ON`. Install its `workflow`
+extra for shared report validation. PLY uses native Interchange and does not
+require the optional Interchange Python package. There is no package-index wheel
+or supported runtime floor established by this walkthrough.
+
+`REPAIR_SOURCE` below is the public checkout or source archive containing the
+example. `OUTPUT` is an absent directory with an existing parent; keep it outside
+the source tree. Use the ordinary interpreter into which the wheels were
+installed. The example requires a profile that actually performs these native
+operations; an unsupported outcome fails its checks rather than being counted
+as a successful repair. Shell variable notation may need adapting for your host.
 
 ```sh
-python -c "from meshvale_repair.ply_workflow import PlyExecution; print(PlyExecution().preset)"
+python -m pip check
+python -I "$REPAIR_SOURCE/examples/python/ply_walkthrough.py" "$OUTPUT"
 ```
 
-The result should be `balanced-v1`. Module and console commands use that same
-installed package. Use a new working directory for the following files.
+The script finds `meshvale-repair` in this interpreter's scripts directory; an
+explicit `--console` path must belong to that same directory. It checks installed
+module origins and writes actual interpreter/package identities to `runtime.json`.
+It installs nothing and refuses to reuse an existing output directory.
 
-## Create a small input
+## What the inputs mean
 
-The two triangles below use the same vertices and cyclic corner order. Face
-indices start at zero. This fixture has three vertices, two faces and six corners.
+The original fixture from this guide has three vertices and two cyclically
+identical directed triangles, indexed from zero:
 
-```python
-from pathlib import Path
-
-source = Path("triangles.ply")
-with source.open("x", encoding="ascii", newline="\n") as stream:
-    stream.write("""ply
+```text
+ply
 format ascii 1.0
 element vertex 3
 property double x
@@ -48,99 +58,53 @@ end_header
 0 1 0
 3 0 1 2
 3 1 2 0
-""")
 ```
 
-## Repair a single file
+All five cases run through every route:
 
-```sh
-meshvale-repair ply triangles.ply repaired-ascii --encoding ascii --target 0:1
-```
+| Case | Explicit request | Expected result |
+|---|---|---|
+| `changed` | Keep face0, remove face1 | Accepted;3 vertices,1 face,3 corners |
+| `unchanged` | Empty targets on the two-face input | Unchanged;3 vertices,2 faces,6 corners |
+| `clean` | Empty targets on a genuinely one-face input | Unchanged;3 vertices,1 face,3 corners |
+| `reverse` | Keep face0, remove reversed loop`0 2 1` | Rejected; no destination |
+| `invalid-target` | Keep face0, remove nonexistent face99 | Rejected; no destination |
 
-The equivalent module entry point is:
+The changed case retains face0 and corners0,1,2. Its forward face map is
+`[0,0]` and corner map is `[0,1,2,1,2,0]`; inverse source faces/corners are
+`[0]` and `[0,1,2]`. Every vertex remains. Empty targets deliberately request no
+edit, even on the still-duplicated input. A reverse-winding face is not accepted
+as the requested directed duplicate.
 
-```sh
-python -m meshvale_repair ply triangles.ply repaired-binary --encoding binary_little_endian --target 0:1
-```
+## Inspect the results
 
-Each destination is a new bundle directory containing `triangles.ply` and
-`meshvale-report.json`. Its returned stdout document is the genuine native
-receipt, followed by a newline. The changed output has three vertices, one face
-and three corners; all vertex rows remain. The destination must be new.
+There are30 actual workflow attempts: five API calls, five module single calls,
+five console single calls, and five jobs in each API/module/console batch. Single
+success exits0 and refusal exits1. Each batch uses continue mode, attempts all
+five jobs in order and exits1 because two jobs are rejected. No fail-fast or
+skip hides the refused cases.
 
-Output encoding is required: choose `ascii`, `binary_little_endian` or
-`binary_big_endian`. `--unchanged` deliberately supplies an empty target list and
-still performs canonical writing and verification. Canonical output preserves
-admitted typed values and schema, while comments, whitespace and numeric spelling
-may change.
+Each successful destination contains exactly the source entry basename and
+`meshvale-report.json`. The script checks exact receipt equality, SHA-256 of the
+physical entry, all four edit maps, report snapshot counts and forward/export
+map scopes. Its small independent ASCII decoder checks ordered double XYZ /
+uchar-count uint-index schema, every position bit and exact directed loops.
+It does not call a product reader to manufacture expected output. Canonical
+serialization may change whitespace, comments and numeric spelling even for
+an unchanged candidate; lexical equality is not the preservation promise.
 
-For custom properties, explicitly declare each applicable safe row-local
-property, for example `--row-local face:score` or `--row-local vertex:label`.
-A declaration asserts that property values are safe across the changed identities;
-its presence does not discover or prove that meaning. Omit declarations for this
-position-and-topology-only fixture. Valid unused declarations are permitted.
+Inspect `api-*.json`, single-command `.stdout`/`.stderr`/`.process.json`, batch
+requests and aggregate streams. The original batch document retains refused
+native reports; only successful jobs have bundled receipts. `results.json`
+records each observed case/route and unchanged source hashes. The script compares
+semantic results across routes rather than requiring allocation/worker statistics
+to match. It requires zero active session workers and tracked payload after
+releasing API results and batches, and compares original physical input bytes
+after all operations.
 
-## Use the same operation from Python
-
-Choose a fresh destination distinct from the command examples:
-
-```python
-from pathlib import Path
-from meshvale_repair.ply_workflow import repair_ply_file
-from meshvale_reports import load, exit_code
-
-result = repair_ply_file(
-    Path("triangles.ply"), Path("repaired-api"), [(0, 1)],
-    encoding="binary_big_endian",
-)
-assert result.exit_code == 0
-assert result.input_snapshot_counts == (3, 2, 6)
-assert result.candidate_snapshot_counts == (3, 1, 3)
-assert result.face_map == (0, 0)
-assert result.source_faces == (0,)
-assert exit_code(load(result.report_json)) == 0
-```
-
-The owned result exposes actual capture/workflow/publication observations,
-original and output bytes, ordered schema, encoding and four correspondence
-arrays. Writer facts can survive a later reload failure; verified output bytes
-remain unavailable until the required memory checks pass. Keep the result or an
-owned schema view alive while inspecting it.
-
-Pass `destination=None` for real memory-only writing/reload without publication.
-Pass `row_local_attributes=[{"domain": "face", "name": "score"}]` for an explicit
-custom-property assertion. `PlyExecution(preset="serial-reference-v1")` selects
-the documented serial reference policy; the default module session uses
-`balanced-v1`. Both come from the [complete preset table](ply-presets.md).
-
-## Process an ordered batch
-
-Save this as `jobs.json` beside `triangles.ply`. Relative paths are interpreted
-from the request file's logical directory.
-
-```json
-{
-  "schema": "meshvale.repair.ply-jobs/1",
-  "jobs": [
-    {"id": "changed", "input": "triangles.ply", "destination": "batch-changed",
-     "targets": [[0, 1]], "encoding": "ascii"},
-    {"id": "unchanged", "input": "triangles.ply", "destination": "batch-unchanged",
-     "targets": [], "encoding": "binary_big_endian"}
-  ]
-}
-```
-
-```sh
-meshvale-repair ply-batch jobs.json
-```
-
-The complete invocation is admitted before any asset capture, including all
-source/output isolation and declaration checks. Jobs run once in order, and the
-batch embeds the exact validated native receipt bytes. `--fail-fast` leaves later
-jobs unattempted after the first nonzero result. A missing source is an attempted
-failure; an invalid later job refuses the complete invocation before capture.
-
-Exit codes are `0` for complete success, `1` for rejection or an incomplete/failed
-profile, `2` for execution or delivery failure, and `130` for cancellation.
-A stdout delivery failure does not undo a committed bundle. Inspect the actual
-receipt and publication observations before deciding what to do next.
+Output encoding is explicit `ascii` here. The workflow also defines
+`binary_little_endian` and `binary_big_endian`; this ASCII example does not test
+them. Custom properties require caller-owned safety declarations, for example
+`--row-local face:score`; spelling alone does not prove row-local semantics.
+No such declaration is needed for these XYZ/topology-only inputs. Units remain
+unknown. Broader fault/platform checks and supported releases remain separate.
