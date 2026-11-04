@@ -9,6 +9,22 @@ It then reloads the three outputs independently and checks their correspondence,
 receipts, artifact hashes and unchanged sources. Selecting `0:1` instead asks to
 match a triangle with a quad; that request is rejected and publishes nothing.
 
+The same run also exercises a clean three-face input with no requested edit and
+a four-face input whose duplicate-looking quad uses a different corner UV.
+Each goes through the API, single command and batch with matching reports:
+
+| Input | Explicit request | Result |
+|---|---|---|
+| Original four-face panel | Keep face 1, remove face 3 | Exit 0; three preserved faces |
+| Clean triangle, quad and pentagon | Empty targets | Exit 0; unchanged, with identity correspondence |
+| Quad with a different corner UV | Keep face 1, remove face 3 | Exit 1; rejected, with no output bundle |
+
+The fixtures, material and checker image are original
+[Apache-2.0](../LICENSE) source literals in the
+[walkthrough](../examples/python/obj_walkthrough.py); no external asset download
+is needed. Empty targets explicitly request no edit; this is not automatic
+duplicate detection.
+
 ## Install the development candidates
 
 These packages are development candidates built from public source, with no
@@ -109,14 +125,18 @@ the source checkouts. The example refuses existing paths and keeps its output:
 python -I "$REPAIR_SOURCE/examples/python/obj_walkthrough.py" "$WALKTHROUGH_ROOT"
 ```
 
-The final message confirms four faces became three. Inspect:
+The final messages confirm the repair, clean copy and protected-UV refusal. Inspect:
 
 | Path under the chosen directory | Contents |
 |---|---|
-| `sources/` | Original OBJ, MTL and a small valid PPM checker texture |
+| `sources/` | Original four-face OBJ, MTL and a small valid PPM checker texture |
+| `sources/clean/`, `sources/protected-uv/` | Clean and UV-different OBJ variants, each with its own unchanged MTL/texture copies |
 | `outputs/api/`, `outputs/single/`, `outputs/batch/` | Matching repaired bundles, each with `meshvale-report.json` |
 | `api-report.json`, `single-report.json`, `batch-report.json` | Returned API, single-command and aggregate batch evidence |
 | `jobs.json` | Runnable batch request with explicit targets |
+| `outputs/clean-api/`, `outputs/clean-single/`, `outputs/clean-batch/` | Matching independently reloaded clean copies with identity maps |
+| `clean-*-report.json`, `clean-jobs.json` | Clean-copy reports and its empty-target batch request |
+| `protected-uv-*-report.json`, `protected-uv-jobs.json` | UV-refusal reports and request; all three `outputs/protected-uv-*` destinations are absent |
 | `rejected-report.json` | Rejected triangle/quad request; `outputs/rejected/` is absent |
 
 Open `model.obj` in a viewer supporting OBJ/MTL and PPM textures, or inspect the
@@ -132,6 +152,13 @@ result = repair_obj_file(source_obj, new_bundle, [(1, 3)], input_id="mixed-panel
 print(result.exit_code, result.report["publication"]["outcome"])
 ```
 
+Use the same call with `targets=[]` for `sources/clean/model.obj`, or `[(1, 3)]`
+for `sources/protected-uv/model.obj`, and a fresh destination for each. The
+walkthrough checks accepted and unchanged outputs against independently reopened
+physical OBJ files, including polygon/corner data, every retained channel,
+material/texture bytes, receipt hashes and source immutability. The UV-different
+pair is refused rather than losing its authored UV value.
+
 To try the commands yourself after the example, run them from the chosen
 directory and use fresh destinations:
 
@@ -139,6 +166,8 @@ directory and use fresh destinations:
 cd "$WALKTHROUGH_ROOT"
 meshvale-repair obj sources/model.obj outputs/manual --target 1:3 --input-id mixed-panel
 meshvale-repair obj sources/model.obj outputs/manual-rejected --target 0:1 --input-id mixed-panel
+meshvale-repair obj sources/clean/model.obj outputs/manual-clean --unchanged --input-id clean-panel
+meshvale-repair obj sources/protected-uv/model.obj outputs/manual-protected-uv --target 1:3 --input-id protected-uv-panel
 ```
 
 The successful command returns exit 0 and prints its JSON report. The rejected
@@ -147,6 +176,12 @@ For batch, change the destination in `jobs.json` to `outputs/manual-batch` befor
 running `meshvale-repair obj-batch jobs.json`. Reusing `outputs/batch` would
 correctly fail because it already exists. See [the command contract](cli.md) for
 request fields and exit meanings.
+
+`clean-jobs.json` uses `targets: []`; update its destination before running
+`meshvale-repair obj-batch clean-jobs.json`. The UV-refusal request can be run with
+`meshvale-repair obj-batch protected-uv-jobs.json`: it returns exit 1 and creates no
+destination. Its refusal is intentional; the walkthrough itself succeeds only
+after checking it.
 
 This workflow performs selected exact duplicate-face removal. It does not select
 duplicates automatically, close holes or offer general mesh repair. This example
