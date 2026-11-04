@@ -11,7 +11,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from gltf_deformation_test_support import (
     SelectionError, UNSUPPORTED_STDOUT, artifact, capture, checked_schema,
-    choose_domain, load, require, resolve, save, sha, validated_cohort,
+    choose_domain, load, require, resolve, save, sha, validated_cohort, validated_native_member,
 )
 
 
@@ -39,13 +39,14 @@ def main():
         # No asset work occurs before this derivation. The test outcome cannot
         # change the selected domain, including an unexpected eligible refusal.
         domain = choose_domain(manifest)
+        final_member = validated_native_member(manifest["module"], roots, manifest["receiver"])
         normal = importlib.import_module("meshvale_repair._repair")
         actual = Path(normal.__file__).resolve(strict=True)
         expected = resolve(manifest["module"]["installed_member"], roots)
         require(actual == expected and normal.__name__ == "meshvale_repair._repair" and
                 normal.__spec__.name == "meshvale_repair._repair" and
                 Path(normal.__spec__.origin).resolve() == expected and actual.is_relative_to(Path(sys.prefix).resolve()) and
-                sha(actual) == manifest["module"]["post_link"]["sha256"], "module-identity-mismatch")
+                sha(actual) == final_member["sha256"], "module-identity-mismatch")
         result["domain"] = domain
         result["loaded_module_sha256"] = sha(actual)
         result["sdk_library_manifest_sha256"] = manifest["sdk"]["installed_headers"]["sha256"]

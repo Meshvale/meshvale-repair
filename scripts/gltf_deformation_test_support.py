@@ -13,6 +13,8 @@ from pathlib import Path, PurePosixPath
 import re
 import shlex
 import subprocess
+import struct
+import sys
 import tarfile
 import zipfile
 from datetime import datetime, timezone
@@ -465,6 +467,169 @@ def validated_process(ref, roots):
     return record
 
 
+STRIP_VERIFICATION_SCHEMA = "meshvale.gltf-deformation-normal-install-strip-verification/1"
+STRIP_VERIFICATION_MODE = "verification-replay-not-original-install-observation"
+SYSTEM_STRIP = "/usr/bin/strip"
+
+
+def utc_observation(value):
+    require(type(value) is str, "invalid transform observation time")
+    observed = datetime.fromisoformat(value)
+    require(observed.tzinfo is not None and observed.utcoffset() == timezone.utc.utcoffset(observed),
+            "transform observation time must be UTC")
+    return observed
+
+
+def strip_install_stanza(module, text):
+    """Recognize only the selected ordinary CMake module/strip stanza as data."""
+    module = Path(module)
+    destination = "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/meshvale_repair/" + module.name
+    stanza = (
+        'if(CMAKE_INSTALL_COMPONENT STREQUAL "python" OR NOT CMAKE_INSTALL_COMPONENT)\n'
+        '  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/meshvale_repair" TYPE MODULE FILES "' +
+        module.as_posix() + '")\n'
+        '  if(EXISTS "' + destination + '" AND\n'
+        '     NOT IS_SYMLINK "' + destination + '")\n'
+        '    if(CMAKE_INSTALL_DO_STRIP)\n'
+        '      execute_process(COMMAND "' + SYSTEM_STRIP + '" -x "' + destination + '")\n'
+        '    endif()\n'
+        '  endif()\n'
+        'endif()'
+    )
+    normalized = text.replace("\r\n", "\n")
+    require(normalized.count(stanza) == 1, "unknown normal module install transform")
+    remainder = normalized.replace(stanza, "", 1)
+    require(module.name not in remainder, "additional selected module install operation")
+    # Other Meshvale targets are static archives. Their normal ranlib commands
+    # do not transform the module; admit only that exact generated spelling.
+    remainder = re.sub(r'(?m)^ +execute_process\(COMMAND "/usr/bin/ranlib" '
+        r'"\$ENV\{DESTDIR\}\$\{CMAKE_INSTALL_PREFIX\}/lib/'
+        r'libmeshvale_repair(?:_[a-z0-9_]+)?\.a"\)\s*$', "", remainder)
+    require(re.search(r'\b(?:execute_process|include|install_name_tool|codesign)\s*\(|'
+                      r'\bfile\s*\(\s*RPATH_', remainder, re.IGNORECASE) is None,
+            "additional normal install transform command")
+    return stanza
+
+
+def validated_strip_inputs(module, cache_ref, script_ref, build_ref, roots, configuration):
+    """Validate the bounded live Mac replay inputs without executing anything."""
+    require(sys.platform == "darwin", "normal install strip requires actual Darwin receiver")
+    require(configuration == "Release", "normal install strip requires selected Release")
+    tool = Path(SYSTEM_STRIP)
+    require(tool.is_file() and not tool.is_symlink() and tool.resolve(strict=True) == tool,
+            "normal install strip tool is not canonical")
+    records = cache_records(resolve(cache_ref, roots))
+    require(records.get("CMAKE_BUILD_TYPE", (None, None))[1] == configuration and
+            records.get("BUILD_TESTING", (None, None)) == ("BOOL", "OFF"),
+            "normal install strip configuration mismatch")
+    strip = records.get("CMAKE_STRIP", (None, None))
+    require(strip[0] == "FILEPATH" and strip[1] == SYSTEM_STRIP,
+            "normal install strip cache tool mismatch")
+    require(Path(records.get("CMAKE_HOME_DIRECTORY", (None, ""))[1]).resolve(strict=True) ==
+            Path(roots["receiver_source"]).resolve(strict=True), "normal install strip source mismatch")
+    original = Path(module)
+    require(original.is_file() and not original.is_symlink(), "normal linked module is not regular")
+    header = original.read_bytes()[:32]
+    require(len(header) == 32 and struct.unpack_from("<I", header)[0] == 0xFEEDFACF and
+            struct.unpack_from("<I", header, 12)[0] == 8,
+            "normal install strip requires thin Mach-O64 bundle")
+    strip_install_stanza(original, resolve(script_ref, roots).read_text(encoding="utf-8"))
+    process = validated_process(build_ref, roots)
+    require(process["returncode"] == 0, "normal module build failed")
+    stdout = resolve(process["stdout"], roots).read_text(encoding="utf-8", errors="replace")
+    require(any(line.startswith("-- Installing: ") and
+                line.endswith("/meshvale_repair/" + original.name) for line in stdout.splitlines()),
+            "missing actual normal module install transcript")
+    return tool, process
+
+
+def validated_native_member(module, roots, receiver):
+    """Return the actual final wheel member; never replay a tool or import code."""
+    for name in ("post_link", "pre_repair_member", "post_repair_member", "wheel"):
+        resolve(module[name], roots)
+    original, before, final = (module[name] for name in
+                              ("post_link", "pre_repair_member", "post_repair_member"))
+    require((original["bytes"], original["sha256"]) == (before["bytes"], before["sha256"]),
+            "pre-transform member differs from actual linked module")
+    transform = module["repair_transform"]
+    if transform is None:
+        require((original["bytes"], original["sha256"]) == (final["bytes"], final["sha256"]),
+                "wheel member differs from actual linked module")
+    else:
+        record_path = resolve(transform, roots)
+        record = load(record_path)
+        require(type(record) is dict and set(record) == {
+            "schema", "mode", "configuration", "input", "output", "tool", "tool_observation",
+            "install_script", "cmake_cache", "build_process", "copy_observation", "replay_process"},
+            "invalid normal install strip verification record")
+        require(record["schema"] == STRIP_VERIFICATION_SCHEMA and record["mode"] == STRIP_VERIFICATION_MODE,
+                "unknown normal install strip verification mode")
+        verify_refs(record, roots)
+        same_refs(record["input"], roots, original, roots)
+        same_refs(record["cmake_cache"], roots, receiver["generator"]["cache"], roots)
+        same_refs(record["build_process"], roots, module["build_record"], roots)
+        require(record["configuration"] == receiver["generator"]["selected_configuration"],
+                "normal install strip selected configuration mismatch")
+        linked = resolve(original, roots)
+        tool, built = validated_strip_inputs(linked, record["cmake_cache"], record["install_script"],
+            record["build_process"], roots, record["configuration"])
+        snapshot = resolve(record["tool"], roots)
+        replay_output = resolve(record["output"], roots)
+        evidence = Path(roots["evidence"]).resolve(strict=True)
+        directory = record_path.parent
+        require(snapshot.is_relative_to(evidence) and replay_output.is_relative_to(evidence) and
+                record_path.name == "verification.json" and
+                snapshot == directory / "tool-snapshot/strip.bin" and
+                replay_output == directory / "replay" / linked.name and
+                resolve(record["install_script"], roots) == directory / "cmake_install.cmake" and
+                resolve(record["replay_process"], roots) == directory / "process/process.json" and
+                not (Path(roots[record["tool"]["root"]]) / record["tool"]["path"]).is_symlink() and
+                not (Path(roots[record["output"]["root"]]) / record["output"]["path"]).is_symlink() and
+                snapshot != tool and replay_output != linked and snapshot != replay_output and
+                record["tool"]["bytes"] > 0, "invalid owned strip replay files")
+        require(replay_output.name == linked.name == PurePosixPath(module["wheel_member_name"]).name,
+                "normal install strip replay basename mismatch")
+        observation = record["tool_observation"]
+        require(type(observation) is dict and set(observation) == {"canonical_path", "before", "after"} and
+                observation["canonical_path"] == SYSTEM_STRIP, "invalid actual strip tool observation")
+        times = []
+        for label in ("before", "after"):
+            item = observation[label]
+            require(type(item) is dict and set(item) == {"observed_bytes", "observed_sha256", "completed_utc"} and
+                    type(item["observed_bytes"]) is int and
+                    (item["observed_bytes"], item["observed_sha256"]) ==
+                    (record["tool"]["bytes"], record["tool"]["sha256"]), "actual strip tool drift")
+            times.append(utc_observation(item["completed_utc"]))
+        require(tool.stat().st_size == record["tool"]["bytes"] and sha(tool) == record["tool"]["sha256"],
+                "actual strip tool drift")
+        copied = record["copy_observation"]
+        require(type(copied) is dict and set(copied) == {
+            "working_relative_path", "observed_bytes", "observed_sha256", "completed_utc"} and
+            type(copied["observed_bytes"]) is int and copied["working_relative_path"] ==
+            replay_output.relative_to(evidence).as_posix() and
+            (copied["observed_bytes"], copied["observed_sha256"]) == (original["bytes"], original["sha256"]),
+            "invalid strip replay copy-before observation")
+        replay = validated_process(record["replay_process"], roots)
+        require(replay["returncode"] == 0 and replay["argv"] == [SYSTEM_STRIP, "-x", str(replay_output)] and
+                replay["cwd"] == str(replay_output.parent), "strip verification replay failed or changed command")
+        same_refs(replay["inputs"], roots,
+                  [record[key] for key in ("input", "tool", "install_script", "cmake_cache")], roots)
+        same_refs(replay["outputs"], roots, [record["output"]], roots)
+        require((record["output"]["bytes"], record["output"]["sha256"]) == (final["bytes"], final["sha256"]),
+                "strip verification output differs from actual wheel member")
+        require(utc_observation(built["ended_utc"]) <= utc_observation(copied["completed_utc"]) <= times[0] <=
+                utc_observation(replay["started_utc"]) <= utc_observation(replay["ended_utc"]) <= times[1],
+                "strip verification observation chronology mismatch")
+    with zipfile.ZipFile(resolve(module["wheel"], roots)) as package:
+        member = module["wheel_member_name"]
+        require(member.startswith("meshvale_repair/_repair.") and member.endswith((".pyd", ".so")) and
+                package.namelist().count(member) == 1, "invalid normal wheel module member")
+        payload = package.read(member)
+        require(len(payload) == final["bytes"] and hashlib.sha256(payload).hexdigest() == final["sha256"],
+                "wheel/module mismatch")
+    return final
+
+
 def validated_compile(record, roots):
     verify_refs(record, roots)
     current = generator(resolve(record["generator"]["cache"], roots),
@@ -755,6 +920,8 @@ def validated_receiver(path):
     producer_path = resolve(receiver["producer_record"], roots)
     producer = validated_producer(producer_path)
     validated_compile(receiver["receiver"], roots)
+    module = receiver["module_build"]
+    final_member = validated_native_member(module, roots, receiver["receiver"])
     require(Path(roots["sdk"]).resolve() == Path(producer["roots"]["sdk"]).resolve() and
             Path(roots["producer_source"]).resolve() == Path(producer["roots"]["producer_source"]).resolve(),
             "receiver substituted producer roots")
@@ -772,7 +939,7 @@ def validated_receiver(path):
         verify_sdist_regeneration(resolve(receiver["sources"]["sdist"], roots),
             resolve(receiver["sources"]["sdist_member_manifest"], roots),
             resolve(receiver["sources"]["repair_manifest"], roots),
-            resolve(module["wheel"], roots), module["wheel_member_name"], module["post_link"]["sha256"])
+            resolve(module["wheel"], roots), module["wheel_member_name"], final_member["sha256"])
     bridge = load(resolve(receiver["sources"]["raw_lf_bridge"], roots))
     require(set(bridge) == {"original_manifest", "required", "generated_version_paths"}, "invalid source bridge")
     verify_refs(bridge, roots)
@@ -811,14 +978,6 @@ def validated_receiver(path):
     headers = [row for row in dependencies["files"] if "/meshvale/interchange/" in row["path"].replace("\\", "/")]
     require(headers and all(Path(row["path"]).resolve().is_relative_to(sdk / "include") for row in headers),
             "substituted module SDK headers")
-    require(module["repair_transform"] is None, "repair transform requires separately implemented process verification")
-    require(module["post_link"]["sha256"] == module["pre_repair_member"]["sha256"] == module["post_repair_member"]["sha256"],
-            "wheel member differs from actual linked module")
-    import zipfile
-    with zipfile.ZipFile(resolve(module["wheel"], roots)) as package:
-        member = module["wheel_member_name"]
-        require(member.startswith("meshvale_repair/_repair.") and member.endswith((".pyd", ".so")) and
-                hashlib.sha256(package.read(member)).hexdigest() == module["post_link"]["sha256"], "wheel/module mismatch")
     inventory = load(resolve(receiver["positive_inventory"], roots))
     require(inventory == load(DATA / "positive-inventory.json"), "unexpected-test-inventory")
     for row in inventory["methods"]:
@@ -842,16 +1001,17 @@ def validated_cohort(path):
         same_refs(manifest[name], roots, receiver[name], receiver["roots"])
     for name, value in receiver["module_build"].items():
         same_refs(manifest["module"][name], roots, value, receiver["roots"])
+    final_member = validated_native_member(manifest["module"], roots, manifest["receiver"])
     loader = checked_schema(load(resolve(manifest["module"]["loader_observation"], roots)), "loader")
     verify_refs(loader, roots)
     native = resolve(manifest["module"]["installed_member"], roots)
     require(native.is_relative_to(Path(roots["installed"]).resolve()) and
             loader["module_file"] == str(native) and loader["spec_origin"] == str(native) and
             native.is_relative_to(Path(loader["sys_prefix"]).resolve()), "module-identity-mismatch")
-    require(all(ref["sha256"] == manifest["module"]["post_link"]["sha256"] for ref in
+    require(all(ref["sha256"] == final_member["sha256"] for ref in
                 (loader["before_import"], loader["after_import"], loader["wheel_member"], manifest["module"]["installed_member"])),
             "module-identity-mismatch")
-    require(sha(native) == manifest["module"]["post_link"]["sha256"], "module-identity-mismatch")
+    require(sha(native) == final_member["sha256"], "module-identity-mismatch")
     return manifest
 
 

@@ -15,6 +15,7 @@ import shutil
 import sys
 import tarfile
 import zipfile
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 # -I removes the script directory as well as the working directory. Load only
@@ -26,7 +27,8 @@ from gltf_deformation_test_support import (
     require, resolve, save, sha, verify_dependencies, verify_file_manifest, verify_refs,
     capture_dependencies,
     remap_refs, validated_producer,
-    validated_receiver,
+    validated_receiver, validated_native_member, validated_strip_inputs,
+    STRIP_VERIFICATION_SCHEMA, STRIP_VERIFICATION_MODE, SYSTEM_STRIP,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -338,6 +340,72 @@ def extract_regular_sdist(package, destination):
                 shutil.copyfileobj(source, output)
 
 
+def normal_install_strip_verification(module, native, build, compiled, output, roots, configuration):
+    """Replay the selected install transform on an owned copy, never the module.
+
+    The original nested install command is unobserved. This independent replay
+    must reproduce the actual wheel member exactly, including all metadata.
+    The system tool snapshot is retained as data and is never executed.
+    """
+    if sha(module) == sha(native) and module.stat().st_size == native.stat().st_size:
+        return None
+    directory = output / "normal-install-strip"
+    directory.mkdir(exist_ok=False)
+    script_ref = copied(build / "cmake_install.cmake", directory / "cmake_install.cmake", roots)
+    cache_ref = compiled["generator"]["cache"]
+    build_ref = artifact(output / "wheel-build/process.json", roots)
+    tool, _ = validated_strip_inputs(module, cache_ref, script_ref, build_ref, roots, configuration)
+    snapshot_ref = copied(tool, directory / "tool-snapshot/strip.bin", roots)
+    working = directory / "replay" / module.name
+    working.parent.mkdir(exist_ok=False)
+    shutil.copyfile(module, working)
+    original_ref = artifact(module, roots)
+    require(not working.is_symlink() and working.stat().st_size == original_ref["bytes"] and
+            sha(working) == original_ref["sha256"], "strip replay working copy changed before execution")
+    copy_observation = {"working_relative_path": working.relative_to(Path(roots["evidence"])).as_posix(),
+        "observed_bytes": working.stat().st_size, "observed_sha256": sha(working),
+        "completed_utc": datetime.now(timezone.utc).isoformat()}
+    save(directory / "copy-before.json", copy_observation)
+
+    def observed_tool():
+        return {"observed_bytes": tool.stat().st_size, "observed_sha256": sha(tool),
+                "completed_utc": datetime.now(timezone.utc).isoformat()}
+
+    observation = {"canonical_path": SYSTEM_STRIP, "before": observed_tool(), "after": None}
+    require((observation["before"]["observed_bytes"], observation["before"]["observed_sha256"]) ==
+            (snapshot_ref["bytes"], snapshot_ref["sha256"]), "actual strip tool drift before replay")
+    save(directory / "tool-before.json", observation["before"])
+    try:
+        _, replay = capture([SYSTEM_STRIP, "-x", working], working.parent,
+            directory / "process", roots,
+            inputs=[module, resolve(snapshot_ref, roots), resolve(script_ref, roots), resolve(cache_ref, roots)],
+            outputs=[working])
+    except BaseException:
+        # Preserve the first launch/process/input failure if the after-read
+        # also fails. Earlier raw process/launch records remain untouched.
+        try:
+            save(directory / "tool-after.json", observed_tool())
+        except (OSError, ValueError):
+            pass
+        raise
+    else:
+        observation["after"] = observed_tool()
+        save(directory / "tool-after.json", observation["after"])
+    success(replay, "normal install strip verification replay")
+    require((observation["after"]["observed_bytes"], observation["after"]["observed_sha256"]) ==
+            (snapshot_ref["bytes"], snapshot_ref["sha256"]), "actual strip tool drift after replay")
+    require(working.stat().st_size == native.stat().st_size and sha(working) == sha(native),
+            "normal install strip replay differs from actual wheel member")
+    record = {"schema": STRIP_VERIFICATION_SCHEMA, "mode": STRIP_VERIFICATION_MODE,
+        "configuration": configuration, "input": original_ref, "output": artifact(working, roots),
+        "tool": snapshot_ref, "tool_observation": observation, "install_script": script_ref,
+        "cmake_cache": cache_ref, "build_process": build_ref, "copy_observation": copy_observation,
+        "replay_process": artifact(directory / "process/process.json", roots)}
+    save(directory / "verification.json", record)
+    verify_refs(record, roots)
+    return artifact(directory / "verification.json", roots)
+
+
 def wheel(options):
     producer_path = Path(options.producer).resolve(strict=True)
     source = Path(options.source).resolve(strict=True)
@@ -430,7 +498,7 @@ def wheel(options):
         require(len(members) == 1, "missing/ambiguous wheel native member")
         native = output / "wheel-native.bin"
         native.write_bytes(package.read(members[0]))
-    require(sha(native) == sha(module), "wheel native file differs from actual linked module; transform evidence required")
+    transform = normal_install_strip_verification(module, native, build, compiled, output, roots, configuration)
     save(output / "normal-defines.json", {"compile_entry": artifact(output / "compile/production-command.json", roots),
          "argv": argv, "test_variant": False})
     record = {"schema": "meshvale.gltf-deformation-python-receiver/1", "origin": options.origin,
@@ -446,11 +514,12 @@ def wheel(options):
              "actual_link_process": artifact(output / "wheel-build/process.json", roots),
              "resolved_link_inputs": artifact(output / "resolved-link-inputs.json", roots),
              "actual_header_dependencies": compiled["dependency_headers"], "wheel": artifact(wheels[0], roots),
-             "wheel_member_name": members[0], "pre_repair_member": artifact(native, roots),
-             "post_repair_member": artifact(native, roots), "repair_transform": None},
+             "wheel_member_name": members[0], "pre_repair_member": artifact(module, roots),
+             "post_repair_member": artifact(native, roots), "repair_transform": transform},
          "positive_inventory": copied(DATA / "positive-inventory.json", output / "positive-inventory.json", roots)}
     checked_schema(record, "receiver")
     verify_refs(record, roots)
+    validated_native_member(record["module_build"], roots, compiled)
     validated_producer(producer_path)
     save(output / "receiver.json", record)
     return output / "receiver.json"
@@ -483,6 +552,7 @@ def installed(options):
     receiver_path = Path(options.receiver).resolve(strict=True)
     received, produced = validated_receiver(receiver_path)
     old_roots = received["roots"]
+    final_member = validated_native_member(received["module_build"], old_roots, received["receiver"])
     wheel_path = Path(options.wheel).resolve(strict=True)
     require(wheel_path == resolve(received["module_build"]["wheel"], old_roots), "installed wheel not built origin")
     output = Path(options.output).resolve()
@@ -501,7 +571,7 @@ def installed(options):
                              "before", "after", "python", "python_version", "metadata"}, "invalid loader output")
     require(observed["module_name"] == observed["spec_name"] == "meshvale_repair._repair" and
             observed["module_file"] == observed["spec_origin"] == observed["expected_file"] and
-            observed["before"] == observed["after"] == received["module_build"]["post_link"]["sha256"],
+            observed["before"] == observed["after"] == final_member["sha256"],
             "module-identity-mismatch")
     roots["installed"] = observed["sys_prefix"]
     native = Path(observed["module_file"])
