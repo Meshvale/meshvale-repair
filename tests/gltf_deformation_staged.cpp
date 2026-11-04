@@ -151,19 +151,19 @@ struct Fixture {
 };
 struct Witness {
   struct Slot {
-    own::NativeWorkerRecord wrapped;
+    own::NativeWorkerRecord wrapped{};
     own::NativeWorkerRecord* original = nullptr;
     Witness* witness = nullptr;
   };
   const Fixture& fixture;
   Action action;
-  std::stop_source stop;
-  std::array<Slot, kWorkerCapacity> slots;
+  std::stop_source stop{};
+  std::array<Slot, kWorkerCapacity> slots{};
   std::size_t launched = 0, joined = 0, prepared = 0;
   std::atomic<std::size_t> entered{0}, exited{0};
   std::atomic<bool> entered_after_staged{true};
-  std::optional<ic::GltfDeformationObservation> read, reload, verified;
-  std::vector<std::byte> conditional;
+  std::optional<ic::GltfDeformationObservation> read{}, reload{}, verified{};
+  std::vector<std::byte> conditional{};
   bool corrupted = false;
   static void Admitted(const ic::GltfFileVerifiedContent& content,
                        std::uint64_t, void* opaque) {
