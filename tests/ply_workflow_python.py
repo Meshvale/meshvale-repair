@@ -22,6 +22,7 @@ import json
 import os
 from pathlib import Path
 import re
+import runpy
 import subprocess
 import sys
 import sysconfig
@@ -44,6 +45,10 @@ OBSERVATION_KEYS = frozenset((
 MAX_INPUT_BYTES = 64 * 1024 * 1024
 MAX_FIXTURE_FILES = 1024
 REQUEST_SCHEMA = "meshvale.repair.ply-jobs/1"
+_ORACLE_PATH = Path(__file__).with_name("physical_oracle.py")
+if not _ORACLE_PATH.is_file():
+    _ORACLE_PATH = Path(__file__).parent / "ply-physical-oracle/physical_oracle.py"
+verify_physical_ply = runpy.run_path(str(_ORACLE_PATH))["verify_physical_ply"]
 
 
 def require(condition, message):
@@ -277,6 +282,7 @@ class Integration:
                 "complete flat physical publication inventory")
         entry = read(destination / name)
         require(encoding(entry) == job["encoding"], "independent physical encoding header")
+        verify_physical_ply(entry, self.literal, "changed" if changed else "unchanged", job["encoding"])
         require(read(destination / "meshvale-report.json") == payload, "physical receipt equals delivered native bytes")
         # This is serialization parity, not a new scalar decoder or oracle.
         reference = self.fixture / self.cell_name(src, changed, job["encoding"]) / "bundle" / "source.ply"
@@ -533,7 +539,7 @@ class Integration:
                        "runtime": self.runtime, "input_sha256": self.input_hashes, "events": self.events,
                        "planned_scopes": {"balanced_api_matrix": 18, "serial_api_parity": 2,
                                   "single_cells_per_command_route": 18, "batch_cells_per_command_route": 18,
-                                  "entry_bytes": "same-matrix native parity; independent literal maps/counts/schema",
+                                  "entry_bytes": "independent physical typed values/bits/lists/directed loops plus native byte parity",
                                   "native_results_substituted": False}}
             write_json(self.root / "integration-results.json", summary)
             print(json.dumps({"passed": passed, "events": len(self.events), "error": error}, ensure_ascii=True))

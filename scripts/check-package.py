@@ -58,6 +58,8 @@ def inspect(path):
             assert not any(part in {".local",".scratch","__pycache__","references","build",".github"} for part in parts),name
             assert not name.endswith((".pyc",".pyd",".so",".obj",".log")),name
         for required in [".clang-format", ".gitattributes", ".git_archival.txt",
+                         "tests/ply-physical-oracle/physical_oracle.py",
+                         "tests/ply-physical-oracle/test_physical_oracle.py",
                          "scripts/gltf-deformation-test-evidence.py",
                          "scripts/check-gltf-deformation-python.py",
                          "scripts/gltf_deformation_test_support.py",

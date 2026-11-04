@@ -63,6 +63,8 @@ def ply_installed(options, root):
     inputs.mkdir()
     copied = {}
     for relative in ("tests/ply_workflow_python.py", "docs/ply-presets.json",
+                     "tests/ply-physical-oracle/physical_oracle.py",
+                     "tests/ply-physical-oracle/test_physical_oracle.py",
                      "tests/fixtures/ply-workflow/literal-predicates.json"):
         destination = inputs / Path(relative).name
         shutil.copyfile(root / relative, destination)
@@ -114,6 +116,8 @@ assert len(rows)==31 and Counter(x['exit_code'] for x in rows)=={0:29,1:1,2:1}
 pathlib.Path(sys.argv[2]).write_text(json.dumps({'passed':True,'validator_version':m.version('meshvale-geometry'),'validator_sha256':hashlib.sha256(pathlib.Path(meshvale_reports.__file__).read_bytes()).hexdigest(),'reports':rows},indent=2)+chr(10),encoding='utf8')
 """
     run(python, "-I", "-c", shared, options.ply_cases.resolve(), output / "shared-reports.json", cwd=output)
+    run(python, "-I", inputs / "test_physical_oracle.py", "--fixture-root", fixture,
+        "--literal-oracles", inputs / "literal-predicates.json", cwd=output)
     run(python, "-I", inputs / "ply_workflow_python.py", "--fixture-root", fixture,
         "--output-root", output / "results", "--literal-oracles", inputs / "literal-predicates.json",
         "--presets", inputs / "ply-presets.json", "--native-version", options.ply_native_version,
