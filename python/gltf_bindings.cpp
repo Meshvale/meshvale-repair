@@ -488,6 +488,7 @@ nb::object Run(nb::handle prepared) {
   result->state = InvocationState::kRunning;
   try {
 #if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
+    binding_test::ApplyStagedWork(result->preset, result->extraction);
     binding_test::ObserveStopSource(result->stop);
 #endif
     {
@@ -541,6 +542,7 @@ nb::object Run(nb::handle prepared) {
       }
     }
 #if defined(MESHVALE_REPAIR_GLTF_BINDING_TESTS)
+    binding_test::FinishStagedWork();
     binding_test::BeforeReturn(prepared);
 #endif
     result->state = InvocationState::kComplete;

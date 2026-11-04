@@ -76,9 +76,10 @@ DEFORMATION_SINGLE_GENERATORS = frozenset({
     "MinGW Makefiles", "MSYS Makefiles",
 })
 DEFORMATION_MULTI_GENERATORS = frozenset({"Ninja Multi-Config", "Xcode"})
-# Preserve the existing private selector/cache names; both positives now share it.
+# Preserve the existing private selector/cache names; all three positives now share it.
 DEFORMATION_POSITIVE_TESTS = frozenset({
     "gltf_deformation_policy_applicability", "gltf_deformation_format_preservation",
+    "gltf_deformation_staged_controls",
 })
 
 

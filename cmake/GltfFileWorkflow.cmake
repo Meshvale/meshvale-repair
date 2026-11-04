@@ -64,7 +64,7 @@ install(TARGETS meshvale_repair_gltf_file_workflow EXPORT MeshvaleRepairTargets
 install(FILES include/meshvale/repair/gltf_file_workflow.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/meshvale/repair")
 
-function(meshvale_select_deformation_positive_tests target applicability_target)
+function(meshvale_select_deformation_positive_tests target applicability_target staged_target)
   set(_meshvale_probed_configuration "")
   set(_meshvale_eligible_configurations "")
   # Generator identity is read-only CMake state, never inferred from a
@@ -157,6 +157,10 @@ int main() { return 0; }
         COMMAND ${applicability_target}
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gltf-deformation-end-to-end/d04-dense-float-0-2-5-stride.gltf"
         CONFIGURATIONS ${_meshvale_eligible_configurations})
+      add_test(NAME gltf_deformation_staged_controls
+        COMMAND ${staged_target}
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gltf-deformation-staged"
+        CONFIGURATIONS ${_meshvale_eligible_configurations})
       add_test(NAME gltf_deformation_format_preservation
         COMMAND ${target}
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gltf-deformation-format"
@@ -167,6 +171,9 @@ int main() { return 0; }
       add_test(NAME gltf_deformation_policy_applicability
         COMMAND ${applicability_target}
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gltf-deformation-end-to-end/d04-dense-float-0-2-5-stride.gltf")
+      add_test(NAME gltf_deformation_staged_controls
+        COMMAND ${staged_target}
+          "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gltf-deformation-staged")
       add_test(NAME gltf_deformation_format_preservation
         COMMAND ${target}
           "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/gltf-deformation-format")
@@ -202,9 +209,15 @@ function(meshvale_add_gltf_file_workflow_tests)
       PRIVATE meshvale::gltf_file_workflow)
     meshvale_warnings(meshvale_gltf_deformation_format_preservation_tests)
     meshvale_strict_floating_point(meshvale_gltf_deformation_format_preservation_tests)
+    add_executable(meshvale_gltf_deformation_staged_tests tests/gltf_deformation_staged.cpp)
+    target_include_directories(meshvale_gltf_deformation_staged_tests PRIVATE src)
+    target_link_libraries(meshvale_gltf_deformation_staged_tests PRIVATE meshvale::gltf_file_workflow)
+    meshvale_warnings(meshvale_gltf_deformation_staged_tests)
+    meshvale_strict_floating_point(meshvale_gltf_deformation_staged_tests)
     meshvale_select_deformation_positive_tests(
       meshvale_gltf_deformation_format_preservation_tests
-      meshvale_gltf_deformation_policy_applicability_tests)
+      meshvale_gltf_deformation_policy_applicability_tests
+      meshvale_gltf_deformation_staged_tests)
     add_test(NAME gltf_file_workflow_semantics COMMAND meshvale_gltf_file_workflow_tests)
     add_executable(meshvale_gltf_file_workflow_request_tests tests/gltf_file_workflow_requests.cpp)
     target_include_directories(meshvale_gltf_file_workflow_request_tests PRIVATE src)

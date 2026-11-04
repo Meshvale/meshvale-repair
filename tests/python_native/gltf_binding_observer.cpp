@@ -17,6 +17,7 @@
 
 #include "gltf_binding_allocation.h"
 #include "gltf_file_workflow_test_internal.h"
+#include "gltf_presets.h"
 #include "materialized_duplicate_allocation.h"
 #include "materialized_duplicate_workers.h"
 
@@ -60,6 +61,10 @@ std::array<Domain, kDomainCount> domains;
 constinit std::atomic<bool> counting{false};
 constinit std::atomic<bool> fail_next{false};
 Mode mode = Mode::kIdle;
+enum class StagedWork { kNone, kWeightRows, kFileReport };
+StagedWork pending_staged_work = StagedWork::kNone;
+StagedWork active_staged_work = StagedWork::kNone;
+StagedWork applied_staged_work = StagedWork::kNone;
 ProbeOutcome probe = ProbeOutcome::kNotAttempted;
 bool installed = false;
 bool return_armed = false;
@@ -116,6 +121,10 @@ struct ReportWorkers {
   std::atomic<std::size_t> entered{0};
   std::atomic<bool> stop_requested{false};
   std::atomic<bool> stop_accepted{false};
+  bool freeze_allocations = true;
+  bool require_staged = false;
+  bool staged_seen = false;
+  std::atomic<bool> entered_after_staged{true};
   static void Entry(own::NativeWorkerRecord& record) noexcept {
     auto& slot = *static_cast<Slot*>(record.state);
     auto& self = *slot.owner;
@@ -123,8 +132,10 @@ struct ReportWorkers {
       self.stop_accepted = observed_stop && observed_stop->request_stop();
       // The real report worker records are already admitted. Freeze only the
       // named Repair backends; the publisher is never replaced or invoked.
-      wrapper.frozen = memory.frozen = true;
+      if (self.freeze_allocations) wrapper.frozen = memory.frozen = true;
     }
+    if (self.require_staged && !self.staged_seen)
+      self.entered_after_staged = false;
     ++self.entered;
     slot.original->entry(*slot.original);
   }
@@ -254,6 +265,9 @@ void Setup(std::string_view selected) {
   report_workers.launched = report_workers.joined = 0;
   report_workers.entered = 0;
   report_workers.stop_requested = report_workers.stop_accepted = false;
+  report_workers.freeze_allocations = true;
+  report_workers.require_staged = report_workers.staged_seen = false;
+  report_workers.entered_after_staged = true;
   counting = false;
   fail_next = false;
   if (mode == Mode::kNormal || mode == Mode::kPositive ||
@@ -306,8 +320,47 @@ nb::object RefuseProperty(nb::handle value, nb::handle name) {
   if (!result.is_valid()) throw nb::python_error();
   return result;
 }
+void SetupStagedWork(std::string_view selected) {
+  Require(!installed && pending_staged_work == StagedWork::kNone &&
+              active_staged_work == StagedWork::kNone,
+          "one inactive test-only staged work override required");
+  if (selected == "weight-row-partitions")
+    pending_staged_work = StagedWork::kWeightRows;
+  else if (selected == "file-report-worker")
+    pending_staged_work = StagedWork::kFileReport;
+  else
+    throw nb::value_error("unknown staged work override");
+}
+void StagedContent(const interchange::GltfFileVerifiedContent& content,
+                   std::uint64_t, void*) {
+  const auto* read = content.inspection.ReloadedAsset().DeformationReadFacts();
+  const auto* reload =
+      content.inspection.ReloadedExtraction().DeformationFacts();
+  Require(read && read->complete && reload && reload->complete &&
+              content.staged_deformation &&
+              content.staged_deformation->complete,
+          "FILE worker control requires genuine completed staged returns");
+  report_workers.staged_seen = true;
+}
+nb::dict StagedWorkStats() {
+  nb::dict result;
+  result["weight_work_applied"] =
+      applied_staged_work == StagedWork::kWeightRows;
+  result["file_report_work_applied"] =
+      applied_staged_work == StagedWork::kFileReport;
+  result["override_consumed"] = pending_staged_work == StagedWork::kNone &&
+                                active_staged_work == StagedWork::kNone;
+  result["staged_seen"] = report_workers.staged_seen;
+  result["entered_after_staged"] = report_workers.entered_after_staged.load();
+  result["launched"] = report_workers.launched;
+  result["entered"] = report_workers.entered.load();
+  result["joined"] = report_workers.joined;
+  result["stop_accepted"] = report_workers.stop_accepted.load();
+  return result;
+}
 }  // namespace
 void Restore() noexcept {
+  pending_staged_work = active_staged_work = StagedWork::kNone;
   allocation::Refuse(false);
   counting = false;
   fail_next = false;
@@ -352,6 +405,11 @@ AllocationScope BeforeReportBytes() {
 }
 gltf_file_workflow_detail::FileWorkflowTestOptions WorkflowOptions() {
   gltf_file_workflow_detail::FileWorkflowTestOptions options;
+  if (active_staged_work == StagedWork::kFileReport) {
+    options.report_worker_backend = report_workers.Backend();
+    options.after_hash_admission = StagedContent;
+    return options;
+  }
   if (mode == Mode::kNormal || mode == Mode::kPositive ||
       mode == Mode::kPositiveRefused || mode == Mode::kReportCanceled) {
     options.allocation_backend = wrapper.Backend();
@@ -363,7 +421,45 @@ gltf_file_workflow_detail::FileWorkflowTestOptions WorkflowOptions() {
   return options;
 }
 void ObserveStopSource(const std::stop_source& source) noexcept {
-  if (mode == Mode::kReportCanceled) observed_stop = source;
+  if (mode == Mode::kReportCanceled ||
+      active_staged_work == StagedWork::kFileReport)
+    observed_stop = source;
+}
+void ApplyStagedWork(GltfPreset& preset,
+                     interchange::GltfExtractionRequest& extraction) {
+  active_staged_work = pending_staged_work;
+  pending_staged_work = StagedWork::kNone;
+  applied_staged_work = active_staged_work;
+  if (active_staged_work == StagedWork::kNone) return;
+  Require(!installed && extraction.processing_profile ==
+                            interchange::GltfProcessingProfile::
+                                kDeformationRetainedTrianglesV1,
+          "staged work override requires one owned deformation invocation");
+  if (active_staged_work == StagedWork::kWeightRows) {
+    // The frozen D04 source has24 decode and24 role units. Each influence
+    // row therefore has its own logical job under this finite test policy.
+    constexpr std::uint64_t kPlanUnits = 24;
+    const interchange::GltfDeformationWorkPolicy work{1, 1, 1,          1,
+                                                      1, 1, kPlanUnits, 1};
+    preset.source_deformation.work = work;
+    extraction.deformation.work = work;
+  } else {
+    constexpr std::uint64_t kPartitionBytes = 256;
+    constexpr std::uint64_t kCheckpointBytes = 64;
+    constexpr std::uint64_t kJobs = 3;
+    preset.workflow_work.report = {1, kPartitionBytes, kCheckpointBytes, kJobs};
+    report_workers.launched = report_workers.joined = 0;
+    report_workers.entered = 0;
+    report_workers.stop_requested = report_workers.stop_accepted = false;
+    report_workers.freeze_allocations = false;
+    report_workers.require_staged = true;
+    report_workers.staged_seen = false;
+    report_workers.entered_after_staged = true;
+  }
+}
+void FinishStagedWork() noexcept {
+  active_staged_work = StagedWork::kNone;
+  observed_stop.reset();
 }
 void AfterNativeReturn() noexcept {
   if (!installed) return;
@@ -399,6 +495,8 @@ void BeforeReturn(nb::handle prepared) noexcept {
   }
 }
 void RegisterObserverBindings(nb::module_& module) {
+  module.def("_staged_work_mode", &SetupStagedWork);
+  module.def("_staged_work_stats", &StagedWorkStats);
   module.def("_observer_setup", &Setup);
   module.def("_observer_finish", &Finish);
   module.def("_observer_restore", &Restore);

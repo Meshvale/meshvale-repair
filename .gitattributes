@@ -12,3 +12,4 @@ tests/fixtures/gltf-deformation-format/** -text whitespace=blank-at-eol,blank-at
 tests/gltf-deformation-python/test_gltf_deformation_animation_sparse_end_to_end.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 tests/gltf-deformation-python/test_gltf_deformation_end_to_end.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 tests/gltf-deformation-python/test_gltf_deformation_rich_end_to_end.py -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+tests/fixtures/gltf-deformation-staged/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
