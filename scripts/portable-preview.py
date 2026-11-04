@@ -20,7 +20,7 @@ GEOMETRY_VERSION = "0.0.1.dev134+g48298b24b"
 INTERCHANGE_REVISION = "5b9b695ba1fef166baa8c7cf9ad21a5630691f70"
 INTERCHANGE_VERSION = "0.0.1.dev179+g5b9b695ba"
 # Native SDK and optional Python distribution have separate compatible owners.
-INTERCHANGE_NATIVE_REVISION = "82e955bdce6671ce4d1a930124c3b2a551dd81ff"
+INTERCHANGE_NATIVE_REVISION = "d431643cdeb77a64a614ed0af90b9ccae8f007d2"
 PACKAGE = Path(__file__).resolve().parents[1]
 
 
